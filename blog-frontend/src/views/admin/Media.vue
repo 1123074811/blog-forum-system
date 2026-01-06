@@ -1,0 +1,84 @@
+<template>
+  <div>
+    <h1 class="text-2xl font-bold mb-6">媒体管理</h1>
+    <el-table :data="mediaList" v-loading="loading">
+      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column label="预览" width="100">
+        <template #default="{ row }">
+          <img v-if="row.type === 'image'" :src="row.url" class="w-16 h-16 object-cover rounded" />
+          <video v-else :src="row.url" class="w-16 h-16 object-cover rounded" />
+        </template>
+      </el-table-column>
+      <el-table-column prop="title" label="标题" show-overflow-tooltip />
+      <el-table-column prop="description" label="描述" show-overflow-tooltip />
+      <el-table-column prop="type" label="类型" width="80" />
+      <el-table-column prop="userId" label="用户ID" width="80" />
+      <el-table-column prop="albumId" label="相册ID" width="80" />
+      <el-table-column label="状态" width="80">
+        <template #default="{ row }">
+          <el-tag :type="!!row.isPublic ? 'success' : 'info'">{{ !!row.isPublic ? '公开' : '私密' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="createdAt" label="创建时间" width="180" />
+      <el-table-column label="操作" width="150">
+        <template #default="{ row }">
+          <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-dialog v-model="showEditDialog" title="编辑媒体" width="400px">
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="标题"><el-input v-model="editForm.title" /></el-form-item>
+        <el-form-item label="描述"><el-input v-model="editForm.description" type="textarea" /></el-form-item>
+        <el-form-item label="公开"><el-switch v-model="editForm.isPublic" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEditDialog = false">取消</el-button>
+        <el-button type="primary" @click="saveEdit">保存</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import api from '@/api'
+
+const mediaList = ref([])
+const loading = ref(false)
+const showEditDialog = ref(false)
+const editForm = ref({})
+const editingId = ref(null)
+
+const loadMedia = async () => {
+  loading.value = true
+  const res = await api.get('/media/admin/all')
+  mediaList.value = res.data || []
+  loading.value = false
+}
+
+const handleEdit = (row) => {
+  editingId.value = row.id
+  editForm.value = { title: row.title, description: row.description, isPublic: !!row.isPublic }
+  showEditDialog.value = true
+}
+
+const saveEdit = async () => {
+  await api.put(`/media/admin/${editingId.value}`, editForm.value)
+  ElMessage.success('保存成功')
+  showEditDialog.value = false
+  loadMedia()
+}
+
+const handleDelete = async (row) => {
+  await ElMessageBox.confirm('确定删除该媒体？', '提示')
+  await api.delete(`/media/admin/${row.id}`)
+  ElMessage.success('删除成功')
+  loadMedia()
+}
+
+onMounted(loadMedia)
+</script>

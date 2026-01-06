@@ -1,0 +1,161 @@
+<template>
+  <div class="min-h-screen">
+    <!-- 顶部导航栏 -->
+    <header class="fixed top-0 left-0 right-0 z-50 glass">
+      <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <el-button class="lg:hidden" :icon="Menu" text @click="showMobileMenu = true" />
+          <router-link to="/" class="flex items-center gap-2">
+            <img :src="config.logo" alt="logo" class="w-8 h-8 rounded-full" />
+            <span class="text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent hidden sm:inline">{{ config.siteName }}</span>
+          </router-link>
+          <nav class="hidden lg:flex items-center gap-6 ml-8">
+            <router-link to="/" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">首页</router-link>
+            <router-link to="/search" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">发现</router-link>
+            <router-link to="/community" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">相册</router-link>
+            <router-link to="/quiz" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">刷题</router-link>
+            <router-link to="/tree-hole" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">树洞</router-link>
+          </nav>
+        </div>
+        <div class="flex items-center gap-4">
+          <el-input v-model="searchQuery" placeholder="搜索..." class="w-48 hidden md:block" @keyup.enter="handleSearch">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-button :icon="isDark ? Sunny : Moon" circle @click="userStore.toggleDark" />
+          <template v-if="userStore.isLoggedIn">
+            <el-popover placement="bottom" :width="320" trigger="click">
+              <template #reference>
+                <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
+                  <el-button :icon="Bell" circle />
+                </el-badge>
+              </template>
+              <div class="max-h-80 overflow-y-auto">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="font-bold">消息通知</span>
+                  <el-button v-if="unreadCount" type="primary" link size="small" @click="handleMarkAllRead">全部已读</el-button>
+                </div>
+                <div v-if="!notifications.length" class="text-center py-4 text-gray-500">暂无消息</div>
+                <div v-for="n in notifications" :key="n.id" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer" :class="{ 'bg-blue-50 dark:bg-blue-900/20': !n.isRead }" @click="handleNotificationClick(n)">
+                  <div class="text-sm">{{ getNotificationText(n) }}</div>
+                  <div class="text-xs text-gray-400 mt-1">{{ n.createdAt }}</div>
+                </div>
+              </div>
+            </el-popover>
+            <el-dropdown>
+              <el-avatar :src="userStore.user?.avatar" :size="36">{{ userStore.user?.username?.[0] }}</el-avatar>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="router.push(`/user/${userStore.user?.id}`)">个人主页</el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/album')">我的相册</el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/write')">写文章</el-dropdown-item>
+                  <el-dropdown-item v-if="userStore.isAdmin" @click="router.push('/admin')">管理后台</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+          <template v-else>
+            <el-button type="primary" @click="router.push('/login')">登录</el-button>
+          </template>
+        </div>
+      </div>
+    </header>
+
+    <!-- 移动端菜单 -->
+    <el-drawer v-model="showMobileMenu" direction="ltr" size="280px">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <img :src="config.logo" alt="logo" class="w-6 h-6 rounded-full" />
+          <span class="text-lg font-bold">{{ config.siteName }}</span>
+        </div>
+      </template>
+      <div class="flex flex-col gap-4">
+        <router-link to="/" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">首页</router-link>
+        <router-link to="/search" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">发现</router-link>
+        <router-link to="/community" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">相册</router-link>
+        <router-link to="/quiz" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">刷题</router-link>
+        <router-link to="/tree-hole" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">树洞</router-link>
+        <router-link v-if="userStore.isLoggedIn" to="/album" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">我的相册</router-link>
+        <router-link v-if="userStore.isLoggedIn" to="/write" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">写文章</router-link>
+      </div>
+    </el-drawer>
+
+    <!-- 主内容区 -->
+    <main class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
+      <router-view />
+    </main>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { Search, Menu, Sunny, Moon, Bell } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/api/blog'
+import config from '@/config'
+
+const router = useRouter()
+const userStore = useUserStore()
+const showMobileMenu = ref(false)
+const searchQuery = ref('')
+const isDark = ref(userStore.isDark)
+const notifications = ref([])
+const unreadCount = ref(0)
+let ws = null
+
+const fetchNotifications = async () => {
+  if (!userStore.isLoggedIn) return
+  const [res1, res2] = await Promise.all([getNotifications(), getUnreadCount()])
+  if (res1.success) notifications.value = res1.data
+  if (res2.success) unreadCount.value = res2.data.count
+}
+
+const connectWebSocket = () => {
+  if (!userStore.isLoggedIn) return
+  ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?userId=${userStore.user.id}`)
+  ws.onmessage = (e) => {
+    const n = JSON.parse(e.data)
+    notifications.value.unshift(n)
+    unreadCount.value++
+    ElMessage.info(getNotificationText(n))
+  }
+}
+
+const getNotificationText = (n) => {
+  const types = { like: '赞了你的文章', favorite: '收藏了你的文章', follow: '关注了你' }
+  return (n.fromUsername || '有人') + (types[n.type] || n.content)
+}
+
+const handleNotificationClick = async (n) => {
+  if (!n.isRead) {
+    await markAsRead(n.id)
+    n.isRead = true
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+  }
+  if (n.type === 'follow') router.push(`/user/${n.targetId}`)
+  else router.push(`/article/${n.targetId}`)
+}
+
+const handleMarkAllRead = async () => {
+  await markAllAsRead()
+  notifications.value.forEach(n => n.isRead = true)
+  unreadCount.value = 0
+}
+
+onMounted(() => { fetchNotifications(); connectWebSocket() })
+onUnmounted(() => ws?.close())
+
+const handleSearch = () => {
+  if (searchQuery.value.trim()) {
+    router.push({ path: '/search', query: { q: searchQuery.value } })
+  }
+}
+
+const handleLogout = () => {
+  userStore.logout()
+  ElMessage.success('已退出登录')
+  router.push('/')
+}
+</script>
