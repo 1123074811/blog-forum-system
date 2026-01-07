@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/albums")
@@ -75,5 +76,14 @@ public class AlbumController {
     @PutMapping("/admin/{id}")
     public ApiResponse<Album> adminUpdate(@PathVariable Long id, @RequestBody Album album) {
         return ApiResponse.success(albumService.adminUpdate(id, album));
+    }
+
+    @PostMapping("/admin/batch-delete")
+    public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            albumService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
     }
 }

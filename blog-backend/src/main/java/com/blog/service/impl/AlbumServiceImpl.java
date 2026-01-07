@@ -130,4 +130,9 @@ public class AlbumServiceImpl implements AlbumService {
         albumMapper.updateById(existing);
         return existing;
     }
+
+    @Override
+    public void removeByIds(List<Long> ids) {
+        albumMapper.deleteBatchIds(ids);
+    }
 }

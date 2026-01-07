@@ -158,4 +158,13 @@ public class QuizServiceImpl implements QuizService {
     public QuizBank getById(Long id) {
         return quizBankMapper.selectById(id);
     }
+
+    @Override
+    @Transactional
+    public void removeByIds(List<Long> ids) {
+        for (Long id : ids) {
+            questionMapper.delete(new LambdaQueryWrapper<Question>().eq(Question::getQuizBankId, id));
+        }
+        quizBankMapper.deleteBatchIds(ids);
+    }
 }

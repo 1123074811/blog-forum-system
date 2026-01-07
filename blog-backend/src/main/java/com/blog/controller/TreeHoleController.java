@@ -42,4 +42,13 @@ public class TreeHoleController {
         treeHoleService.removeById(id);
         return ApiResponse.success(null);
     }
+
+    @PostMapping("/batch-delete")
+    public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            treeHoleService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
 }

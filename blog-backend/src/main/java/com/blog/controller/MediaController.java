@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/media")
@@ -96,5 +97,14 @@ public class MediaController {
     @PutMapping("/admin/{id}")
     public ApiResponse<Media> adminUpdate(@PathVariable Long id, @RequestBody Media media) {
         return ApiResponse.success(mediaService.adminUpdate(id, media.getTitle(), media.getDescription(), media.getIsPublic()));
+    }
+
+    @PostMapping("/admin/batch-delete")
+    public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            mediaService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
     }
 }

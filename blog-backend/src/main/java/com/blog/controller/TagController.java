@@ -26,21 +26,19 @@ public class TagController {
     private final ArticleTagMapper articleTagMapper;
     private final CacheUtil cacheUtil;
 
-    private static final String TAG_LIST_KEY = "tag:list:hot";
+    private static final String TAG_HOT_KEY = "tag:list:hot";
 
     @GetMapping
     public ApiResponse<List<Tag>> getTags() {
         @SuppressWarnings("unchecked")
-        List<Tag> list = cacheUtil.get(TAG_LIST_KEY);
+        List<Tag> list = cacheUtil.get(TAG_HOT_KEY);
         if (list == null) {
             list = tagService.list();
-            // 统计每个标签的文章引用量
             Map<Long, Long> countMap = articleTagMapper.selectList(null).stream()
                     .collect(Collectors.groupingBy(ArticleTag::getTagId, Collectors.counting()));
             list.forEach(tag -> tag.setArticleCount(countMap.getOrDefault(tag.getId(), 0L)));
-            // 按引用量降序排序
             list.sort(Comparator.comparing(Tag::getArticleCount).reversed());
-            cacheUtil.set(TAG_LIST_KEY, list, 30, TimeUnit.MINUTES);
+            cacheUtil.set(TAG_HOT_KEY, list, 30, TimeUnit.MINUTES);
         }
         return ApiResponse.success(list);
     }
@@ -51,7 +49,6 @@ public class TagController {
         if (name == null || name.trim().isEmpty()) {
             return ApiResponse.error("标签名不能为空");
         }
-        // 检查是否已存在
         Tag existing = tagService.getOne(new LambdaQueryWrapper<Tag>().eq(Tag::getName, name.trim()));
         if (existing != null) {
             return ApiResponse.success(existing);
@@ -61,7 +58,8 @@ public class TagController {
         tag.setCreatedAt(DateUtil.now());
         tagService.save(tag);
         tag.setArticleCount(0L);
-        cacheUtil.delete(TAG_LIST_KEY);
+        tagService.clearCache();
+        cacheUtil.delete(TAG_HOT_KEY);
         return ApiResponse.success(tag);
     }
 }

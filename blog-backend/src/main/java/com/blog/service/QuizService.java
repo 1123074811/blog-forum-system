@@ -18,4 +18,5 @@ public interface QuizService {
     void togglePublic(Long id, Long userId, Boolean isPublic);
     void save(QuizBank quizBank);
     QuizBank getById(Long id);
+    void removeByIds(List<Long> ids);
 }

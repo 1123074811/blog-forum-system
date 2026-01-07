@@ -211,4 +211,9 @@ public class MediaServiceImpl implements MediaService {
         mediaMapper.updateById(media);
         return media;
     }
+
+    @Override
+    public void removeByIds(List<Long> ids) {
+        mediaMapper.deleteBatchIds(ids);
+    }
 }

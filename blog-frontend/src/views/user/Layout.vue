@@ -2,14 +2,14 @@
   <div class="min-h-screen">
     <!-- 顶部导航栏 -->
     <header class="fixed top-0 left-0 right-0 z-50 glass">
-      <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <el-button class="lg:hidden" :icon="Menu" text @click="showMobileMenu = true" />
-          <router-link to="/" class="flex items-center gap-2">
-            <img :src="config.logo" alt="logo" class="w-8 h-8 rounded-full" />
-            <span class="text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent hidden sm:inline">{{ config.siteName }}</span>
+      <div class="max-w-7xl mx-auto px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
+        <div class="flex items-center gap-1 sm:gap-4">
+          <el-button v-if="isMobile" :icon="Menu" text size="small" @click="showMobileMenu = true" />
+          <router-link to="/" class="flex items-center gap-1 sm:gap-2">
+            <img :src="config.logo" alt="logo" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full" />
+            <span class="text-base sm:text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent hidden sm:inline">{{ config.siteName }}</span>
           </router-link>
-          <nav class="hidden lg:flex items-center gap-6 ml-8">
+          <nav class="hidden md:flex items-center gap-6 ml-8">
             <router-link to="/" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">首页</router-link>
             <router-link to="/discover" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">发现</router-link>
             <router-link to="/community" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">相册</router-link>
@@ -17,16 +17,16 @@
             <router-link to="/tree-hole" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">树洞</router-link>
           </nav>
         </div>
-        <div class="flex items-center gap-4">
-          <el-input v-model="searchQuery" placeholder="搜索..." class="w-48 hidden md:block" @keyup.enter="handleSearch">
+        <div class="flex items-center gap-1 sm:gap-4">
+          <el-input v-model="searchQuery" placeholder="搜索..." class="w-32 sm:w-48 md:block hidden" size="small" @keyup.enter="handleSearch">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
-          <el-button :icon="isDark ? Sunny : Moon" circle @click="userStore.toggleDark" />
+          <el-button :icon="isDark ? Sunny : Moon" :size="isMobile ? 'small' : 'default'" circle @click="userStore.toggleDark" />
           <template v-if="userStore.isLoggedIn">
             <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
               <template #reference>
                 <el-badge :value="msgUnreadCount" :hidden="!msgUnreadCount" :max="99">
-                  <el-button :icon="ChatDotRound" circle />
+                  <el-button :icon="ChatDotRound" :size="isMobile ? 'small' : 'default'" circle />
                 </el-badge>
               </template>
               <div class="max-h-80 overflow-y-auto" @wheel.stop>
@@ -51,7 +51,7 @@
             <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
               <template #reference>
                 <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
-                  <el-button :icon="Bell" circle />
+                  <el-button :icon="Bell" :size="isMobile ? 'small' : 'default'" circle />
                 </el-badge>
               </template>
               <div class="max-h-80 overflow-y-auto" @wheel.stop>
@@ -67,7 +67,7 @@
               </div>
             </el-popover>
             <el-dropdown>
-              <el-avatar :src="userStore.user?.avatar" :size="36">{{ userStore.user?.username?.[0] }}</el-avatar>
+              <el-avatar :src="userStore.user?.avatar" :size="isMobile ? 28 : 36">{{ userStore.user?.username?.[0] }}</el-avatar>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="router.push(`/user/${userStore.user?.id}`)">个人主页</el-dropdown-item>
@@ -80,7 +80,7 @@
             </el-dropdown>
           </template>
           <template v-else>
-            <el-button type="primary" @click="router.push('/login')">登录</el-button>
+            <el-button type="primary" :size="isMobile ? 'small' : 'default'" @click="router.push('/login')">登录</el-button>
           </template>
         </div>
       </div>
@@ -130,7 +130,15 @@ const notifications = ref([])
 const unreadCount = ref(0)
 const msgUnreadCount = ref(0)
 const conversations = ref([])
+const isMobile = ref(window.innerWidth < 768)
 let ws = null
+
+// 监听窗口大小变化
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+window.addEventListener('resize', handleResize)
 
 const getConvUnread = (conv) => {
   return conv.user1Id === userStore.user?.id ? conv.user1Unread : conv.user2Unread
@@ -180,7 +188,10 @@ const handleMarkAllRead = async () => {
 }
 
 onMounted(() => { fetchNotifications(); connectWebSocket() })
-onUnmounted(() => ws?.close())
+onUnmounted(() => {
+  ws?.close()
+  window.removeEventListener('resize', handleResize)
+})
 
 const handleSearch = () => {
   if (searchQuery.value.trim()) {

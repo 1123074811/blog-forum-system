@@ -1,7 +1,11 @@
 <template>
   <div>
-    <h1 class="text-2xl font-bold mb-6">媒体管理</h1>
-    <el-table :data="mediaList" v-loading="loading">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">媒体管理</h1>
+      <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
+    </div>
+    <el-table :data="mediaList" v-loading="loading" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="预览" width="100">
         <template #default="{ row }">
@@ -48,6 +52,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 
 const mediaList = ref([])
+const selectedIds = ref([])
 const loading = ref(false)
 const showEditDialog = ref(false)
 const editForm = ref({})
@@ -58,6 +63,17 @@ const loadMedia = async () => {
   const res = await api.get('/media/admin/all')
   mediaList.value = res.data || []
   loading.value = false
+}
+
+const handleSelectionChange = (rows) => {
+  selectedIds.value = rows.map(r => r.id)
+}
+
+const handleBatchDelete = async () => {
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个媒体？`, '批量删除')
+  await api.post('/media/admin/batch-delete', { ids: selectedIds.value })
+  ElMessage.success('批量删除成功')
+  loadMedia()
 }
 
 const handleEdit = (row) => {

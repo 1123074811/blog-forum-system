@@ -14,4 +14,5 @@ public interface AlbumService {
     List<Album> getAllAlbums();
     void adminDelete(Long id);
     Album adminUpdate(Long id, Album album);
+    void removeByIds(List<Long> ids);
 }

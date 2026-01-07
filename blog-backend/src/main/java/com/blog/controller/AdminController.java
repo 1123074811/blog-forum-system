@@ -129,4 +129,50 @@ public class AdminController {
         tagService.removeById(id);
         return ApiResponse.success(true);
     }
+
+    // Batch Delete APIs
+    @PostMapping("/users/batch-delete")
+    public ApiResponse<Boolean> batchDeleteUsers(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            userService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
+
+    @PostMapping("/articles/batch-delete")
+    public ApiResponse<Boolean> batchDeleteArticles(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            articleService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
+
+    @PostMapping("/comments/batch-delete")
+    public ApiResponse<Boolean> batchDeleteComments(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            commentService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
+
+    @PostMapping("/categories/batch-delete")
+    public ApiResponse<Boolean> batchDeleteCategories(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            categoryService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
+
+    @PostMapping("/tags/batch-delete")
+    public ApiResponse<Boolean> batchDeleteTags(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            tagService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
 }

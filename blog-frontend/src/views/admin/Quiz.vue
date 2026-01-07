@@ -1,7 +1,11 @@
 <template>
   <div>
-    <h1 class="text-2xl font-bold mb-6">刷题管理</h1>
-    <el-table :data="quizBanks" v-loading="loading">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">刷题管理</h1>
+      <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
+    </div>
+    <el-table :data="quizBanks" v-loading="loading" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="title" label="题库名称" />
       <el-table-column prop="description" label="描述" show-overflow-tooltip />
@@ -48,6 +52,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 
 const quizBanks = ref([])
+const selectedIds = ref([])
 const loading = ref(false)
 const showEditDialog = ref(false)
 const editForm = ref({})
@@ -58,6 +63,17 @@ const loadQuizBanks = async () => {
   const res = await api.get('/quiz/admin/all')
   quizBanks.value = res.data || []
   loading.value = false
+}
+
+const handleSelectionChange = (rows) => {
+  selectedIds.value = rows.map(r => r.id)
+}
+
+const handleBatchDelete = async () => {
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个题库？`, '批量删除')
+  await api.post('/quiz/admin/batch-delete', { ids: selectedIds.value })
+  ElMessage.success('批量删除成功')
+  loadQuizBanks()
 }
 
 const handleEdit = (row) => {

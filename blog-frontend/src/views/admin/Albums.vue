@@ -1,7 +1,11 @@
 <template>
   <div>
-    <h1 class="text-2xl font-bold mb-6">相册管理</h1>
-    <el-table :data="albums" v-loading="loading">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">相册管理</h1>
+      <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
+    </div>
+    <el-table :data="albums" v-loading="loading" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="封面" width="80">
         <template #default="{ row }">
@@ -48,6 +52,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 
 const albums = ref([])
+const selectedIds = ref([])
 const loading = ref(false)
 const showEditDialog = ref(false)
 const editForm = ref({})
@@ -58,6 +63,17 @@ const loadAlbums = async () => {
   const res = await api.get('/albums/admin/all')
   albums.value = res.data || []
   loading.value = false
+}
+
+const handleSelectionChange = (rows) => {
+  selectedIds.value = rows.map(r => r.id)
+}
+
+const handleBatchDelete = async () => {
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个相册？`, '批量删除')
+  await api.post('/albums/admin/batch-delete', { ids: selectedIds.value })
+  ElMessage.success('批量删除成功')
+  loadAlbums()
 }
 
 const handleEdit = (row) => {

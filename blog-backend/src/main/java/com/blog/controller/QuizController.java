@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/quiz")
@@ -120,5 +121,14 @@ public class QuizController {
     @PutMapping("/admin/{id}")
     public ApiResponse<QuizBank> adminUpdate(@PathVariable Long id, @RequestBody QuizBank quizBank) {
         return ApiResponse.success(quizService.adminUpdate(id, quizBank));
+    }
+
+    @PostMapping("/admin/batch-delete")
+    public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            quizService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
     }
 }

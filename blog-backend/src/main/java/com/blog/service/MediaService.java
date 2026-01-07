@@ -16,4 +16,5 @@ public interface MediaService {
     List<Media> getAllMedia();
     void adminDelete(Long id);
     Media adminUpdate(Long id, String title, String description, Boolean isPublic);
+    void removeByIds(List<Long> ids);
 }
