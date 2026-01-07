@@ -1,59 +1,141 @@
 <template>
   <div class="max-w-4xl mx-auto">
-    <div class="glass rounded-xl p-6">
-      <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-4">
-          <h2 class="text-xl font-bold dark:text-white">{{ activeTab === 'public' ? '公开题库' : '我的题库' }}</h2>
-          <el-button-group>
-            <el-button :type="activeTab === 'public' ? 'primary' : 'default'" @click="switchTab('public')">公开题库</el-button>
-            <el-button :type="activeTab === 'mine' ? 'primary' : 'default'" @click="switchTab('mine')">我的题库</el-button>
-          </el-button-group>
+    <div class="glass rounded-xl p-3 sm:p-6">
+      <!-- 移动端优化布局 -->
+      <div class="space-y-3 sm:space-y-0 mb-4 sm:mb-6">
+        <!-- 标题行 -->
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg sm:text-xl font-bold dark:text-white">我的题库</h2>
+          <el-button v-if="activeTab === 'mine' && isMobile" type="primary" size="small" @click="showActionSheet = true">
+            操作
+          </el-button>
         </div>
-        <div v-if="activeTab === 'mine'" class="flex gap-2">
-          <el-button type="primary" @click="showImportDialog = true">导入题目</el-button>
-          <el-button @click="showUploadDialog = true">上传文件</el-button>
+        
+        <!-- 标签切换按钮 -->
+        <div class="flex items-center justify-between gap-2">
+          <el-button-group class="flex-1 sm:flex-initial">
+            <el-button 
+              :type="activeTab === 'public' ? 'primary' : 'default'" 
+              :size="isMobile ? 'small' : 'default'"
+              class="flex-1 sm:flex-initial"
+              @click="switchTab('public')">公开题库</el-button>
+            <el-button 
+              :type="activeTab === 'mine' ? 'primary' : 'default'" 
+              :size="isMobile ? 'small' : 'default'"
+              class="flex-1 sm:flex-initial"
+              @click="switchTab('mine')">我的题库</el-button>
+          </el-button-group>
+          
+          <!-- PC端操作按钮 -->
+          <div v-if="activeTab === 'mine' && !isMobile" class="flex gap-2">
+            <el-button type="primary" @click="showImportDialog = true">导入题目</el-button>
+            <el-button @click="showUploadDialog = true">上传文件</el-button>
+          </div>
         </div>
       </div>
 
-      <div class="space-y-4">
+      <!-- 题库列表 -->
+      <div class="space-y-3 sm:space-y-4">
         <div v-for="quiz in displayList" :key="quiz.id"
-             class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center"
+             class="p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
              @click="handleItemClick(quiz)">
-          <div class="flex items-center gap-3">
-            <el-tag :type="quiz.type === 'file' ? 'warning' : 'success'" size="small">
-              {{ quiz.type === 'file' ? '文件' : '题目' }}
-            </el-tag>
-            <div>
-              <h3 class="font-medium dark:text-white">{{ quiz.title }}</h3>
-              <p class="text-sm text-gray-500 mt-1">
-                <template v-if="quiz.type === 'file'">{{ quiz.fileType?.toUpperCase() }} 文件</template>
-                <template v-else>{{ quiz.questionCount }} 道题</template>
-                · {{ quiz.createdAt }}
-              </p>
+          <!-- 水平布局 -->
+          <div class="flex justify-between gap-3 items-center">
+            <!-- 左侧内容 -->
+            <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <el-tag :type="quiz.type === 'file' ? 'warning' : 'success'" size="small" class="flex-shrink-0">
+                {{ quiz.type === 'file' ? '文件' : '题目' }}
+              </el-tag>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-medium dark:text-white text-sm sm:text-base truncate">{{ quiz.title }}</h3>
+                <p class="text-xs sm:text-sm text-gray-500 mt-1 truncate">
+                  <template v-if="quiz.type === 'file'">{{ quiz.fileType?.toUpperCase() }} 文件</template>
+                  <template v-else>{{ quiz.questionCount }} 道题</template>
+                  · {{ formatDate(quiz.createdAt) }}
+                </p>
+              </div>
+            </div>
+            
+            <!-- 右侧操作按钮 -->
+            <div v-if="activeTab === 'mine'" class="flex gap-2 flex-shrink-0">
+              <!-- 移动端垂直排列 -->
+              <template v-if="isMobile">
+                <div class="flex flex-col gap-2 items-end mr-2" style="width: 56px;">
+                  <el-button 
+                    :type="quiz.isPublic ? 'success' : 'info'" 
+                    size="small" 
+                    style="width: 56px; height: 28px; padding: 0; font-size: 12px; min-width: 56px;"
+                    @click.stop="handleTogglePublic(quiz)">
+                    {{ quiz.isPublic ? '公开' : '私有' }}
+                  </el-button>
+                  <el-button 
+                    type="danger" 
+                    size="small" 
+                    style="width: 56px; height: 28px; padding: 0; font-size: 12px; min-width: 56px;"
+                    @click.stop="handleDelete(quiz.id)">
+                    删除
+                  </el-button>
+                </div>
+              </template>
+              <!-- PC端水平排列 -->
+              <template v-else>
+                <el-button 
+                  :type="quiz.isPublic ? 'success' : 'info'" 
+                  size="default"
+                  @click.stop="handleTogglePublic(quiz)">
+                  {{ quiz.isPublic ? '公开' : '私有' }}
+                </el-button>
+                <el-button 
+                  type="danger" 
+                  size="default"
+                  @click.stop="handleDelete(quiz.id)">
+                  删除
+                </el-button>
+              </template>
             </div>
           </div>
-          <div v-if="activeTab === 'mine'" class="flex gap-2">
-            <el-button :type="quiz.isPublic ? 'success' : 'info'" size="small" @click.stop="handleTogglePublic(quiz)">{{ quiz.isPublic ? '公开' : '私有' }}</el-button>
-            <el-button type="danger" size="small" @click.stop="handleDelete(quiz.id)">删除</el-button>
-          </div>
         </div>
-        <div v-if="!displayList.length" class="text-center py-8 text-gray-500">
+        
+        <!-- 空状态 -->
+        <div v-if="!displayList.length" class="text-center py-8 text-gray-500 text-sm">
           {{ activeTab === 'public' ? '暂无公开题库' : '暂无题库，点击上方按钮导入' }}
         </div>
       </div>
     </div>
 
+    <!-- 移动端操作面板 -->
+    <el-drawer v-model="showActionSheet" direction="btt" size="auto" :with-header="false">
+      <div class="p-4 space-y-2">
+        <el-button type="primary" size="large" class="w-full" @click="showImportDialog = true; showActionSheet = false">
+          导入题目
+        </el-button>
+        <el-button size="large" class="w-full" @click="showUploadDialog = true; showActionSheet = false">
+          上传文件
+        </el-button>
+        <el-button size="large" class="w-full" @click="showActionSheet = false">
+          取消
+        </el-button>
+      </div>
+    </el-drawer>
+
     <!-- 导入题目对话框 -->
-    <el-dialog v-model="showImportDialog" title="导入题目" width="600px">
-      <el-input v-model="importContent" type="textarea" :autosize="{ minRows: 8, maxRows: 20 }" placeholder='请输入JSON格式的题库内容，例如：
-{
+    <el-dialog v-model="showImportDialog" title="导入题目" :width="isMobile ? '95%' : '650px'" :fullscreen="isMobile">
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm text-gray-600 dark:text-gray-400">格式示例：</span>
+          <el-button size="small" text @click="copyFormatExample">复制示例</el-button>
+        </div>
+        <pre class="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs overflow-auto select-text" style="max-height: 200px;">{
   "title": "题库名称",
   "questions": [
     {"type": "single", "question": "单选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": "A", "explanation": "解析"},
     {"type": "multiple", "question": "多选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": ["A", "B"], "explanation": "解析"},
-    {"type": "judge", "question": "判断题内容", "answer": true, "explanation": "解析"}
+    {"type": "judge", "question": "判断题内容", "answer": true, "explanation": "解析"},
+    {"type": "short", "question": "简答题内容", "answer": "参考答案", "explanation": "解析"}
   ]
-}' />
+}</pre>
+      </div>
+      <el-input v-model="importContent" type="textarea" :autosize="{ minRows: 6, maxRows: 15 }" placeholder="请输入或粘贴JSON格式的题库内容" />
       <div class="mt-4">
         <el-upload :show-file-list="false" :before-upload="handleFileUpload" accept=".json,.txt">
           <el-button>从文件导入</el-button>
@@ -66,7 +148,7 @@
     </el-dialog>
 
     <!-- 上传文件对话框 -->
-    <el-dialog v-model="showUploadDialog" title="上传文件" width="500px" @close="resetUploadDialog">
+    <el-dialog v-model="showUploadDialog" title="上传文件" :width="isMobile ? '95%' : '500px'" :fullscreen="isMobile" @close="resetUploadDialog">
       <el-form label-width="80px">
         <el-form-item label="文件标题">
           <el-input v-model="uploadTitle" placeholder="请输入文件标题" />
@@ -88,7 +170,7 @@
     </el-dialog>
 
     <!-- 文件预览对话框 -->
-    <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="90%" top="3vh" @close="resetPreviewState">
+    <el-dialog v-model="showPreviewDialog" :title="previewTitle" :width="isMobile ? '100%' : '90%'" :top="isMobile ? '0' : '3vh'" :fullscreen="isMobile" @close="resetPreviewState">
       <div class="flex gap-2 mb-2">
         <el-button :type="isPanMode ? 'primary' : 'default'" size="small" @click="isPanMode = !isPanMode">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/></svg>
@@ -126,7 +208,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getQuizList, getPublicQuizList, importQuiz, deleteQuiz, toggleQuizPublic, uploadQuizFile } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -141,6 +223,8 @@ const myList = ref([])
 const showImportDialog = ref(false)
 const showUploadDialog = ref(false)
 const showPreviewDialog = ref(false)
+const showActionSheet = ref(false)
+const isMobile = ref(window.innerWidth < 768)
 const importContent = ref('')
 const importing = ref(false)
 const uploading = ref(false)
@@ -164,6 +248,44 @@ const xlsxData = ref({})
 let startX = 0, startY = 0, scrollLeft = 0, scrollTop = 0
 
 const displayList = computed(() => activeTab.value === 'public' ? publicList.value : myList.value)
+
+// 格式化日期 - 移动端显示简短格式
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  if (!isMobile.value) return dateStr
+  // 移动端显示简化格式: MM-DD HH:mm
+  const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/)
+  if (match) {
+    return `${match[2]}-${match[3]} ${match[4]}`
+  }
+  return dateStr
+}
+
+// 监听窗口大小变化
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+window.addEventListener('resize', handleResize)
+
+const formatExampleText = `{
+  "title": "题库名称",
+  "questions": [
+    {"type": "single", "question": "单选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": "A", "explanation": "解析"},
+    {"type": "multiple", "question": "多选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": ["A", "B"], "explanation": "解析"},
+    {"type": "judge", "question": "判断题内容", "answer": true, "explanation": "解析"},
+    {"type": "short", "question": "简答题内容", "answer": "参考答案", "explanation": "解析"}
+  ]
+}`
+
+const copyFormatExample = async () => {
+  try {
+    await navigator.clipboard.writeText(formatExampleText)
+    ElMessage.success('示例已复制到剪贴板')
+  } catch (e) {
+    ElMessage.warning('复制失败，请手动选中复制')
+  }
+}
 
 const switchTab = (tab) => {
   activeTab.value = tab
@@ -371,5 +493,10 @@ onMounted(() => {
     activeTab.value = 'public'
     fetchPublicList()
   }
+})
+
+// 清理事件监听
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>

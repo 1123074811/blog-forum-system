@@ -69,22 +69,27 @@ const initStars = () => {
 // 添加弹幕
 let uidCounter = 0
 const addDanmaku = (msg) => {
+  // 检查是否已经在屏幕上显示
+  const exists = visibleMessages.value.some(m => m.id === msg.id)
+  if (exists) return
+  
   const h = window.innerHeight - 200
   const uid = `${msg.id || Date.now()}-${uidCounter++}`
+  const duration = 10 + Math.random() * 2 // 10-12秒
   const item = {
     ...msg,
     uid,
     style: {
       top: Math.random() * h + 'px',
       color: msg.color || '#fff',
-      animationDuration: (8 + Math.random() * 4) + 's'
+      animationDuration: duration + 's'
     }
   }
   visibleMessages.value.push(item)
   setTimeout(() => {
     const idx = visibleMessages.value.findIndex(m => m.uid === uid)
     if (idx > -1) visibleMessages.value.splice(idx, 1)
-  }, 12000)
+  }, duration * 1000 + 500) // 动画结束后再删除，加500ms缓冲
 }
 
 // 加载历史消息并启动循环
@@ -103,7 +108,7 @@ const startLoop = () => {
     if (allMessages.value.length === 0) return
     addDanmaku(allMessages.value[index])
     index = (index + 1) % allMessages.value.length
-    loopTimer = setTimeout(playNext, 800 + Math.random() * 400)
+    loopTimer = setTimeout(playNext, 2000 + Math.random() * 1000)
   }
   playNext()
 }

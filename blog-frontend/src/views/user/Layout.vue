@@ -18,7 +18,10 @@
           </nav>
         </div>
         <div class="flex items-center gap-1 sm:gap-4">
-          <el-input v-model="searchQuery" placeholder="搜索..." class="w-32 sm:w-48 md:block hidden" size="small" @keyup.enter="handleSearch">
+          <!-- 移动端搜索按钮 -->
+          <el-button v-if="isMobile" :icon="Search" text size="small" @click="showSearchDialog = true" />
+          <!-- PC端搜索框 -->
+          <el-input v-if="!isMobile" v-model="searchQuery" placeholder="搜索..." class="w-48" size="small" @keyup.enter="handleSearch">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
           <el-button :icon="isDark ? Sunny : Moon" :size="isMobile ? 'small' : 'default'" circle @click="userStore.toggleDark" />
@@ -105,6 +108,23 @@
       </div>
     </el-drawer>
 
+    <!-- 移动端搜索对话框 -->
+    <el-dialog v-model="showSearchDialog" title="搜索" :width="isMobile ? '95%' : '500px'" :show-close="true">
+      <el-input 
+        v-model="searchQuery" 
+        placeholder="输入搜索关键词..." 
+        size="large"
+        clearable
+        autofocus
+        @keyup.enter="handleSearch">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <template #footer>
+        <el-button @click="showSearchDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleSearch">搜索</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 主内容区 -->
     <main class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
       <router-view />
@@ -124,6 +144,7 @@ import config from '@/config'
 const router = useRouter()
 const userStore = useUserStore()
 const showMobileMenu = ref(false)
+const showSearchDialog = ref(false)
 const searchQuery = ref('')
 const isDark = ref(userStore.isDark)
 const notifications = ref([])
@@ -196,6 +217,8 @@ onUnmounted(() => {
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
     router.push({ path: '/search', query: { q: searchQuery.value } })
+    showSearchDialog.value = false
+    searchQuery.value = ''
   }
 }
 

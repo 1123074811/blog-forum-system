@@ -1,102 +1,172 @@
 <template>
-  <div class="max-w-6xl mx-auto flex gap-6">
-    <!-- 左侧答题区 -->
-    <div class="flex-1 glass rounded-xl p-6">
-      <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-3">
-          <el-button @click="handleBack" :icon="ArrowLeft" text size="small">返回</el-button>
-          <h2 class="text-xl font-bold dark:text-white">{{ quiz.title }}</h2>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="text-sm text-gray-500">
-            {{ currentIndex + 1 }} / {{ questions.length }}
-            <span v-if="showResult" class="ml-4">正确率: {{ correctRate }}%</span>
+  <div class="max-w-6xl mx-auto">
+    <!-- 移动端垂直布局，PC端水平布局 -->
+    <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
+      <!-- 左侧答题区 -->
+      <div class="flex-1 glass rounded-xl p-3 sm:p-6">
+        <!-- 顶部标题栏 - 移动端优化 -->
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
+          <div class="flex items-center gap-2 sm:gap-3">
+            <el-button @click="handleBack" :icon="ArrowLeft" text size="small">返回</el-button>
+            <h2 class="text-base sm:text-xl font-bold dark:text-white truncate">{{ quiz.title }}</h2>
           </div>
-          <el-button @click="handleRestart" size="small" type="warning" plain>重新开始</el-button>
-        </div>
-      </div>
-
-      <div v-if="currentQuestion" class="mb-6">
-        <div class="mb-4">
-          <span class="px-2 py-1 text-xs rounded" :class="typeClass">{{ typeLabel }}</span>
-        </div>
-        <p class="text-lg dark:text-white mb-4">{{ currentIndex + 1 }}. {{ currentQuestion.question }}</p>
-
-        <!-- 单选/多选 -->
-        <div v-if="currentQuestion.type === 'single' || currentQuestion.type === 'multiple'" class="space-y-2">
-          <div v-for="(opt, idx) in parsedOptions" :key="idx" class="p-3 border rounded-lg cursor-pointer transition-colors" :class="optionClass(opt)" @click="selectOption(opt)">
-            {{ opt }}
+          <div class="flex items-center justify-end gap-1">
+            <div class="text-xs sm:text-sm text-gray-500">
+              {{ currentIndex + 1 }} / {{ questions.length }}
+              <span v-if="showResult" class="ml-2 sm:ml-4">正确率: {{ correctRate }}%</span>
+            </div>
+            <el-button @click="handleRestart" size="small" type="warning" plain>重新开始</el-button>
+            <!-- 移动端显示答题卡按钮 -->
+            <el-button v-if="isMobile" @click="showAnswerSheet = true" size="small" type="primary">答题卡</el-button>
           </div>
         </div>
 
-        <!-- 判断题 -->
-        <div v-else-if="currentQuestion.type === 'judge'" class="flex gap-4">
-          <div class="flex-1 p-4 border rounded-lg cursor-pointer text-center transition-colors" :class="judgeClass(true)" @click="selectJudge(true)">正确</div>
-          <div class="flex-1 p-4 border rounded-lg cursor-pointer text-center transition-colors" :class="judgeClass(false)" @click="selectJudge(false)">错误</div>
+        <!-- 题目内容 -->
+        <div v-if="currentQuestion" class="mb-4 sm:mb-6">
+          <div class="mb-3 sm:mb-4">
+            <span class="px-2 py-1 text-xs rounded" :class="typeClass">{{ typeLabel }}</span>
+          </div>
+          <p class="text-sm sm:text-lg dark:text-white mb-3 sm:mb-4">{{ currentIndex + 1 }}. {{ currentQuestion.question }}</p>
+
+          <!-- 单选/多选 -->
+          <div v-if="currentQuestion.type === 'single' || currentQuestion.type === 'multiple'" class="space-y-2">
+            <div v-for="(opt, idx) in parsedOptions" :key="idx" 
+                 class="p-2 sm:p-3 border rounded-lg cursor-pointer transition-colors text-sm sm:text-base" 
+                 :class="optionClass(opt)" 
+                 @click="selectOption(opt)">
+              {{ opt }}
+            </div>
+          </div>
+
+          <!-- 判断题 -->
+          <div v-else-if="currentQuestion.type === 'judge'" class="flex gap-3 sm:gap-4">
+            <div class="flex-1 p-3 sm:p-4 border rounded-lg cursor-pointer text-center transition-colors text-sm sm:text-base" 
+                 :class="judgeClass(true)" 
+                 @click="selectJudge(true)">正确</div>
+            <div class="flex-1 p-3 sm:p-4 border rounded-lg cursor-pointer text-center transition-colors text-sm sm:text-base" 
+                 :class="judgeClass(false)" 
+                 @click="selectJudge(false)">错误</div>
+          </div>
+
+          <!-- 简答题 -->
+          <div v-else-if="currentQuestion.type === 'short'" class="space-y-2">
+            <el-input v-model="shortAnswer" 
+                      type="textarea" 
+                      :autosize="{ minRows: 3, maxRows: 10 }" 
+                      placeholder="请输入你的答案..." 
+                      :disabled="answered" />
+          </div>
+
+          <!-- 答案解析 -->
+          <div v-if="answered" 
+               class="mt-4 sm:mt-6 p-3 sm:p-4 rounded-lg text-sm sm:text-base" 
+               :class="currentQuestion.type === 'short' ? 'bg-blue-50 dark:bg-blue-900/20' : (isCorrect ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20')">
+            <p v-if="currentQuestion.type !== 'short'" class="font-medium" :class="isCorrect ? 'text-green-600' : 'text-red-600'">
+              {{ isCorrect ? '回答正确!' : '回答错误' }}
+            </p>
+            <p v-else class="font-medium text-blue-600">已提交，请对照参考答案</p>
+            <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {{ currentQuestion.type === 'short' ? '参考答案' : '正确答案' }}: {{ formatAnswer(currentQuestion.answer) }}
+            </p>
+            <p v-if="currentQuestion.explanation" class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2">
+              解析: {{ currentQuestion.explanation }}
+            </p>
+          </div>
         </div>
 
-        <!-- 简答题 -->
-        <div v-else-if="currentQuestion.type === 'short'" class="space-y-2">
-          <el-input v-model="shortAnswer" type="textarea" :autosize="{ minRows: 3, maxRows: 10 }" placeholder="请输入你的答案..." :disabled="answered" />
-        </div>
-
-        <!-- 答案解析 -->
-        <div v-if="answered" class="mt-6 p-4 rounded-lg" :class="currentQuestion.type === 'short' ? 'bg-blue-50 dark:bg-blue-900/20' : (isCorrect ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20')">
-          <p v-if="currentQuestion.type !== 'short'" class="font-medium" :class="isCorrect ? 'text-green-600' : 'text-red-600'">
-            {{ isCorrect ? '回答正确!' : '回答错误' }}
-          </p>
-          <p v-else class="font-medium text-blue-600">已提交，请对照参考答案</p>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ currentQuestion.type === 'short' ? '参考答案' : '正确答案' }}: {{ formatAnswer(currentQuestion.answer) }}</p>
-          <p v-if="currentQuestion.explanation" class="text-sm text-gray-600 dark:text-gray-400 mt-2">解析: {{ currentQuestion.explanation }}</p>
+        <!-- 底部按钮 -->
+        <div class="flex justify-between gap-2">
+          <el-button @click="prevQuestion" :disabled="currentIndex === 0" size="small">上一题</el-button>
+          <div class="flex gap-2">
+            <el-button v-if="!answered" 
+                       type="primary" 
+                       @click="submitAnswer" 
+                       :disabled="!hasSelection"
+                       size="small">提交答案</el-button>
+            <el-button v-if="currentIndex < questions.length - 1" 
+                       @click="nextQuestion"
+                       size="small">下一题</el-button>
+            <el-button v-if="answered && currentIndex === questions.length - 1" 
+                       type="success" 
+                       @click="showResult = true"
+                       size="small">查看结果</el-button>
+          </div>
         </div>
       </div>
 
-      <div class="flex justify-between">
-        <el-button @click="prevQuestion" :disabled="currentIndex === 0">上一题</el-button>
-        <div class="flex gap-2">
-          <el-button v-if="!answered" type="primary" @click="submitAnswer" :disabled="!hasSelection">提交答案</el-button>
-          <el-button v-if="currentIndex < questions.length - 1" @click="nextQuestion">下一题</el-button>
-          <el-button v-if="answered && currentIndex === questions.length - 1" type="success" @click="showResult = true">查看结果</el-button>
+      <!-- 右侧题号面板 - PC端显示 -->
+      <div v-if="!isMobile" class="w-64 glass rounded-xl p-4 h-fit sticky top-24">
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-sm font-medium dark:text-white">答题卡</span>
+          <el-switch v-model="categoryMode" size="small" active-text="分类" inactive-text="顺序" />
+        </div>
+        <!-- 顺序模式 -->
+        <div v-if="!categoryMode" class="grid grid-cols-5 gap-2">
+          <div v-for="(q, idx) in questions" :key="idx"
+            class="w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer text-sm font-medium transition-all"
+            :class="getQuestionStatusClass(idx)"
+            @click="goToQuestion(idx)">
+            {{ idx + 1 }}
+          </div>
+        </div>
+        <!-- 分类模式 -->
+        <div v-else class="space-y-3">
+          <div v-for="cat in categoryList" :key="cat.type">
+            <div class="text-xs mb-1" :class="cat.color">{{ cat.label }}（{{ cat.items.length }}）</div>
+            <div class="grid grid-cols-5 gap-1">
+              <div v-for="item in cat.items" :key="item.idx"
+                class="w-8 h-8 flex items-center justify-center rounded cursor-pointer text-xs font-medium transition-all"
+                :class="getQuestionStatusClass(item.idx)"
+                @click="goToQuestion(item.idx)">
+                {{ item.idx + 1 }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 text-xs text-gray-500 space-y-1">
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-primary-500"></span> 当前题</div>
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-green-500"></span> 已答对</div>
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-red-500"></span> 已答错</div>
+          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700"></span> 未作答</div>
         </div>
       </div>
     </div>
 
-    <!-- 右侧题号面板 -->
-    <div class="w-64 glass rounded-xl p-4 h-fit sticky top-24">
-      <div class="flex justify-between items-center mb-3">
-        <span class="text-sm font-medium dark:text-white">答题卡</span>
-        <el-switch v-model="categoryMode" size="small" active-text="分类" inactive-text="顺序" />
+    <!-- 移动端答题卡抽屉 -->
+    <el-drawer v-model="showAnswerSheet" direction="rtl" size="280px" title="答题卡">
+      <div class="mb-4">
+        <el-switch v-model="categoryMode" size="small" active-text="分类" inactive-text="顺序" class="w-full" />
       </div>
       <!-- 顺序模式 -->
       <div v-if="!categoryMode" class="grid grid-cols-5 gap-2">
         <div v-for="(q, idx) in questions" :key="idx"
-          class="w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer text-sm font-medium transition-all"
+          class="w-12 h-12 flex items-center justify-center rounded-lg cursor-pointer text-sm font-medium transition-all"
           :class="getQuestionStatusClass(idx)"
-          @click="goToQuestion(idx)">
+          @click="goToQuestion(idx); showAnswerSheet = false">
           {{ idx + 1 }}
         </div>
       </div>
       <!-- 分类模式 -->
-      <div v-else class="space-y-3">
+      <div v-else class="space-y-4">
         <div v-for="cat in categoryList" :key="cat.type">
-          <div class="text-xs mb-1" :class="cat.color">{{ cat.label }}（{{ cat.items.length }}）</div>
-          <div class="grid grid-cols-5 gap-1">
+          <div class="text-sm mb-2 font-medium" :class="cat.color">{{ cat.label }}（{{ cat.items.length }}）</div>
+          <div class="grid grid-cols-5 gap-2">
             <div v-for="item in cat.items" :key="item.idx"
-              class="w-8 h-8 flex items-center justify-center rounded cursor-pointer text-xs font-medium transition-all"
+              class="w-10 h-10 flex items-center justify-center rounded cursor-pointer text-xs font-medium transition-all"
               :class="getQuestionStatusClass(item.idx)"
-              @click="goToQuestion(item.idx)">
+              @click="goToQuestion(item.idx); showAnswerSheet = false">
               {{ item.idx + 1 }}
             </div>
           </div>
         </div>
       </div>
-      <div class="mt-4 text-xs text-gray-500 space-y-1">
-        <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-primary-500"></span> 当前题</div>
-        <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-green-500"></span> 已答对</div>
-        <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-red-500"></span> 已答错</div>
-        <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700"></span> 未作答</div>
+      <div class="mt-6 text-xs text-gray-500 space-y-2">
+        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-primary-500"></span> 当前题</div>
+        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-green-500"></span> 已答对</div>
+        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-red-500"></span> 已答错</div>
+        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700"></span> 未作答</div>
       </div>
-    </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -118,6 +188,15 @@ const shortAnswer = ref('')
 const categoryMode = ref(false)
 const loading = ref(false)
 const totalQuestions = ref(0)
+const showAnswerSheet = ref(false)
+const isMobile = ref(window.innerWidth < 1024) // lg breakpoint
+
+// 监听窗口大小变化
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 1024
+}
+
+window.addEventListener('resize', handleResize)
 
 // 处理返回逻辑
 const handleBack = () => {
@@ -402,5 +481,6 @@ onMounted(async () => {
 onUnmounted(() => {
   saveProgress()
   window.removeEventListener('beforeunload', saveProgress)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
