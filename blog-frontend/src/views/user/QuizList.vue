@@ -127,13 +127,14 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { getQuizList, getPublicQuizList, importQuiz, deleteQuiz, toggleQuizPublic, uploadQuizFile } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderAsync } from 'docx-preview'
 import * as XLSX from 'xlsx'
 
 const router = useRouter()
+const route = useRoute()
 const activeTab = ref('public')
 const publicList = ref([])
 const myList = ref([])
@@ -166,6 +167,8 @@ const displayList = computed(() => activeTab.value === 'public' ? publicList.val
 
 const switchTab = (tab) => {
   activeTab.value = tab
+  // 更新URL查询参数
+  router.replace({ query: { ...route.query, tab } })
   if (tab === 'public' && !publicList.value.length) fetchPublicList()
   if (tab === 'mine' && !myList.value.length) fetchMyList()
 }
@@ -249,7 +252,8 @@ const handleItemClick = (quiz) => {
   if (quiz.type === 'file') {
     previewFile(quiz)
   } else {
-    router.push(`/quiz/${quiz.id}`)
+    // 跳转时带上当前标签页信息
+    router.push({ path: `/quiz/${quiz.id}`, query: { from: activeTab.value } })
   }
 }
 
@@ -357,5 +361,15 @@ const handleTogglePublic = async (quiz) => {
   }
 }
 
-onMounted(fetchPublicList)
+onMounted(() => {
+  // 从URL查询参数恢复标签页状态
+  const tabFromQuery = route.query.tab
+  if (tabFromQuery === 'mine') {
+    activeTab.value = 'mine'
+    fetchMyList()
+  } else {
+    activeTab.value = 'public'
+    fetchPublicList()
+  }
+})
 </script>

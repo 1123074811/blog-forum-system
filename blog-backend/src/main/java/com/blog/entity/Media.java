@@ -20,6 +20,9 @@ public class Media {
     @TableField("is_public")
     @JsonProperty("isPublic")
     private Boolean isPublic;
+    @TableField("is_anonymous")
+    @JsonProperty("isAnonymous")
+    private Boolean isAnonymous;
     private String source; // 来源: user-用户上传, bing-必应壁纸
     private String createdAt;
     private String updatedAt;

@@ -56,9 +56,12 @@ public class AlbumController {
     }
 
     @PostMapping("/{id}/toggle-public")
-    public ApiResponse<Void> togglePublic(@PathVariable Long id, Authentication auth) {
+    public ApiResponse<Void> togglePublic(
+            @PathVariable Long id,
+            @RequestParam(required = false) Boolean isAnonymous,
+            Authentication auth) {
         Long userId = (Long) auth.getPrincipal();
-        albumService.togglePublic(id, userId);
+        albumService.togglePublic(id, userId, isAnonymous);
         return ApiResponse.success(null);
     }
 

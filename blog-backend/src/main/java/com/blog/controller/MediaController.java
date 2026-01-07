@@ -77,9 +77,12 @@ public class MediaController {
     }
 
     @PostMapping("/{id}/toggle-public")
-    public ApiResponse<Void> togglePublic(@PathVariable Long id, Authentication auth) {
+    public ApiResponse<Void> togglePublic(
+            @PathVariable Long id,
+            @RequestParam(required = false) Boolean isAnonymous,
+            Authentication auth) {
         Long userId = (Long) auth.getPrincipal();
-        mediaService.togglePublic(id, userId);
+        mediaService.togglePublic(id, userId, isAnonymous);
         return ApiResponse.success(null);
     }
 

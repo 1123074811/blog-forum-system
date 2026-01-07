@@ -75,7 +75,7 @@ export const deleteAlbum = (id) => api.delete(`/albums/${id}`)
 export const getAlbum = (id) => api.get(`/albums/${id}`)
 export const getMyAlbums = () => api.get('/albums/my')
 export const getPublicAlbums = (page = 1, size = 20) => api.get('/albums/public', { params: { page, size } })
-export const toggleAlbumPublic = (id) => api.post(`/albums/${id}/toggle-public`)
+export const toggleAlbumPublic = (id, isAnonymous) => api.post(`/albums/${id}/toggle-public`, null, { params: { isAnonymous } })
 
 // Media APIs
 export const uploadMedia = (file, albumId, title, description) => {
@@ -94,7 +94,7 @@ export const getMedia = (id) => api.get(`/media/${id}`)
 export const getAlbumMedia = (albumId) => api.get(`/media/album/${albumId}`)
 export const getMyMedia = (type, page = 1, size = 20) => api.get('/media/my', { params: { type, page, size } })
 export const getPublicMedia = (type, page = 1, size = 20) => api.get('/media/public', { params: { type, page, size } })
-export const toggleMediaPublic = (id) => api.post(`/media/${id}/toggle-public`)
+export const toggleMediaPublic = (id, isAnonymous) => api.post(`/media/${id}/toggle-public`, null, { params: { isAnonymous } })
 
 // Notification APIs
 export const getNotifications = () => api.get('/notifications')

@@ -227,9 +227,33 @@ const deleteAlbum = async (album) => {
 }
 
 const togglePublic = async (album) => {
-  await api.toggleAlbumPublic(album.id)
-  ElMessage.success(album.isPublic ? '已设为私密' : '已公开')
-  loadAlbums()
+  if (!album.isPublic) {
+    // 即将设为公开，询问是否匿名
+    await ElMessageBox.confirm('请选择公开方式', '提示', {
+      confirmButtonText: '显示我的信息',
+      cancelButtonText: '匿名发布',
+      distinguishCancelAndClose: true,
+      type: 'info'
+    }).then(async () => {
+      // 选择显示信息
+      await api.toggleAlbumPublic(album.id, false)
+      ElMessage.success('已公开')
+      loadAlbums()
+    }).catch((action) => {
+      if (action === 'cancel') {
+        // 选择匿名
+        api.toggleAlbumPublic(album.id, true).then(() => {
+          ElMessage.success('已匿名公开')
+          loadAlbums()
+        })
+      }
+    })
+  } else {
+    // 设为私密
+    await api.toggleAlbumPublic(album.id, false)
+    ElMessage.success('已设为私密')
+    loadAlbums()
+  }
 }
 
 const viewAlbum = async (album) => {
@@ -267,9 +291,33 @@ const previewMedia = (item) => {
 }
 
 const toggleMediaPublic = async (item) => {
-  await api.toggleMediaPublic(item.id)
-  ElMessage.success(item.isPublic ? '已设为私密' : '已公开')
-  loadMedia()
+  if (!item.isPublic) {
+    // 即将设为公开，询问是否匿名
+    await ElMessageBox.confirm('请选择公开方式', '提示', {
+      confirmButtonText: '显示我的信息',
+      cancelButtonText: '匿名发布',
+      distinguishCancelAndClose: true,
+      type: 'info'
+    }).then(async () => {
+      // 选择显示信息
+      await api.toggleMediaPublic(item.id, false)
+      ElMessage.success('已公开')
+      loadMedia()
+    }).catch((action) => {
+      if (action === 'cancel') {
+        // 选择匿名
+        api.toggleMediaPublic(item.id, true).then(() => {
+          ElMessage.success('已匿名公开')
+          loadMedia()
+        })
+      }
+    })
+  } else {
+    // 设为私密
+    await api.toggleMediaPublic(item.id, false)
+    ElMessage.success('已设为私密')
+    loadMedia()
+  }
 }
 
 const deleteMediaItem = async (item) => {

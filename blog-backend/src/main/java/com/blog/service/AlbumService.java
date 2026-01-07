@@ -10,7 +10,7 @@ public interface AlbumService {
     Album getById(Long id, Long userId);
     List<Album> getMyAlbums(Long userId);
     List<Album> getPublicAlbums(int page, int size);
-    void togglePublic(Long id, Long userId);
+    void togglePublic(Long id, Long userId, Boolean isAnonymous);
     List<Album> getAllAlbums();
     void adminDelete(Long id);
     Album adminUpdate(Long id, Album album);

@@ -12,7 +12,7 @@ public interface MediaService {
     List<Media> getByAlbumId(Long albumId, Long userId);
     List<Media> getMyMedia(Long userId, String type, int page, int size);
     List<Media> getPublicMedia(String type, int page, int size);
-    void togglePublic(Long id, Long userId);
+    void togglePublic(Long id, Long userId, Boolean isAnonymous);
     List<Media> getAllMedia();
     void adminDelete(Long id);
     Media adminUpdate(Long id, String title, String description, Boolean isPublic);

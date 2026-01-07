@@ -4,7 +4,7 @@
     <div class="flex-1 glass rounded-xl p-6">
       <div class="flex justify-between items-center mb-6">
         <div class="flex items-center gap-3">
-          <el-button @click="router.back()" :icon="ArrowLeft" text size="small">返回</el-button>
+          <el-button @click="handleBack" :icon="ArrowLeft" text size="small">返回</el-button>
           <h2 class="text-xl font-bold dark:text-white">{{ quiz.title }}</h2>
         </div>
         <div class="flex items-center gap-3">
@@ -118,6 +118,18 @@ const shortAnswer = ref('')
 const categoryMode = ref(false)
 const loading = ref(false)
 const totalQuestions = ref(0)
+
+// 处理返回逻辑
+const handleBack = () => {
+  const fromTab = route.query.from
+  if (fromTab) {
+    // 如果有来源标签页信息，返回题库列表并恢复标签页
+    router.push({ path: '/quiz', query: { tab: fromTab } })
+  } else {
+    // 否则使用浏览器返回
+    router.back()
+  }
+}
 
 // 生成当前题库的存储键
 const getStorageKey = () => `quiz_progress_${route.params.id}`

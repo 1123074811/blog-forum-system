@@ -32,7 +32,13 @@
                   <span class="font-medium truncate text-sm">{{ album.title }}</span>
                 </div>
                 <p class="text-xs text-gray-500 truncate">{{ album.description || '暂无简介' }}</p>
-                <span class="text-xs text-gray-400">{{ album.mediaCount }} 项</span>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-xs text-gray-400">{{ album.mediaCount }} 项</span>
+                  <div class="flex items-center gap-1">
+                    <el-avatar :src="album.avatar" :size="16">{{ album.nickname?.charAt(0) || '?' }}</el-avatar>
+                    <span class="text-xs text-gray-400 truncate max-w-16">{{ album.nickname || '匿名' }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

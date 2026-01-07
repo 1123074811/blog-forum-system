@@ -33,6 +33,10 @@ public class MediaServiceImpl implements MediaService {
         Map<Long, User> userMap = userMapper.selectBatchIds(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
         mediaList.forEach(m -> {
+            // 如果是匿名发布，不填充用户信息
+            if (Boolean.TRUE.equals(m.getIsAnonymous())) {
+                return;
+            }
             User u = userMap.get(m.getUserId());
             if (u != null) {
                 m.setNickname(u.getNickname());
@@ -159,12 +163,18 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
-    public void togglePublic(Long id, Long userId) {
+    public void togglePublic(Long id, Long userId, Boolean isAnonymous) {
         Media media = mediaMapper.selectById(id);
         if (media == null || !media.getUserId().equals(userId)) {
             throw new RuntimeException("Media not found or access denied");
         }
         media.setIsPublic(!media.getIsPublic());
+        // 如果设为公开，设置匿名状态；如果设为私密，清除匿名状态
+        if (media.getIsPublic()) {
+            media.setIsAnonymous(isAnonymous != null && isAnonymous);
+        } else {
+            media.setIsAnonymous(false);
+        }
         media.setUpdatedAt(DateUtil.now());
         mediaMapper.updateById(media);
     }
