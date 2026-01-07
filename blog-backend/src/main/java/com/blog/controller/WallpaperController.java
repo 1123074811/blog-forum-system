@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @RestController
@@ -35,6 +37,7 @@ public class WallpaperController {
 
     private final MediaMapper mediaMapper;
     private final MinioService minioService;
+    private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final AtomicBoolean bingFetching = new AtomicBoolean(false);
 
@@ -157,18 +160,28 @@ public class WallpaperController {
     @GetMapping("/weather")
     public ApiResponse<Map<String, Object>> getWeather(HttpServletRequest request) {
         try {
+            String ip = request.getHeader("X-Forwarded-For");
+            if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
+            if (ip.contains(",")) ip = ip.split(",")[0].trim();
+
+            // 本地IP使用默认城市
+            String cacheKey = "weather:" + (ip.startsWith("127.") || ip.startsWith("0:") ? "default" : ip);
+
+            // 尝试从缓存获取
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                return ApiResponse.success(objectMapper.readValue(cached, Map.class));
+            }
+
             HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(java.time.Duration.ofSeconds(5))
                     .build();
             String city = defaultCity;
             String region = "";
 
-            // 使用太平洋网络IP接口获取位置
-            try {
-                String ip = request.getHeader("X-Forwarded-For");
-                if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
-                if (ip.contains(",")) ip = ip.split(",")[0].trim();
-                if (!"127.0.0.1".equals(ip) && !"0:0:0:0:0:0:0:1".equals(ip)) {
+            // 获取IP定位
+            if (!ip.startsWith("127.") && !ip.startsWith("0:")) {
+                try {
                     HttpRequest locReq = HttpRequest.newBuilder()
                             .uri(URI.create("http://whois.pconline.com.cn/ipJson.jsp?ip=" + ip + "&json=true"))
                             .timeout(java.time.Duration.ofSeconds(3))
@@ -179,10 +192,10 @@ public class WallpaperController {
                         city = loc.get("city").asText().replace("市", "");
                     }
                     if (loc.has("pro")) region = loc.get("pro").asText();
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
 
-            // 使用 wttr.in 天气接口（HTTP）
+            // 获取天气
             HttpRequest weatherReq = HttpRequest.newBuilder()
                     .uri(URI.create("http://wttr.in/" + java.net.URLEncoder.encode(city, "UTF-8") + "?format=j1"))
                     .header("Accept-Language", "zh-CN")
@@ -203,6 +216,10 @@ public class WallpaperController {
                     ? current.get("lang_zh").get(0).get("value").asText()
                     : current.get("weatherDesc").get(0).get("value").asText());
             result.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 E", java.util.Locale.CHINESE)));
+
+            // 缓存30分钟
+            stringRedisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(result), 30, TimeUnit.MINUTES);
+
             return ApiResponse.success(result);
         } catch (Exception e) {
             return ApiResponse.error("获取天气失败: " + e.getMessage());
