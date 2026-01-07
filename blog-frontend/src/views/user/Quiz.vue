@@ -7,9 +7,12 @@
           <el-button @click="router.back()" :icon="ArrowLeft" text size="small">返回</el-button>
           <h2 class="text-xl font-bold dark:text-white">{{ quiz.title }}</h2>
         </div>
-        <div class="text-sm text-gray-500">
-          {{ currentIndex + 1 }} / {{ questions.length }}
-          <span v-if="showResult" class="ml-4">正确率: {{ correctRate }}%</span>
+        <div class="flex items-center gap-3">
+          <div class="text-sm text-gray-500">
+            {{ currentIndex + 1 }} / {{ questions.length }}
+            <span v-if="showResult" class="ml-4">正确率: {{ correctRate }}%</span>
+          </div>
+          <el-button @click="handleRestart" size="small" type="warning" plain>重新开始</el-button>
         </div>
       </div>
 
@@ -98,10 +101,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getQuiz, getQuizQuestions } from '@/api/blog'
 import { ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -114,6 +118,74 @@ const shortAnswer = ref('')
 const categoryMode = ref(false)
 const loading = ref(false)
 const totalQuestions = ref(0)
+
+// 生成当前题库的存储键
+const getStorageKey = () => `quiz_progress_${route.params.id}`
+
+// 保存进度到 localStorage
+const saveProgress = () => {
+  const progressData = {
+    currentIndex: currentIndex.value,
+    userAnswers: userAnswers.value,
+    timestamp: Date.now()
+  }
+  try {
+    localStorage.setItem(getStorageKey(), JSON.stringify(progressData))
+  } catch (e) {
+    console.error('保存进度失败:', e)
+  }
+}
+
+// 从 localStorage 恢复进度
+const loadProgress = () => {
+  try {
+    const saved = localStorage.getItem(getStorageKey())
+    if (saved) {
+      const progressData = JSON.parse(saved)
+      // 恢复答题进度
+      currentIndex.value = progressData.currentIndex || 0
+      userAnswers.value = progressData.userAnswers || {}
+      // 如果当前题有答案，恢复到 shortAnswer
+      const ans = userAnswers.value[currentIndex.value]
+      if (ans?.selected && currentQuestion.value?.type === 'short') {
+        shortAnswer.value = ans.selected
+      }
+      return true
+    }
+  } catch (e) {
+    console.error('加载进度失败:', e)
+  }
+  return false
+}
+
+// 清除进度
+const clearProgress = () => {
+  try {
+    localStorage.removeItem(getStorageKey())
+  } catch (e) {
+    console.error('清除进度失败:', e)
+  }
+}
+
+// 重新开始答题
+const handleRestart = () => {
+  if (Object.keys(userAnswers.value).length > 0) {
+    ElMessageBox.confirm('确定要清除当前答题进度，重新开始吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }).then(() => {
+      currentIndex.value = 0
+      userAnswers.value = {}
+      shortAnswer.value = ''
+      showResult.value = false
+      clearProgress()
+      ElMessage.success('已清除进度')
+    }).catch(() => {})
+  } else {
+    ElMessage.info('当前没有答题进度')
+  }
+}
 
 const loadAllQuestions = async (quizBankId, total) => {
   loading.value = true
@@ -152,7 +224,13 @@ const hasSelection = computed(() => {
 watch(currentIndex, () => {
   const ans = userAnswers.value[currentIndex.value]
   shortAnswer.value = ans?.selected || ''
+  saveProgress()
 })
+
+// 监听答案变化，自动保存
+watch(userAnswers, () => {
+  saveProgress()
+}, { deep: true })
 
 const parsedOptions = computed(() => {
   if (!currentQuestion.value?.options) return []
@@ -224,7 +302,7 @@ const optionClass = (opt) => {
   const letter = opt.charAt(0)
   const isSelected = Array.isArray(ans?.selected) ? ans.selected.includes(letter) : ans?.selected === letter
   if (!ans?.submitted) {
-    return isSelected ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+    return isSelected ? 'border-2 border-primary-500 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
   }
   const correct = parsedAnswer.value
   const isCorrectOption = Array.isArray(correct) ? correct.includes(letter) : correct === letter
@@ -236,7 +314,7 @@ const optionClass = (opt) => {
 const judgeClass = (val) => {
   const ans = userAnswers.value[currentIndex.value]
   if (!ans?.submitted) {
-    return ans?.selected === val ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+    return ans?.selected === val ? 'border-2 border-primary-500 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
   }
   const correct = parsedAnswer.value
   if (correct === val) return 'border-green-500 bg-green-50 dark:bg-green-900/20'
@@ -257,12 +335,14 @@ const selectOption = (opt) => {
   } else {
     userAnswers.value[currentIndex.value].selected = letter
   }
+  saveProgress()
 }
 
 const selectJudge = (val) => {
   if (answered.value) return
   if (!userAnswers.value[currentIndex.value]) userAnswers.value[currentIndex.value] = { selected: null, submitted: false }
   userAnswers.value[currentIndex.value].selected = val
+  saveProgress()
 }
 
 const submitAnswer = () => {
@@ -271,6 +351,7 @@ const submitAnswer = () => {
     userAnswers.value[currentIndex.value].selected = shortAnswer.value
   }
   userAnswers.value[currentIndex.value].submitted = true
+  saveProgress()
 }
 
 const prevQuestion = () => { if (currentIndex.value > 0) currentIndex.value-- }
@@ -297,6 +378,17 @@ onMounted(async () => {
     } else if (totalQuestions.value > 0) {
       await loadAllQuestions(route.params.id, totalQuestions.value)
     }
+    // 加载完题目后，尝试恢复进度
+    loadProgress()
   }
+  
+  // 监听页面刷新/关闭事件，确保保存进度
+  window.addEventListener('beforeunload', saveProgress)
+})
+
+// 页面卸载前保存进度
+onUnmounted(() => {
+  saveProgress()
+  window.removeEventListener('beforeunload', saveProgress)
 })
 </script>
