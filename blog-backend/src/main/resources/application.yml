@@ -22,6 +22,17 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 2662886071@qq.com
+    password: omsqdmirlczmeaea
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

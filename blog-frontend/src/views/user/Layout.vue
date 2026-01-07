@@ -11,7 +11,7 @@
           </router-link>
           <nav class="hidden lg:flex items-center gap-6 ml-8">
             <router-link to="/" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">首页</router-link>
-            <router-link to="/search" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">发现</router-link>
+            <router-link to="/discover" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">发现</router-link>
             <router-link to="/community" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">相册</router-link>
             <router-link to="/quiz" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">刷题</router-link>
             <router-link to="/tree-hole" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">树洞</router-link>
@@ -23,16 +23,41 @@
           </el-input>
           <el-button :icon="isDark ? Sunny : Moon" circle @click="userStore.toggleDark" />
           <template v-if="userStore.isLoggedIn">
-            <el-popover placement="bottom" :width="320" trigger="click">
+            <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
+              <template #reference>
+                <el-badge :value="msgUnreadCount" :hidden="!msgUnreadCount" :max="99">
+                  <el-button :icon="ChatDotRound" circle />
+                </el-badge>
+              </template>
+              <div class="max-h-80 overflow-y-auto" @wheel.stop>
+                <div class="flex justify-between items-center mb-2">
+                  <span class="font-bold">私信</span>
+                  <el-button type="primary" link size="small" class="!text-blue-50" @click="router.push('/chat')">查看全部</el-button>
+                </div>
+                <div v-if="!conversations.length" class="text-center py-4 text-gray-500">暂无私信</div>
+                <div v-for="conv in conversations" :key="conv.id"
+                     class="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
+                     :class="{ 'bg-blue-50 dark:bg-blue-900/20': getConvUnread(conv) > 0 }"
+                     @click="router.push(`/chat?userId=${conv.otherUser?.id}`)">
+                  <el-avatar :src="conv.otherUser?.avatar" :size="40">{{ conv.otherUser?.username?.[0] }}</el-avatar>
+                  <div class="flex-1 overflow-hidden">
+                    <div class="text-sm font-medium truncate">{{ conv.otherUser?.nickname || conv.otherUser?.username }}</div>
+                    <div class="text-xs text-gray-400 truncate">{{ conv.lastMessage?.content || '暂无消息' }}</div>
+                  </div>
+                  <el-badge v-if="getConvUnread(conv) > 0" :value="getConvUnread(conv)" :max="99" />
+                </div>
+              </div>
+            </el-popover>
+            <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
               <template #reference>
                 <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
                   <el-button :icon="Bell" circle />
                 </el-badge>
               </template>
-              <div class="max-h-80 overflow-y-auto">
+              <div class="max-h-80 overflow-y-auto" @wheel.stop>
                 <div class="flex justify-between items-center mb-2">
                   <span class="font-bold">消息通知</span>
-                  <el-button v-if="unreadCount" type="primary" link size="small" @click="handleMarkAllRead">全部已读</el-button>
+                  <el-button v-if="unreadCount" type="primary" link size="small" class="!text-blue-500" @click="handleMarkAllRead">全部已读</el-button>
                 </div>
                 <div v-if="!notifications.length" class="text-center py-4 text-gray-500">暂无消息</div>
                 <div v-for="n in notifications" :key="n.id" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer" :class="{ 'bg-blue-50 dark:bg-blue-900/20': !n.isRead }" @click="handleNotificationClick(n)">
@@ -71,7 +96,7 @@
       </template>
       <div class="flex flex-col gap-4">
         <router-link to="/" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">首页</router-link>
-        <router-link to="/search" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">发现</router-link>
+        <router-link to="/discover" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">发现</router-link>
         <router-link to="/community" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">相册</router-link>
         <router-link to="/quiz" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">刷题</router-link>
         <router-link to="/tree-hole" class="p-2 hover:bg-gray-100 rounded" @click="showMobileMenu = false">树洞</router-link>
@@ -91,9 +116,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { Search, Menu, Sunny, Moon, Bell } from '@element-plus/icons-vue'
+import { Search, Menu, Sunny, Moon, Bell, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/api/blog'
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, getMessageUnreadCount, getConversations } from '@/api/blog'
 import config from '@/config'
 
 const router = useRouter()
@@ -103,13 +128,23 @@ const searchQuery = ref('')
 const isDark = ref(userStore.isDark)
 const notifications = ref([])
 const unreadCount = ref(0)
+const msgUnreadCount = ref(0)
+const conversations = ref([])
 let ws = null
+
+const getConvUnread = (conv) => {
+  return conv.user1Id === userStore.user?.id ? conv.user1Unread : conv.user2Unread
+}
 
 const fetchNotifications = async () => {
   if (!userStore.isLoggedIn) return
-  const [res1, res2] = await Promise.all([getNotifications(), getUnreadCount()])
+  const [res1, res2, res3, res4] = await Promise.all([
+    getNotifications(), getUnreadCount(), getMessageUnreadCount(), getConversations()
+  ])
   if (res1.success) notifications.value = res1.data
   if (res2.success) unreadCount.value = res2.data.count
+  if (res3.success) msgUnreadCount.value = res3.data
+  if (res4.success) conversations.value = res4.data || []
 }
 
 const connectWebSocket = () => {

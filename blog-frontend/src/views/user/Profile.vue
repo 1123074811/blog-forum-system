@@ -16,8 +16,9 @@
         <div v-if="userStore.isLoggedIn && userStore.user?.id === Number(route.params.id)">
           <el-button @click="showEditDialog = true">编辑资料</el-button>
         </div>
-        <div v-else-if="userStore.isLoggedIn && userStore.user?.id !== Number(route.params.id)">
+        <div v-else-if="userStore.isLoggedIn && userStore.user?.id !== Number(route.params.id)" class="flex gap-2">
           <el-button type="primary" @click="handleFollow">{{ isFollowing ? '取消关注' : '关注' }}</el-button>
+          <el-button @click="router.push(`/chat?userId=${route.params.id}`)">私信</el-button>
         </div>
       </div>
     </div>

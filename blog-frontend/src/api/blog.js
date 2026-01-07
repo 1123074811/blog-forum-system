@@ -3,6 +3,9 @@ import api from './index'
 export const login = (data) => api.post('/auth/login', data)
 export const register = (data) => api.post('/auth/register', data)
 export const refreshToken = () => api.post('/auth/refresh')
+export const getCaptcha = () => api.get('/auth/captcha')
+export const forgotPassword = (email) => api.post('/auth/forgot-password', { email })
+export const resetPassword = (data) => api.post('/auth/reset-password', data)
 
 export const getArticles = (params) => api.get('/articles', { params })
 export const getArticle = (id) => api.get(`/articles/${id}`)
@@ -101,3 +104,16 @@ export const markAllAsRead = () => api.post('/notifications/read-all')
 // TreeHole APIs
 export const getTreeHoles = () => api.get('/tree-hole')
 export const createTreeHole = (data) => api.post('/tree-hole', data)
+
+// Message APIs
+export const getConversations = () => api.get('/messages/conversations')
+export const getMessages = (conversationId) => api.get(`/messages/conversations/${conversationId}`)
+export const sendMessage = (data) => api.post('/messages/send', data)
+export const uploadMessageFile = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post('/messages/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+}
+export const getMessageUnreadCount = () => api.get('/messages/unread')
+export const getFriends = () => api.get('/messages/friends')
+export const checkMutualFollow = (userId) => api.get(`/messages/check-mutual/${userId}`)

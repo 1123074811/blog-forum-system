@@ -13,16 +13,19 @@ const routes = [
       { path: 'write', name: 'Write', component: () => import('@/views/user/Write.vue'), meta: { requiresAuth: true, title: '挥墨斋' } },
       { path: 'edit/:id', name: 'Edit', component: () => import('@/views/user/Write.vue'), meta: { requiresAuth: true, title: '润笔阁' } },
       { path: 'search', name: 'Search', component: () => import('@/views/user/Search.vue'), meta: { title: '寻迹处' } },
+      { path: 'discover', name: 'Discover', component: () => import('@/views/user/Discover.vue'), meta: { title: '发现' } },
       { path: 'quiz', name: 'QuizList', component: () => import('@/views/user/QuizList.vue'), meta: { requiresAuth: true, title: '问学堂' } },
       { path: 'quiz/:id', name: 'Quiz', component: () => import('@/views/user/Quiz.vue'), meta: { requiresAuth: true, title: '答卷间' } },
       { path: 'album', name: 'Album', component: () => import('@/views/user/Album.vue'), meta: { requiresAuth: true, title: '藏影阁' } },
       { path: 'community', name: 'Community', component: () => import('@/views/user/Community.vue'), meta: { title: '览影廊' } },
       { path: 'favorites', name: 'Favorites', component: () => import('@/views/user/Favorites.vue'), meta: { requiresAuth: true, title: '珍藏阁' } },
       { path: 'tree-hole', name: 'TreeHole', component: () => import('@/views/user/TreeHole.vue'), meta: { title: '听风谷' } },
+      { path: 'chat', name: 'Chat', component: () => import('@/views/user/Chat.vue'), meta: { requiresAuth: true, title: '私信' } },
     ]
   },
   { path: '/login', name: 'Login', component: () => import('@/views/Login.vue'), meta: { title: '登临门' } },
   { path: '/register', name: 'Register', component: () => import('@/views/Register.vue'), meta: { title: '入门礼' } },
+  { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/ForgotPassword.vue'), meta: { title: '寻钥阁' } },
   { path: '/oauth-callback', name: 'OAuthCallback', component: () => import('@/views/OAuthCallback.vue') },
   {
     path: '/admin',
@@ -38,6 +41,7 @@ const routes = [
       { path: 'albums', name: 'AdminAlbums', component: () => import('@/views/admin/Albums.vue'), meta: { title: '影集馆' } },
       { path: 'media', name: 'AdminMedia', component: () => import('@/views/admin/Media.vue'), meta: { title: '素材库' } },
       { path: 'quiz', name: 'AdminQuiz', component: () => import('@/views/admin/Quiz.vue'), meta: { title: '题库房' } },
+      { path: 'tree-holes', name: 'AdminTreeHoles', component: () => import('@/views/admin/TreeHoles.vue'), meta: { title: '树洞管理' } },
     ]
   }
 ]

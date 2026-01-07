@@ -58,7 +58,7 @@ const initChart = () => {
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
-      data: stats.value.viewRanking.map((_, i) => `文章${i + 1}`),
+      data: stats.value.viewRanking.map(a => a.title?.substring(0, 8) + (a.title?.length > 8 ? '...' : '')),
       axisLabel: { rotate: 45 }
     },
     yAxis: { type: 'value' },

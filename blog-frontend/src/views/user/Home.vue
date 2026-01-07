@@ -2,7 +2,7 @@
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
     <!-- 左侧边栏 -->
     <aside class="hidden lg:block">
-      <div class="sticky top-20 space-y-4">
+      <div ref="leftSidebarRef" class="sticky space-y-4" :style="{ top: leftSidebarTop }">
       <!-- 用户卡片 -->
       <div v-if="userStore.isLoggedIn" class="glass rounded-xl p-4">
         <div class="flex items-center gap-3 mb-4">
@@ -91,7 +91,7 @@
 
     <!-- 右侧边栏 -->
     <aside class="hidden lg:block">
-      <div class="sticky top-20 space-y-4">
+      <div ref="rightSidebarRef" class="sticky space-y-4" :style="{ top: rightSidebarTop }">
       <!-- 抖音热榜 -->
       <div v-if="douyinHot.length" class="glass rounded-xl p-4">
         <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
@@ -106,21 +106,35 @@
       </div>
 
       <!-- 天气卡片 -->
-      <div v-if="weather" class="glass rounded-xl p-4">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center justify-between">
-          <span class="flex items-center gap-2">
-            <el-icon><Location /></el-icon> {{ weather.region }} {{ weather.city }}
-          </span>
-          <span class="text-sm text-gray-500 dark:text-gray-400 font-normal">{{ weather.date }}</span>
-        </h3>
-        <div class="flex items-center justify-between">
-          <div class="text-3xl font-bold text-primary-500">{{ weather.temp }}°C</div>
-          <div class="text-right text-sm text-gray-500 dark:text-gray-400">
-            <div>{{ weather.desc }}</div>
-            <div>体感 {{ weather.feelsLike }}°C</div>
-            <div>湿度 {{ weather.humidity }}%</div>
+      <div class="glass rounded-xl p-4">
+        <h3 class="font-semibold mb-3 dark:text-white">天气</h3>
+        <div v-if="weather">
+          <div class="flex items-center justify-between mb-2">
+            <span class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+              <el-icon><Location /></el-icon> {{ weather.region }} {{ weather.city }}
+            </span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ weather.date }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="text-3xl font-bold text-primary-500">{{ weather.temp }}°C</div>
+            <div class="text-right text-sm text-gray-500 dark:text-gray-400">
+              <div>{{ weather.desc }}</div>
+              <div>体感 {{ weather.feelsLike }}°C</div>
+              <div>湿度 {{ weather.humidity }}%</div>
+            </div>
           </div>
         </div>
+        <div v-else class="text-gray-400 text-sm">加载中...</div>
+      </div>
+
+      <!-- 每日一言 -->
+      <div class="glass rounded-xl p-4">
+        <h3 class="font-semibold mb-3 dark:text-white">每日一言</h3>
+        <div v-if="hitokoto" class="text-sm">
+          <p class="dark:text-gray-300 italic">「{{ hitokoto.hitokoto }}」</p>
+          <p class="text-right text-gray-400 mt-2">—— {{ hitokoto.from }}</p>
+        </div>
+        <div v-else class="text-gray-400 text-sm">加载中...</div>
       </div>
 
       <!-- 热门文章 -->
@@ -138,18 +152,46 @@
       </div>
     </aside>
   </div>
+
+  <!-- 返回顶部按钮 -->
+  <el-button v-show="showBackTop" :icon="Top" circle class="!fixed !right-6 !bottom-6 !w-10 !h-10 z-50" @click="scrollToTop" title="返回顶部" />
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getArticles, getCategories, getTags } from '@/api/blog'
 import api from '@/api'
-import { View, Loading, Location } from '@element-plus/icons-vue'
+import { View, Loading, Location, Top } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// 侧边栏 sticky 计算
+const leftSidebarRef = ref(null)
+const rightSidebarRef = ref(null)
+const leftSidebarTop = ref('80px')
+const rightSidebarTop = ref('80px')
+
+const updateSidebarTop = () => {
+  const viewportHeight = window.innerHeight
+  const offset = 80 // 顶部导航栏高度
+  const bottomPadding = 24
+
+  if (leftSidebarRef.value) {
+    const h = leftSidebarRef.value.offsetHeight
+    leftSidebarTop.value = h > viewportHeight - offset - bottomPadding
+      ? `${viewportHeight - h - bottomPadding}px`
+      : `${offset}px`
+  }
+  if (rightSidebarRef.value) {
+    const h = rightSidebarRef.value.offsetHeight
+    rightSidebarTop.value = h > viewportHeight - offset - bottomPadding
+      ? `${viewportHeight - h - bottomPadding}px`
+      : `${offset}px`
+  }
+}
 
 // 去除Markdown标记
 const stripMd = (text) => {
@@ -165,11 +207,13 @@ const wallpapers = ref([])
 const wallpaperLoading = ref(false)
 const douyinHot = ref([])
 const weather = ref(null)
+const hitokoto = ref(null)
 const selectedCategory = ref('all')
 const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
 const loadMoreRef = ref(null)
+const showBackTop = ref(false)
 let observer = null
 
 const setupObserver = () => {
@@ -229,7 +273,23 @@ const searchDouyin = (keyword) => {
   window.open(`https://www.douyin.com/search/${encodeURIComponent(keyword)}`, '_blank')
 }
 
+const handleRefresh = () => {
+  fetchArticles(true)
+  fetchHotArticles()
+}
+
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleScroll = () => {
+  showBackTop.value = window.scrollY > 300
+}
+
 onMounted(async () => {
+  window.addEventListener('scroll', handleScroll)
+  window.addEventListener('resize', updateSidebarTop)
+  setTimeout(updateSidebarTop, 500) // 等待内容加载后计算
   const [catRes, tagRes] = await Promise.all([getCategories(), getTags()])
   if (catRes.success) categories.value = catRes.data
   if (tagRes.success) tags.value = tagRes.data
@@ -250,9 +310,15 @@ onMounted(async () => {
   api.get('/wallpaper/weather').then(res => {
     if (res.success) weather.value = res.data
   }).catch(() => {})
+  // 获取一言
+  fetch('https://v1.hitokoto.cn/?c=i&c=k').then(r => r.json()).then(data => {
+    hitokoto.value = data
+  }).catch(() => {})
 })
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
+  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', updateSidebarTop)
 })
 </script>

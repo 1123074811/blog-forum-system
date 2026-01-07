@@ -34,7 +34,7 @@ public class AdminController {
         stats.put("totalComments", commentService.count());
 
         List<Article> topArticles = articleService.list(new LambdaQueryWrapper<Article>()
-                .orderByDesc(Article::getViewCount).last("LIMIT " + AppConstants.HOT_ARTICLE_LIMIT));
+                .orderByDesc(Article::getViewCount).last("LIMIT 10"));
         stats.put("viewRanking", topArticles);
 
         return ApiResponse.success(stats);

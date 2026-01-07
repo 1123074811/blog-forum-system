@@ -3,7 +3,10 @@
     <!-- 左侧答题区 -->
     <div class="flex-1 glass rounded-xl p-6">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold dark:text-white">{{ quiz.title }}</h2>
+        <div class="flex items-center gap-3">
+          <el-button @click="router.back()" :icon="ArrowLeft" text size="small">返回</el-button>
+          <h2 class="text-xl font-bold dark:text-white">{{ quiz.title }}</h2>
+        </div>
         <div class="text-sm text-gray-500">
           {{ currentIndex + 1 }} / {{ questions.length }}
           <span v-if="showResult" class="ml-4">正确率: {{ correctRate }}%</span>
@@ -96,10 +99,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getQuiz, getQuizQuestions } from '@/api/blog'
+import { ArrowLeft } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
 const quiz = ref({})
 const questions = ref([])
 const currentIndex = ref(0)

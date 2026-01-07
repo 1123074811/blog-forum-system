@@ -36,4 +36,10 @@ public class TreeHoleController {
         treeHoleService.save(hole);
         return ApiResponse.success(hole);
     }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        treeHoleService.removeById(id);
+        return ApiResponse.success(null);
+    }
 }

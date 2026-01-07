@@ -16,6 +16,12 @@
           <el-input v-model="form.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" size="large" show-password />
         </el-form-item>
         <el-form-item>
+          <div class="flex gap-2 w-full">
+            <el-input v-model="form.captchaCode" placeholder="验证码" size="large" class="flex-1" />
+            <img :src="captchaUrl" @click="refreshCaptcha" class="h-10 cursor-pointer rounded" alt="验证码" />
+          </div>
+        </el-form-item>
+        <el-form-item>
           <el-button type="primary" native-type="submit" :loading="loading" class="w-full" size="large">注册</el-button>
         </el-form-item>
       </el-form>
@@ -28,16 +34,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { register } from '@/api/blog'
-import { useUserStore } from '@/stores/user'
+import { register, getCaptcha } from '@/api/blog'
 
 const router = useRouter()
-const userStore = useUserStore()
 const loading = ref(false)
-const form = ref({ username: '', email: '', password: '', confirmPassword: '' })
+const captchaUrl = ref('')
+const form = ref({ username: '', email: '', password: '', confirmPassword: '', captchaId: '', captchaCode: '' })
+
+const refreshCaptcha = async () => {
+  try {
+    const res = await getCaptcha()
+    if (res.data) {
+      captchaUrl.value = res.data.image
+      form.value.captchaId = res.data.key
+    }
+  } catch (e) { console.error(e) }
+}
+onMounted(refreshCaptcha)
 
 const handleRegister = async () => {
   if (!form.value.username || !form.value.email || !form.value.password) {
@@ -48,18 +64,23 @@ const handleRegister = async () => {
     ElMessage.warning('两次密码不一致')
     return
   }
+  if (!form.value.captchaCode) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
   loading.value = true
   try {
     const res = await register(form.value)
     if (res.success) {
-      userStore.setUser(res.data.user, res.data.token, res.data.refreshToken)
-      ElMessage.success('注册成功')
-      router.push('/')
+      ElMessage.success('注册成功，请登录')
+      router.push('/login')
     } else {
       ElMessage.error(res.message)
+      refreshCaptcha()
     }
   } catch (e) {
     ElMessage.error('注册失败')
+    refreshCaptcha()
   } finally {
     loading.value = false
   }

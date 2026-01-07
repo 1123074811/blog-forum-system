@@ -2,12 +2,22 @@
   <div>
     <h1 class="text-2xl font-bold mb-6">刷题管理</h1>
     <el-table :data="quizBanks" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="title" label="题库名称" />
       <el-table-column prop="description" label="描述" show-overflow-tooltip />
+      <el-table-column prop="type" label="类型" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.type === 'quiz' ? 'primary' : 'success'" size="small">{{ row.type === 'quiz' ? '题库' : '文件' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="isPublic" label="公开" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.isPublic ? 'success' : 'info'" size="small">{{ row.isPublic ? '公开' : '私有' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="questionCount" label="题目数" width="80" />
       <el-table-column prop="userId" label="用户ID" width="80" />
-      <el-table-column prop="questionCount" label="题目数" width="100" />
-      <el-table-column prop="createdAt" label="创建时间" width="180" />
+      <el-table-column prop="createdAt" label="创建时间" width="170" />
       <el-table-column label="操作" width="150">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
@@ -16,10 +26,13 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="showEditDialog" title="编辑题库" width="400px">
+    <el-dialog v-model="showEditDialog" title="编辑题库" width="450px">
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="名称"><el-input v-model="editForm.title" /></el-form-item>
         <el-form-item label="描述"><el-input v-model="editForm.description" type="textarea" /></el-form-item>
+        <el-form-item label="公开">
+          <el-switch v-model="editForm.isPublic" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showEditDialog = false">取消</el-button>
@@ -49,7 +62,7 @@ const loadQuizBanks = async () => {
 
 const handleEdit = (row) => {
   editingId.value = row.id
-  editForm.value = { title: row.title, description: row.description }
+  editForm.value = { title: row.title, description: row.description, isPublic: row.isPublic }
   showEditDialog.value = true
 }
 

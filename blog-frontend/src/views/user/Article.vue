@@ -1,5 +1,8 @@
 <template>
   <div class="max-w-4xl mx-auto">
+    <div class="mb-4">
+      <el-button @click="router.back()" :icon="ArrowLeft" text>返回</el-button>
+    </div>
     <div class="glass rounded-xl p-6 mb-6">
       <h1 class="text-2xl font-bold mb-4 dark:text-white">{{ article.title }}</h1>
       <div class="flex items-center gap-4 mb-6 text-gray-500">
@@ -117,7 +120,7 @@ import { getArticle, getComments, createComment, likeComment, unlikeComment } fr
 import api from '@/api'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
-import { View, ChatLineRound } from '@element-plus/icons-vue'
+import { View, ChatLineRound, ArrowLeft } from '@element-plus/icons-vue'
 import toast from '@/utils/toast'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 

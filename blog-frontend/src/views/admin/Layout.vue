@@ -40,6 +40,10 @@
           <el-icon><List /></el-icon>
           <span class="dark:text-white">刷题管理</span>
         </router-link>
+        <router-link to="/admin/tree-holes" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700" :class="{ 'bg-primary-100 dark:bg-gray-700': route.path === '/admin/tree-holes' }">
+          <el-icon><ChatLineSquare /></el-icon>
+          <span class="dark:text-white">树洞管理</span>
+        </router-link>
       </nav>
       <div class="absolute bottom-4 left-4 right-4">
         <router-link to="/" class="flex items-center gap-2 p-3 text-gray-600 hover:text-primary-500 dark:text-gray-400">
@@ -58,7 +62,7 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
-import { DataAnalysis, User, Document, ChatDotRound, Folder, PriceTag, Picture, Film, List, Back } from '@element-plus/icons-vue'
+import { DataAnalysis, User, Document, ChatDotRound, Folder, PriceTag, Picture, Film, List, Back, ChatLineSquare } from '@element-plus/icons-vue'
 
 const route = useRoute()
 </script>

@@ -10,9 +10,11 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
+    nickname VARCHAR(50),
     avatar VARCHAR(255),
     bio TEXT,
     role VARCHAR(20) DEFAULT 'user',
+    activated TINYINT(1) DEFAULT 0,
     created_at VARCHAR(30),
     updated_at VARCHAR(30)
 );
@@ -188,4 +190,54 @@ CREATE TABLE IF NOT EXISTS media (
     INDEX idx_media_album_id (album_id),
     INDEX idx_media_public (is_public),
     INDEX idx_media_type (type)
+);
+
+-- Site visits statistics table
+CREATE TABLE IF NOT EXISTS site_visits (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    visit_date VARCHAR(10) NOT NULL UNIQUE,
+    pv INT DEFAULT 0,
+    uv INT DEFAULT 0,
+    new_users INT DEFAULT 0,
+    new_articles INT DEFAULT 0,
+    new_comments INT DEFAULT 0,
+    INDEX idx_visit_date (visit_date)
+);
+
+-- Conversations table (私信会话)
+CREATE TABLE IF NOT EXISTS conversations (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user1_id BIGINT NOT NULL,
+    user2_id BIGINT NOT NULL,
+    last_message_id BIGINT,
+    last_message_time VARCHAR(30),
+    user1_unread INT DEFAULT 0,
+    user2_unread INT DEFAULT 0,
+    created_at VARCHAR(30),
+    FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_conversation (user1_id, user2_id),
+    INDEX idx_conv_user1 (user1_id),
+    INDEX idx_conv_user2 (user2_id)
+);
+
+-- Messages table (私信消息)
+CREATE TABLE IF NOT EXISTS messages (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    receiver_id BIGINT NOT NULL,
+    content TEXT,
+    type VARCHAR(20) DEFAULT 'text',
+    file_url VARCHAR(500),
+    file_name VARCHAR(255),
+    is_read TINYINT(1) DEFAULT 0,
+    created_at VARCHAR(30),
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_msg_conv (conversation_id),
+    INDEX idx_msg_sender (sender_id),
+    INDEX idx_msg_receiver (receiver_id),
+    INDEX idx_msg_time (created_at)
 );

@@ -23,6 +23,14 @@ export default {
       },
       backdropBlur: {
         xs: '2px',
+      },
+      borderRadius: {
+        '2xl': '16px',
+        '3xl': '24px',
+      },
+      boxShadow: {
+        'glass': '0 8px 32px rgba(0, 0, 0, 0.08)',
+        'glass-lg': '0 20px 40px rgba(0, 0, 0, 0.12)',
       }
     },
   },

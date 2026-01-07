@@ -30,6 +30,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    public User findByEmail(String email) {
+        return getOne(new LambdaQueryWrapper<User>().eq(User::getEmail, email));
+    }
+
+    @Override
     public User getById(java.io.Serializable id) {
         return cacheUtil.getWithPassThrough(
             AppConstants.CACHE_USER_PREFIX + id, User.class, AppConstants.CACHE_USER_TTL_MINUTES, TimeUnit.MINUTES,
