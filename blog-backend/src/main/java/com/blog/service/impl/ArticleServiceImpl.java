@@ -5,10 +5,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.blog.constant.AppConstants;
 import com.blog.entity.Article;
+import com.blog.entity.ArticleFavorite;
 import com.blog.entity.ArticleLike;
+import com.blog.entity.Comment;
 import com.blog.entity.User;
+import com.blog.mapper.ArticleFavoriteMapper;
 import com.blog.mapper.ArticleLikeMapper;
 import com.blog.mapper.ArticleMapper;
+import com.blog.mapper.CommentMapper;
 import com.blog.mapper.UserMapper;
 import com.blog.service.ArticleService;
 import com.blog.util.CacheUtil;
@@ -16,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -27,6 +32,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     private final UserMapper userMapper;
     private final ArticleLikeMapper articleLikeMapper;
+    private final ArticleFavoriteMapper articleFavoriteMapper;
+    private final CommentMapper commentMapper;
     private final CacheUtil cacheUtil;
 
     @Override
@@ -56,7 +63,30 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (AppConstants.SORT_LATEST.equals(sort)) {
             wrapper.orderByDesc(Article::getCreatedAt);
         } else if (AppConstants.SORT_POPULAR.equals(sort)) {
-            wrapper.orderByDesc(Article::getViewCount);
+            // 热门文章使用权重计算，先查出所有已发布文章再排序
+            wrapper.orderByDesc(Article::getCreatedAt);
+            Page<Article> result = page(pageParam, wrapper);
+            List<Article> articles = result.getRecords();
+            if (!articles.isEmpty()) {
+                fillAuthorInfo(articles, currentUserId);
+                // 计算权重并排序：浏览量*1 + 点赞*5 + 评论*3 + 收藏*4
+                List<Long> ids = articles.stream().map(Article::getId).toList();
+                Map<Long, Long> favoriteMap = articleFavoriteMapper.selectList(
+                        new LambdaQueryWrapper<ArticleFavorite>().in(ArticleFavorite::getArticleId, ids))
+                        .stream().collect(Collectors.groupingBy(ArticleFavorite::getArticleId, Collectors.counting()));
+                Map<Long, Long> commentMap = commentMapper.selectList(
+                        new LambdaQueryWrapper<Comment>().in(Comment::getArticleId, ids))
+                        .stream().collect(Collectors.groupingBy(Comment::getArticleId, Collectors.counting()));
+                articles.forEach(a -> {
+                    long score = (a.getViewCount() != null ? a.getViewCount() : 0)
+                            + (a.getLikeCount() != null ? a.getLikeCount() * 5 : 0)
+                            + commentMap.getOrDefault(a.getId(), 0L) * 3
+                            + favoriteMap.getOrDefault(a.getId(), 0L) * 4;
+                    a.setHotScore(score);
+                });
+                articles.sort(Comparator.comparing(Article::getHotScore).reversed());
+            }
+            return result;
         } else {
             wrapper.orderByDesc(Article::getCreatedAt);
         }

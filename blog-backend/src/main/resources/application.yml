@@ -60,6 +60,10 @@ minio:
 weather:
   default-city: 乌鲁木齐
 
+# 智谱AI配置
+zhipu:
+  api-key: 649edd3035634c99854b2b557c347cdd.kU936A2nVHnf9FSF
+
 # OAuth配置
 oauth:
   github:

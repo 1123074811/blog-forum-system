@@ -25,4 +25,6 @@ public class Article {
     private Long likeCount;
     @TableField(exist = false)
     private Boolean liked;
+    @TableField(exist = false)
+    private Long hotScore;
 }

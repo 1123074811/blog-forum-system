@@ -13,6 +13,7 @@ import com.blog.mapper.ArticleTagMapper;
 import com.blog.mapper.FollowMapper;
 import com.blog.mapper.UserMapper;
 import com.blog.service.ArticleService;
+import com.blog.service.ZhipuAiService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -31,6 +32,7 @@ public class ArticleController {
     private final ArticleTagMapper articleTagMapper;
     private final FollowMapper followMapper;
     private final UserMapper userMapper;
+    private final ZhipuAiService zhipuAiService;
 
     @GetMapping
     public ApiResponse<PageResponse<Article>> getArticles(
@@ -162,5 +164,18 @@ public class ArticleController {
 
         articleService.removeById(id);
         return ApiResponse.success(true);
+    }
+
+    @GetMapping("/{id}/summary")
+    public ApiResponse<String> getArticleSummary(@PathVariable Long id) {
+        Article article = articleService.getById(id);
+        if (article == null) {
+            return ApiResponse.error("Article not found");
+        }
+        String summary = zhipuAiService.generateSummary(article.getContent());
+        if (summary == null) {
+            return ApiResponse.error("AI 总结生成失败");
+        }
+        return ApiResponse.success(summary);
     }
 }

@@ -1,10 +1,9 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+  <div class="home-container">
     <!-- 左侧边栏 -->
-    <aside class="hidden lg:block">
-      <div ref="leftSidebarRef" class="sticky space-y-4" :style="{ top: leftSidebarTop }">
+    <aside class="left-sidebar hidden lg:block">
       <!-- 用户卡片 -->
-      <div v-if="userStore.isLoggedIn" class="glass rounded-xl p-4">
+      <div v-if="userStore.isLoggedIn" class="glass rounded-xl p-4 mb-4">
         <div class="flex items-center gap-3 mb-4">
           <el-avatar :src="userStore.user?.avatar" :size="48">{{ (userStore.user?.nickname || userStore.user?.username)?.[0] }}</el-avatar>
           <div>
@@ -16,7 +15,7 @@
       </div>
 
       <!-- 分类 -->
-      <div class="glass rounded-xl p-4">
+      <div class="glass rounded-xl p-4 mb-4">
         <h3 class="font-semibold mb-3 dark:text-white">分类</h3>
         <div class="space-y-2">
           <div class="flex items-center justify-between p-2 rounded hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer"
@@ -46,11 +45,10 @@
           <el-tag v-for="tag in tags" :key="tag.id" class="cursor-pointer" effect="plain">{{ tag.name }}</el-tag>
         </div>
       </div>
-      </div>
     </aside>
 
     <!-- 中间内容区 -->
-    <div class="lg:col-span-2">
+    <div class="main-content">
       <!-- 必应壁纸轮播图 -->
       <div class="glass rounded-xl mb-4 overflow-hidden">
         <div v-if="wallpaperLoading" class="h-[200px] flex items-center justify-center">
@@ -90,10 +88,9 @@
     </div>
 
     <!-- 右侧边栏 -->
-    <aside class="hidden lg:block">
-      <div ref="rightSidebarRef" class="sticky space-y-4" :style="{ top: rightSidebarTop }">
+    <aside class="right-sidebar hidden lg:block">
       <!-- 抖音热榜 -->
-      <div v-if="douyinHot.length" class="glass rounded-xl p-4">
+      <div v-if="douyinHot.length" class="glass rounded-xl p-4 mb-4">
         <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
           <img src="https://www.douyin.com/favicon.ico" class="w-4 h-4" /> 抖音热榜
         </h3>
@@ -106,7 +103,7 @@
       </div>
 
       <!-- 天气卡片 -->
-      <div class="glass rounded-xl p-4">
+      <div class="glass rounded-xl p-4 mb-4">
         <h3 class="font-semibold mb-3 dark:text-white">天气</h3>
         <div v-if="weather">
           <div class="flex items-center justify-between mb-2">
@@ -128,7 +125,7 @@
       </div>
 
       <!-- 每日一言 -->
-      <div class="glass rounded-xl p-4">
+      <div class="glass rounded-xl p-4 mb-4">
         <h3 class="font-semibold mb-3 dark:text-white">每日一言</h3>
         <div v-if="hitokoto" class="text-sm">
           <p class="dark:text-gray-300 italic">「{{ hitokoto.hitokoto }}」</p>
@@ -144,11 +141,10 @@
           <div v-for="(article, index) in hotArticles" :key="article.id"
                class="flex gap-2 cursor-pointer hover:text-primary-500"
                @click="router.push(`/article/${article.id}`)">
-            <span class="text-primary-500 font-bold">{{ index + 1 }}</span>
+            <span class="font-bold w-5 text-center" :style="getHotRankStyle(index)">{{ index + 1 }}</span>
             <span class="line-clamp-1 dark:text-gray-300">{{ article.title }}</span>
           </div>
         </div>
-      </div>
       </div>
     </aside>
   </div>
@@ -158,7 +154,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getArticles, getCategories, getTags } from '@/api/blog'
@@ -167,31 +163,6 @@ import { View, Loading, Location, Top } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
-
-// 侧边栏 sticky 计算
-const leftSidebarRef = ref(null)
-const rightSidebarRef = ref(null)
-const leftSidebarTop = ref('80px')
-const rightSidebarTop = ref('80px')
-
-const updateSidebarTop = () => {
-  const viewportHeight = window.innerHeight
-  const offset = 80 // 顶部导航栏高度
-  const bottomPadding = 24
-
-  if (leftSidebarRef.value) {
-    const h = leftSidebarRef.value.offsetHeight
-    leftSidebarTop.value = h > viewportHeight - offset - bottomPadding
-      ? `${viewportHeight - h - bottomPadding}px`
-      : `${offset}px`
-  }
-  if (rightSidebarRef.value) {
-    const h = rightSidebarRef.value.offsetHeight
-    rightSidebarTop.value = h > viewportHeight - offset - bottomPadding
-      ? `${viewportHeight - h - bottomPadding}px`
-      : `${offset}px`
-  }
-}
 
 // 去除Markdown标记
 const stripMd = (text) => {
@@ -273,6 +244,12 @@ const searchDouyin = (keyword) => {
   window.open(`https://www.douyin.com/search/${encodeURIComponent(keyword)}`, '_blank')
 }
 
+// 热门文章序号红色渐变样式
+const getHotRankStyle = (index) => {
+  const colors = ['#FF4500', '#FF6347', '#FF7F50', '#FFA07A', '#FFB6C1']
+  return { color: colors[index] || '#999' }
+}
+
 const handleRefresh = () => {
   fetchArticles(true)
   fetchHotArticles()
@@ -288,8 +265,6 @@ const handleScroll = () => {
 
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll)
-  window.addEventListener('resize', updateSidebarTop)
-  setTimeout(updateSidebarTop, 500) // 等待内容加载后计算
   const [catRes, tagRes] = await Promise.all([getCategories(), getTags()])
   if (catRes.success) categories.value = catRes.data
   if (tagRes.success) tags.value = tagRes.data
@@ -319,6 +294,48 @@ onMounted(async () => {
 onUnmounted(() => {
   if (observer) observer.disconnect()
   window.removeEventListener('scroll', handleScroll)
-  window.removeEventListener('resize', updateSidebarTop)
 })
 </script>
+
+<style scoped>
+.home-container {
+  display: flex;
+  gap: 1.5rem;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+.left-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.right-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding-left: 8px;
+}
+
+/* 隐藏滚动条 */
+.left-sidebar,
+.main-content,
+.right-sidebar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.left-sidebar::-webkit-scrollbar,
+.main-content::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar {
+  display: none;
+}
+</style>

@@ -34,8 +34,10 @@ const DANMAKU_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '
 const canvas = ref(null)
 const content = ref('')
 const visibleMessages = ref([])
+const allMessages = ref([]) // 保存所有消息用于循环
 let animationId = null
 let stars = []
+let loopTimer = null
 
 // 星空动画
 const initStars = () => {
@@ -85,10 +87,25 @@ const addDanmaku = (msg) => {
   }, 12000)
 }
 
-// 加载历史消息
+// 加载历史消息并启动循环
 const loadMessages = async () => {
   const res = await getTreeHoles()
-  if (res.success) res.data.slice(0, 20).reverse().forEach((m, i) => setTimeout(() => addDanmaku(m), i * 500))
+  if (res.success && res.data.length > 0) {
+    allMessages.value = res.data.slice(0, 20).reverse()
+    startLoop()
+  }
+}
+
+// 循环播放弹幕
+const startLoop = () => {
+  let index = 0
+  const playNext = () => {
+    if (allMessages.value.length === 0) return
+    addDanmaku(allMessages.value[index])
+    index = (index + 1) % allMessages.value.length
+    loopTimer = setTimeout(playNext, 800 + Math.random() * 400)
+  }
+  playNext()
 }
 
 // 发送消息
@@ -113,7 +130,7 @@ const checkLength = () => {
 }
 
 onMounted(() => { initStars(); loadMessages() })
-onUnmounted(() => cancelAnimationFrame(animationId))
+onUnmounted(() => { cancelAnimationFrame(animationId); clearTimeout(loopTimer) })
 </script>
 
 <style scoped>

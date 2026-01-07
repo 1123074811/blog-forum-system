@@ -26,6 +26,7 @@ export const unfollowUser = (id) => api.delete(`/users/${id}/follow`)
 
 export const getCategories = () => api.get('/categories')
 export const getTags = () => api.get('/tags')
+export const createUserTag = (name) => api.post('/tags', { name })
 
 export const uploadFile = (file) => {
   const formData = new FormData()

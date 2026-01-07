@@ -5,6 +5,17 @@
     </div>
     <div class="glass rounded-xl p-6 mb-6">
       <h1 class="text-2xl font-bold mb-4 dark:text-white">{{ article.title }}</h1>
+
+      <!-- AI 总结 -->
+      <div class="ai-summary mb-4" v-if="aiSummary || summaryLoading">
+        <div class="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 mb-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2m-4 9a5 5 0 00-5 5v4h14v-4a5 5 0 00-5-5h-4m0 2h4a3 3 0 013 3v1H5v-1a3 3 0 013-3z"/></svg>
+          <span class="font-medium">AI 总结</span>
+        </div>
+        <div v-if="summaryLoading" class="text-gray-500 text-sm typing-effect">正在生成总结...</div>
+        <div v-else class="text-gray-700 dark:text-gray-300 text-sm bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">{{ aiSummary }}</div>
+      </div>
+
       <div class="flex items-center gap-4 mb-6 text-gray-500">
         <div class="flex items-center gap-2 cursor-pointer" @click="router.push(`/user/${article.userId}`)">
           <el-avatar :src="article.authorAvatar" :size="32">{{ article.authorName?.[0] || 'U' }}</el-avatar>
@@ -135,6 +146,8 @@ const replyTo = ref(null)
 const replyContent = ref('')
 const likedComments = ref(new Set())
 const interaction = ref({ likeCount: 0, favoriteCount: 0, liked: false, favorited: false })
+const aiSummary = ref('')
+const summaryLoading = ref(false)
 
 const topLevelComments = computed(() => comments.value.filter(c => !c.parentId))
 const getReplies = (parentId) => comments.value.filter(c => c.parentId === parentId)
@@ -145,9 +158,19 @@ const fetchData = async () => {
     getComments(route.params.id),
     api.get(`/articles/${route.params.id}/interaction`)
   ])
-  if (articleRes.success) article.value = articleRes.data
+  if (articleRes.success) {
+    article.value = articleRes.data
+    fetchSummary()
+  }
   if (commentsRes.success) comments.value = commentsRes.data
   if (interactionRes.success) interaction.value = interactionRes.data
+}
+
+const fetchSummary = async () => {
+  summaryLoading.value = true
+  const res = await api.get(`/articles/${route.params.id}/summary`)
+  summaryLoading.value = false
+  if (res.success) aiSummary.value = res.data
 }
 
 const toggleLike = async () => {
@@ -231,5 +254,13 @@ onMounted(fetchData)
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.typing-effect::after {
+  content: '|';
+  animation: blink 1s infinite;
+}
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
 </style>

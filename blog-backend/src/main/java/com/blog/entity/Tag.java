@@ -10,4 +10,7 @@ public class Tag {
     private Long id;
     private String name;
     private String createdAt;
+
+    @TableField(exist = false)
+    private Long articleCount;
 }
