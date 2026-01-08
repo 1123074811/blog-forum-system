@@ -1,8 +1,8 @@
 -- Blog System Database Schema
 
-CREATE DATABASE IF NOT EXISTS blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS blog_forum DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE blog;
+USE blog_forum;
 
 -- Users table
 CREATE TABLE users (
@@ -243,3 +243,51 @@ CREATE TABLE IF NOT EXISTS messages (
     INDEX idx_msg_receiver (receiver_id),
     INDEX idx_msg_time (created_at)
 );
+
+-- Site info table (网站信息)
+CREATE TABLE IF NOT EXISTS site_info (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    site_name VARCHAR(100) DEFAULT '墨香阁',
+    site_description TEXT,
+    site_keywords VARCHAR(255) DEFAULT '博客,技术,分享',
+    site_logo VARCHAR(500),
+    site_favicon VARCHAR(500),
+    icp_number VARCHAR(50),
+    police_number VARCHAR(50),
+    contact_email VARCHAR(100),
+    contact_phone VARCHAR(20),
+    contact_address VARCHAR(255),
+    contact_qq VARCHAR(20),
+    contact_wechat VARCHAR(50),
+    github_url VARCHAR(255),
+    gitee_url VARCHAR(255),
+    created_at VARCHAR(30),
+    updated_at VARCHAR(30)
+);
+
+-- Announcements table (公告板)
+CREATE TABLE IF NOT EXISTS announcements (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content LONGTEXT NOT NULL,
+    type VARCHAR(20) DEFAULT 'info',
+    is_pinned TINYINT(1) DEFAULT 0,
+    is_active TINYINT(1) DEFAULT 1,
+    sort_order INT DEFAULT 0,
+    created_by BIGINT NOT NULL,
+    created_at VARCHAR(30),
+    updated_at VARCHAR(30),
+    INDEX idx_announcement_active (is_active),
+    INDEX idx_announcement_pinned (is_pinned),
+    INDEX idx_announcement_sort (sort_order),
+    INDEX idx_announcement_created_by (created_by)
+);
+
+-- Insert default site info
+INSERT INTO site_info (site_name, site_description, site_keywords, contact_email, created_at, updated_at) VALUES
+('墨香阁', '一个优雅的博客系统，分享技术与生活', '博客,技术,分享,Vue,Spring Boot', 'admin@blog.com', NOW(), NOW());
+
+-- Insert sample announcements
+INSERT INTO announcements (title, content, type, is_pinned, created_by, created_at, updated_at) VALUES
+('欢迎来到墨香阁', '欢迎大家来到墨香阁博客系统！这里是一个分享技术与生活的平台，希望大家能够在这里找到有价值的内容。', 'info', 1, 1, NOW(), NOW()),
+('网站功能介绍', '本站支持文章发布、评论互动、私信聊天、相册分享、刷题练习等功能，欢迎大家体验使用！', 'success', 0, 1, NOW(), NOW());

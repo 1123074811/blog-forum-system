@@ -9,4 +9,8 @@ public class DateUtil {
     public static String now() {
         return LocalDateTime.now().format(FORMATTER);
     }
+    
+    public static String getCurrentDateTime() {
+        return LocalDateTime.now().format(FORMATTER);
+    }
 }

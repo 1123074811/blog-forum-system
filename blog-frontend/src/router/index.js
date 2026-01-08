@@ -21,6 +21,7 @@ const routes = [
       { path: 'favorites', name: 'Favorites', component: () => import('@/views/user/Favorites.vue'), meta: { requiresAuth: true, title: '珍藏阁' } },
       { path: 'tree-hole', name: 'TreeHole', component: () => import('@/views/user/TreeHole.vue'), meta: { title: '听风谷' } },
       { path: 'chat', name: 'Chat', component: () => import('@/views/user/Chat.vue'), meta: { requiresAuth: true, title: '私信' } },
+      { path: 'about', name: 'About', component: () => import('@/views/user/About.vue'), meta: { title: '关于我们' } },
     ]
   },
   { path: '/login', name: 'Login', component: () => import('@/views/Login.vue'), meta: { title: '登临门' } },
@@ -42,6 +43,8 @@ const routes = [
       { path: 'media', name: 'AdminMedia', component: () => import('@/views/admin/Media.vue'), meta: { title: '素材库' } },
       { path: 'quiz', name: 'AdminQuiz', component: () => import('@/views/admin/Quiz.vue'), meta: { title: '题库房' } },
       { path: 'tree-holes', name: 'AdminTreeHoles', component: () => import('@/views/admin/TreeHoles.vue'), meta: { title: '树洞管理' } },
+      { path: 'site-info', name: 'AdminSiteInfo', component: () => import('@/views/admin/SiteInfo.vue'), meta: { title: '网站设置' } },
+      { path: 'announcements', name: 'AdminAnnouncements', component: () => import('@/views/admin/Announcements.vue'), meta: { title: '公告管理' } },
     ]
   }
 ]

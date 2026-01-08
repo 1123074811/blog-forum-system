@@ -76,6 +76,7 @@
                   <el-dropdown-item @click="router.push(`/user/${userStore.user?.id}`)">个人主页</el-dropdown-item>
                   <el-dropdown-item @click="router.push('/album')">我的相册</el-dropdown-item>
                   <el-dropdown-item @click="router.push('/write')">写文章</el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/about')">关于我们</el-dropdown-item>
                   <el-dropdown-item v-if="userStore.isAdmin" @click="router.push('/admin')">管理后台</el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
                 </el-dropdown-menu>

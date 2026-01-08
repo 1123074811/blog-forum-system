@@ -25,7 +25,11 @@ public class MessageController {
     private final JwtUtil jwtUtil;
 
     private Long getUserId(HttpServletRequest request) {
-        String token = request.getHeader("Authorization").substring(7);
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("未授权：缺少或无效的Authorization头");
+        }
+        String token = authHeader.substring(7);
         return jwtUtil.getUserIdFromToken(token);
     }
 

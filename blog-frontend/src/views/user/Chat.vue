@@ -2,12 +2,28 @@
   <div class="chat-page">
     <div class="chat-wrapper">
       <!-- 左侧会话列表 -->
-      <div class="sidebar">
+      <div class="sidebar" :class="{ 'mobile-hidden': currentConv && isMobile }">
         <div class="sidebar-header">
           <span class="title">私信</span>
-          <el-button type="primary" size="small" circle @click="showFriends = true">
-            <el-icon><Plus /></el-icon>
-          </el-button>
+          <div class="friend-trigger" 
+               @mouseenter="handleMouseEnter" 
+               @mouseleave="handleMouseLeave"
+               @click="isMobile && (showFriendsDialog = !showFriendsDialog)">
+            <el-button type="primary" size="small">好友</el-button>
+            <!-- 好友列表悬浮层 -->
+            <div v-if="showFriendsDialog" class="friend-dropdown" 
+                 @mouseenter="handleMouseEnter" 
+                 @mouseleave="handleMouseLeave">
+              <div class="friend-dropdown-title">好友列表</div>
+              <div class="friend-list">
+                <div v-for="f in friends" :key="f.id" class="friend-item" @click="startChatWith(f)">
+                  <el-avatar :src="f.avatar" :size="40">{{ (f.nickname || f.username || '?')[0] }}</el-avatar>
+                  <span class="friend-name">{{ f.nickname || f.username }}</span>
+                </div>
+                <el-empty v-if="!friends.length" description="暂无互关好友" :image-size="60" />
+              </div>
+            </div>
+          </div>
         </div>
         <div class="conv-list">
           <div v-if="loading" class="loading-state">
@@ -32,9 +48,12 @@
       </div>
 
       <!-- 右侧聊天区域 -->
-      <div class="main-chat">
+      <div class="main-chat" :class="{ 'mobile-visible': currentConv && isMobile }">
         <template v-if="currentConv">
           <div class="chat-header">
+            <el-button v-if="isMobile" text @click="backToList" class="back-btn">
+              <el-icon :size="20"><ArrowLeft /></el-icon>
+            </el-button>
             <el-avatar :src="currentConv.otherUser?.avatar" :size="40">
               {{ (currentConv.otherUser?.nickname || currentConv.otherUser?.username || '?')[0] }}
             </el-avatar>
@@ -51,7 +70,7 @@
               <div class="msg-bubble">
                 <template v-if="msg.type === 'text'">{{ msg.content }}</template>
                 <el-image v-else-if="msg.type === 'image'" :src="msg.fileUrl" fit="cover" style="max-width: 200px; border-radius: 8px;" :preview-src-list="[msg.fileUrl]" />
-                <a v-else-if="msg.type === 'file'" :href="msg.fileUrl" target="_blank" class="file-link">
+                <a v-else-if="msg.type === 'file'" :href="msg.fileUrl" :download="msg.fileName" class="file-link">
                   <el-icon><Document /></el-icon> {{ msg.fileName }}
                 </a>
               </div>
@@ -60,16 +79,13 @@
           </div>
           <div class="input-area">
             <div class="toolbar">
-              <el-button text @click="showEmoji = !showEmoji"><span style="font-size: 20px;">😊</span></el-button>
+              <EmojiPicker @select="e => inputText += e" />
               <el-upload :show-file-list="false" :before-upload="handleImageUpload" accept="image/*">
                 <el-button text><el-icon><Picture /></el-icon></el-button>
               </el-upload>
               <el-upload :show-file-list="false" :before-upload="handleFileUpload">
                 <el-button text><el-icon><Paperclip /></el-icon></el-button>
               </el-upload>
-            </div>
-            <div v-if="showEmoji" class="emoji-panel">
-              <span v-for="e in emojis" :key="e" @click="inputText += e; showEmoji = false" class="emoji">{{ e }}</span>
             </div>
             <div class="input-box">
               <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="sendText" :disabled="sendDisabled" />
@@ -83,26 +99,16 @@
         </div>
       </div>
     </div>
-
-    <!-- 好友选择弹窗 -->
-    <el-dialog v-model="showFriends" title="发起私信" width="360px">
-      <div class="friend-list">
-        <div v-for="f in friends" :key="f.id" class="friend-item" @click="startChatWith(f)">
-          <el-avatar :src="f.avatar" :size="40">{{ (f.nickname || f.username || '?')[0] }}</el-avatar>
-          <span>{{ f.nickname || f.username }}</span>
-        </div>
-        <el-empty v-if="!friends.length" description="暂无互关好友" :image-size="60" />
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { Plus, Loading, Picture, Paperclip, Document } from '@element-plus/icons-vue'
+import { Loading, Picture, Paperclip, Document, ArrowLeft } from '@element-plus/icons-vue'
 import { getConversations, getMessages, sendMessage, uploadMessageFile, getFriends, checkMutualFollow, getUser } from '@/api/blog'
 import { ElMessage } from 'element-plus'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const route = useRoute()
 const userId = ref(JSON.parse(localStorage.getItem('user') || '{}').id)
@@ -111,16 +117,49 @@ const conversations = ref([])
 const currentConv = ref(null)
 const messages = ref([])
 const inputText = ref('')
-const showFriends = ref(false)
+const showFriendsDialog = ref(false)
 const friends = ref([])
 const msgListRef = ref(null)
-const showEmoji = ref(false)
 const isMutual = ref(true)
 const sentCount = ref(0)
 const targetUserInfo = ref(null)
+const isMobile = ref(window.innerWidth <= 768)
+let hideTimer = null
 
-const emojis = ['😀','😂','😍','🥰','😎','🤔','👍','👎','❤️','💔','🎉','🔥','😭','😅','🙏','💪','✨','🌹','☕','🍕']
 const sendDisabled = computed(() => !isMutual.value && sentCount.value >= 1)
+
+// 监听窗口尺寸变化
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+const backToList = () => {
+  currentConv.value = null
+  messages.value = []
+}
+
+const handleMouseLeave = () => {
+  if (!isMobile.value) {
+    if (hideTimer) clearTimeout(hideTimer)
+    hideTimer = setTimeout(() => {
+      showFriendsDialog.value = false
+    }, 300)
+  }
+}
+
+const handleMouseEnter = () => {
+  if (!isMobile.value) {
+    if (hideTimer) clearTimeout(hideTimer)
+    showFriendsDialog.value = true
+  }
+}
+
+// 移动端点击外部关闭
+const handleClickOutside = (event) => {
+  if (isMobile.value && showFriendsDialog.value && !event.target.closest('.friend-trigger')) {
+    showFriendsDialog.value = false
+  }
+}
 
 const getUnread = (conv) => conv.user1Id === userId.value ? conv.user1Unread : conv.user2Unread
 
@@ -216,7 +255,7 @@ const loadFriends = async () => {
 }
 
 const startChatWith = async (user) => {
-  showFriends.value = false
+  showFriendsDialog.value = false
   let conv = conversations.value.find(c => c.user1Id === user.id || c.user2Id === user.id)
   if (!conv) {
     try {
@@ -276,6 +315,9 @@ onMounted(async () => {
   await loadConversations()
   await loadFriends()
   connectWs()
+  
+  window.addEventListener('resize', handleResize)
+  document.addEventListener('click', handleClickOutside)
 
   const targetUserId = route.query.userId
   if (targetUserId) {
@@ -283,14 +325,19 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => ws?.close())
+onUnmounted(() => {
+  ws?.close()
+  window.removeEventListener('resize', handleResize)
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>
 .chat-page {
   height: calc(100vh - 80px);
-  margin: -2rem -1rem -2rem -1rem;
+  margin: 0 -1rem -2rem -1rem;
   padding: 20px;
+  overflow: hidden;
 }
 .chat-wrapper {
   display: flex;
@@ -314,11 +361,73 @@ onUnmounted(() => ws?.close())
   padding: 20px;
   border-bottom: 1px solid #eee;
   background: #fff;
+  position: relative;
 }
 .sidebar-header .title {
   font-size: 18px;
   font-weight: 600;
   color: #333;
+}
+.friend-trigger {
+  position: relative;
+}
+.friend-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  max-height: 400px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+  animation: slideDown 0.25s ease-out;
+  transform-origin: top;
+}
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scaleY(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+.friend-dropdown-title {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  background: #fafafa;
+}
+.friend-list {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 8px;
+}
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.friend-item:hover {
+  background: #f5f5f5;
+}
+.friend-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .conv-list {
   flex: 1;
@@ -446,23 +555,6 @@ onUnmounted(() => ws?.close())
   gap: 8px;
   margin-bottom: 12px;
 }
-.emoji-panel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px;
-  background: #f5f5f5;
-  border-radius: 12px;
-  margin-bottom: 12px;
-}
-.emoji {
-  font-size: 24px;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-.emoji:hover {
-  transform: scale(1.2);
-}
 .input-box {
   display: flex;
   gap: 12px;
@@ -481,20 +573,86 @@ onUnmounted(() => ws?.close())
   align-items: center;
   justify-content: center;
 }
-.friend-list {
-  max-height: 300px;
-  overflow-y: auto;
+
+.back-btn {
+  margin-right: 8px;
+  padding: 4px !important;
 }
-.friend-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.friend-item:hover {
-  background: #f5f5f5;
+
+/* 移动端样式 */
+@media (max-width: 768px) {
+  .chat-page {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+  }
+  
+  .chat-wrapper {
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  .sidebar {
+    width: 100%;
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar.mobile-hidden {
+    transform: translateX(-100%);
+    position: absolute;
+    height: 100%;
+    z-index: -1;
+  }
+  
+  .main-chat {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .main-chat.mobile-visible {
+    transform: translateX(0);
+  }
+  
+  .chat-header {
+    padding: 12px 16px;
+  }
+  
+  .msg-list {
+    padding: 12px;
+  }
+  
+  .msg-bubble {
+    max-width: 75%;
+  }
+  
+  .input-area {
+    padding: 12px;
+  }
+  
+  .sidebar-header {
+    padding: 16px;
+  }
+  
+  .conv-item {
+    padding: 12px;
+  }
+  
+  .friend-dropdown {
+    width: 90vw;
+    max-width: 320px;
+    right: -10px;
+  }
+  
+  .friend-list {
+    max-height: 60vh;
+  }
 }
 </style>

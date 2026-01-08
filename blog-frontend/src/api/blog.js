@@ -48,6 +48,17 @@ export const getAdminCategories = () => api.get('/admin/categories')
 export const createCategory = (data) => api.post('/admin/categories', data)
 export const updateCategory = (id, data) => api.put(`/admin/categories/${id}`, data)
 export const deleteCategory = (id) => api.delete(`/admin/categories/${id}`)
+
+// Site Info APIs
+export const getSiteInfo = () => api.get('/site-info')
+export const updateSiteInfo = (data) => api.put('/admin/site-info', data)
+
+// Announcement APIs
+export const getAnnouncements = () => api.get('/announcements')
+export const getAllAnnouncements = () => api.get('/admin/announcements')
+export const createAnnouncement = (data) => api.post('/admin/announcements', data)
+export const updateAnnouncement = (id, data) => api.put(`/admin/announcements/${id}`, data)
+export const deleteAnnouncement = (id) => api.delete(`/admin/announcements/${id}`)
 export const getAdminTags = () => api.get('/admin/tags')
 export const createTag = (data) => api.post('/admin/tags', data)
 export const updateTag = (id, data) => api.put(`/admin/tags/${id}`, data)
