@@ -5,23 +5,22 @@ import com.blog.entity.Conversation;
 import com.blog.entity.Message;
 import com.blog.entity.User;
 import com.blog.service.MessageService;
+import com.blog.service.MinioService;
 import com.blog.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/messages")
 @RequiredArgsConstructor
 public class MessageController {
     private final MessageService messageService;
+    private final MinioService minioService;
     private final JwtUtil jwtUtil;
 
     private Long getUserId(HttpServletRequest request) {
@@ -59,15 +58,14 @@ public class MessageController {
     }
 
     @PostMapping("/upload")
-    public ApiResponse<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
+    public ApiResponse<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) {
         String originalName = file.getOriginalFilename();
-        String ext = originalName != null && originalName.contains(".") ? originalName.substring(originalName.lastIndexOf(".")) : "";
-        String newName = UUID.randomUUID() + ext;
-        String uploadDir = System.getProperty("user.dir") + "/uploads/messages/";
-        new File(uploadDir).mkdirs();
-        file.transferTo(new File(uploadDir + newName));
-        String url = "/uploads/messages/" + newName;
-        return ApiResponse.success(Map.of("url", url, "name", originalName != null ? originalName : newName));
+        try {
+            String url = minioService.upload(file, "messages");
+            return ApiResponse.success(Map.of("url", url, "name", originalName != null ? originalName : "file"));
+        } catch (Exception e) {
+            return ApiResponse.error("文件上传失败: " + e.getMessage());
+        }
     }
 
     @GetMapping("/unread")
