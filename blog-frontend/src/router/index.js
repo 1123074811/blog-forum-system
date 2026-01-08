@@ -14,6 +14,7 @@ const routes = [
       { path: 'edit/:id', name: 'Edit', component: () => import('@/views/user/Write.vue'), meta: { requiresAuth: true, title: '润笔阁' } },
       { path: 'search', name: 'Search', component: () => import('@/views/user/Search.vue'), meta: { title: '寻迹处' } },
       { path: 'discover', name: 'Discover', component: () => import('@/views/user/Discover.vue'), meta: { title: '发现' } },
+      { path: 'er-diagram', name: 'ERDiagram', component: () => import('@/views/user/ERDiagram.vue'), meta: { title: 'ER图工具' } },
       { path: 'quiz', name: 'QuizList', component: () => import('@/views/user/QuizList.vue'), meta: { requiresAuth: true, title: '问学堂' } },
       { path: 'quiz/:id', name: 'Quiz', component: () => import('@/views/user/Quiz.vue'), meta: { requiresAuth: true, title: '答卷间' } },
       { path: 'album', name: 'Album', component: () => import('@/views/user/Album.vue'), meta: { requiresAuth: true, title: '藏影阁' } },

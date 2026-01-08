@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试翻译API</title>
+</head>
+<body>
+    <h1>测试翻译API</h1>
+    <button onclick="testTranslate()">测试翻译</button>
+    <div id="result"></div>
+
+    <script>
+        async function testTranslate() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '测试中...';
+            
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: 'employee_name',
+                        context: 'database_field'
+                    })
+                });
+                
+                console.log('响应状态:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('响应结果:', result);
+                
+                resultDiv.innerHTML = `
+                    <h3>测试结果:</h3>
+                    <p>状态: ${response.status}</p>
+                    <p>成功: ${result.success}</p>
+                    <p>翻译结果: ${result.data}</p>
+                    <p>消息: ${result.message || '无'}</p>
+                `;
+            } catch (error) {
+                console.error('测试失败:', error);
+                resultDiv.innerHTML = `
+                    <h3>测试失败:</h3>
+                    <p style="color: red;">${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
