@@ -20,6 +20,17 @@
           </p>
         </div>
 
+        <!-- 人生模拟器 -->
+        <div class="tool-card life-simulator-card" @click="goToLifeSimulator">
+          <div class="tool-icon life-simulator-icon">
+            <el-icon size="32"><Sunrise /></el-icon>
+          </div>
+          <h3 class="tool-title">人生模拟器</h3>
+          <p class="tool-description">
+            体验随机人生，分配初始属性，经历各种人生事件，看看你能活到多少岁。
+          </p>
+        </div>
+
         <!-- 敬请期待 -->
         <div class="tool-card coming-soon-card">
           <div class="tool-icon coming-soon-icon">
@@ -37,20 +48,26 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { Grid, ChatDotRound } from '@element-plus/icons-vue'
+import { Grid, ChatDotRound, Sunrise } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
 function goToERDiagram() {
   router.push('/er-diagram')
 }
+
+function goToLifeSimulator() {
+  router.push('/life-simulator')
+}
 </script>
 
 <style scoped>
 .discover-page {
-  min-height: 100vh;
+  height: calc(100vh - 112px);
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 40px 20px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-header {
@@ -166,6 +183,15 @@ function goToERDiagram() {
 .coming-soon-icon {
   background: linear-gradient(135deg, #adb5bd 0%, #868e96 100%);
   box-shadow: 0 4px 16px rgba(134, 142, 150, 0.3);
+}
+
+.life-simulator-card::before {
+  background: linear-gradient(90deg, #1a1a2e 0%, #00ff88 100%);
+}
+
+.life-simulator-icon {
+  background: linear-gradient(135deg, #1a1a2e 0%, #00ff88 100%);
+  box-shadow: 0 4px 16px rgba(0, 255, 136, 0.3);
 }
 
 /* 响应式设计 */

@@ -2573,7 +2573,7 @@ function exportImage() {
 
 <style scoped>
 .er-diagram-page {
-  height: 100vh;
+  height: calc(100vh - 112px);
   display: flex;
   flex-direction: column;
   background: #ffffff;

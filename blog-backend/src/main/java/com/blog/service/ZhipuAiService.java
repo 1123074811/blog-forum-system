@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -120,6 +121,99 @@ public class ZhipuAiService {
             
         } catch (Exception e) {
             log.error("智谱AI翻译调用失败，原文：{}", text, e);
+            return null;
+        }
+    }
+
+    /**
+     * 生成人生模拟器事件
+     */
+    public Map<String, Object> generateLifeEvent(int age, Map<String, Object> attributes, long wealth, List<String> recentEvents) {
+        try {
+            String recentEventsStr = recentEvents != null && !recentEvents.isEmpty()
+                ? String.join("；", recentEvents)
+                : "无";
+
+            String prompt = String.format(
+                "你是人生模拟器的事件生成器。根据角色当前状态生成一个人生事件。\n\n" +
+                "角色状态：\n" +
+                "- 年龄：%d岁\n" +
+                "- 颜值：%s\n" +
+                "- 智力：%s\n" +
+                "- 体质：%s\n" +
+                "- 心理：%s\n" +
+                "- 家境：%s\n" +
+                "- 财富：%d元\n" +
+                "- 最近事件：%s\n\n" +
+                "请生成一个符合年龄和属性的事件，用JSON格式返回：\n\n" +
+                "【普通事件】{\"text\":\"事件描述\",\"effects\":{\"属性名\":变化值}}\n\n" +
+                "【选择事件】(20%%概率)：{\"choice\":{\"question\":\"问题\",\"options\":[{\"text\":\"选项1\",\"effects\":{...}},{\"text\":\"选项2\",\"effects\":{...}}]}}\n\n" +
+                "【职业事件】可添加career字段：\n" +
+                "- 学历变化：\"career\":{\"education\":\"小学/初中/高中/大学/硕士/博士\"}\n" +
+                "- 职业变化：\"career\":{\"job\":\"职业名称\",\"salary\":月薪}\n\n" +
+                "年龄与学历对应：\n" +
+                "- 6岁：上小学\n" +
+                "- 12岁：上初中\n" +
+                "- 15岁：上高中（智力>6）或职高/辍学\n" +
+                "- 18岁：上大学（智力>7）或工作\n" +
+                "- 22岁：大学毕业找工作\n" +
+                "- 工作后每年有工资收入\n\n" +
+                "职业参考（根据学历和智力）：\n" +
+                "- 无学历：工人、服务员、快递员（3000-5000/月）\n" +
+                "- 高中：销售、文员、技工（4000-8000/月）\n" +
+                "- 大学：程序员、教师、会计（8000-20000/月）\n" +
+                "- 硕博：研究员、医生、律师（15000-50000/月）\n\n" +
+                "属性名可选：looks/intelligence/physique/mental/wealth\n" +
+                "属性变化范围-10到+10\n\n" +
+                "财富变化参考：学费5000-30000/年，买房50-500万，结婚5-50万\n\n" +
+                "只返回JSON，不要其他内容。",
+                age,
+                attributes.get("looks"),
+                attributes.get("intelligence"),
+                attributes.get("physique"),
+                attributes.get("mental"),
+                attributes.get("family"),
+                wealth,
+                recentEventsStr
+            );
+
+            Map<String, Object> body = Map.of(
+                "model", "glm-4-flash",
+                "messages", List.of(Map.of("role", "user", "content", prompt)),
+                "temperature", 0.9
+            );
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://open.bigmodel.cn/api/paas/v4/chat/completions"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                .timeout(Duration.ofSeconds(30))
+                .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.error("人生事件生成失败，状态码：{}", response.statusCode());
+                return null;
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            String content = root.path("choices").get(0).path("message").path("content").asText().trim();
+
+            // 清理可能的markdown代码块标记和前缀文字
+            content = content.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+
+            // 提取JSON部分（从第一个{到最后一个}）
+            int start = content.indexOf('{');
+            int end = content.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                content = content.substring(start, end + 1);
+            }
+
+            return objectMapper.readValue(content, Map.class);
+        } catch (Exception e) {
+            log.error("人生事件生成失败", e);
             return null;
         }
     }
