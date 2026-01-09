@@ -206,6 +206,14 @@
             >
               <span class="text-label">n</span>
             </div>
+            <div
+                class="text-item"
+                :class="{ active: currentTool === 'text-m' }"
+                @click="setTool('text-m')"
+                title="基数m"
+            >
+              <span class="text-label">m</span>
+            </div>
           </div>
         </div>
 
@@ -313,7 +321,7 @@
                   @dblclick="handleEntityDoubleClick(entity)"
                   @click="handleItemClick(entity, 'entity', $event)"
                   @mouseenter="currentTool === 'line' && showConnectionPoints(entity)"
-                  @mouseleave="hideConnectionPoints"
+                  @mouseleave="hideConnectionPoints(entity)"
               >
                 <v-rect :config="getEntityRectConfig(entity)" />
                 <v-text
@@ -337,7 +345,7 @@
                   @dblclick="handleRelationshipDoubleClick(relationship)"
                   @click="handleItemClick(relationship, 'relationship', $event)"
                   @mouseenter="currentTool === 'line' && showConnectionPoints(relationship)"
-                  @mouseleave="hideConnectionPoints"
+                  @mouseleave="hideConnectionPoints(relationship)"
               >
                 <v-line :config="getRelationshipDiamondConfig(relationship)" />
                 <v-text
@@ -361,7 +369,7 @@
                   @dblclick="handleAttributeDoubleClick(attribute)"
                   @click="handleItemClick(attribute, 'attribute', $event)"
                   @mouseenter="currentTool === 'line' && showConnectionPoints(attribute)"
-                  @mouseleave="hideConnectionPoints"
+                  @mouseleave="hideConnectionPoints(attribute)"
               >
                 <v-ellipse :config="getAttributeEllipseConfig(attribute)" />
                 <v-text
@@ -854,11 +862,15 @@ function toggleGrid() {
 }
 
 // 连接点管理
+const hoverItemId = ref(null)
+
 function showConnectionPoints(item) {
   if (currentTool.value !== 'line' || !item) {
     connectionPoints.value = []
     return
   }
+
+  hoverItemId.value = item.id
 
   const points = []
   const { x, y, width, height } = item
@@ -882,8 +894,33 @@ function showConnectionPoints(item) {
   }))
 }
 
-function hideConnectionPoints() {
-  connectionPoints.value = []
+function hideConnectionPoints(item) {
+  // 无参数时强制清空，有参数时只清空对应图形的连接点
+  if (!item || item.id === hoverItemId.value) {
+    connectionPoints.value = []
+    hoverItemId.value = null
+  }
+}
+
+// 检测鼠标附近的图形并显示连接点
+function updateNearbyConnectionPoints(mousePos) {
+  const detectRange = 30
+  const allItems = [...entities.value, ...attributes.value, ...relationships.value]
+
+  const nearbyItem = allItems.find(item => {
+    return mousePos.x >= item.x - detectRange &&
+           mousePos.x <= item.x + (item.width || 0) + detectRange &&
+           mousePos.y >= item.y - detectRange &&
+           mousePos.y <= item.y + (item.height || 0) + detectRange
+  })
+
+  if (nearbyItem) {
+    if (hoverItemId.value !== nearbyItem.id) {
+      showConnectionPoints(nearbyItem)
+    }
+  } else {
+    hideConnectionPoints()
+  }
 }
 
 // 更新目标连接点（连线时检测鼠标附近的图形）
@@ -1599,6 +1636,10 @@ function handleStageMouseDown(e) {
         createText(realPos, 'n')
         currentTool.value = 'select'
         break
+      case 'text-m':
+        createText(realPos, 'm')
+        currentTool.value = 'select'
+        break
       case 'line':
         handleLineDrawing(realPos)
         break
@@ -1625,6 +1666,11 @@ function handleStageMouseMove(e) {
   if (isResizing.value && resizingItem.value) {
     handleResizeMove(realPos)
     return
+  }
+
+  // 连接线工具模式下，检测鼠标附近的图形并显示连接点
+  if (currentTool.value === 'line' && !isDrawingLine.value) {
+    updateNearbyConnectionPoints(realPos)
   }
 
   // 线段预览
@@ -1992,6 +2038,7 @@ function getEditPlaceholder() {
 // 更新位置并重新绘制连线
 function handleDragStart() {
   saveToHistory()
+  hideConnectionPoints()
 }
 
 // 网格吸附函数

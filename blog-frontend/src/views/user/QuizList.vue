@@ -119,7 +119,7 @@
     </el-drawer>
 
     <!-- 导入题目对话框 -->
-    <el-dialog v-model="showImportDialog" title="导入题目" :width="isMobile ? '95%' : '650px'" :fullscreen="isMobile">
+    <el-dialog v-model="showImportDialog" title="导入题目" :width="isMobile ? '95%' : '650px'" :fullscreen="isMobile" top="8vh" @close="importContent = ''">
       <div class="mb-3">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm text-gray-600 dark:text-gray-400">格式示例：</span>
@@ -128,14 +128,21 @@
         <pre class="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs overflow-auto select-text" style="max-height: 200px;">{
   "title": "题库名称",
   "questions": [
-    {"type": "single", "question": "单选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": "A", "explanation": "解析"},
-    {"type": "multiple", "question": "多选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": ["A", "B"], "explanation": "解析"},
+    {"type": "single", "question": "单选题内容", "options": ["选项1", "选项2", "选项3"], "answer": "选项1", "explanation": "解析"},
+    {"type": "multiple", "question": "多选题内容", "options": ["选项1", "选项2", "选项3"], "answer": ["选项1", "选项2"], "explanation": "解析"},
     {"type": "judge", "question": "判断题内容", "answer": true, "explanation": "解析"},
     {"type": "short", "question": "简答题内容", "answer": "参考答案", "explanation": "解析"}
   ]
 }</pre>
       </div>
-      <el-input v-model="importContent" type="textarea" :autosize="{ minRows: 6, maxRows: 15 }" placeholder="请输入或粘贴JSON格式的题库内容" />
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm text-gray-600 dark:text-gray-400">AI转换提示词：</span>
+          <el-button size="small" text @click="copyAiPrompt">复制提示词</el-button>
+        </div>
+        <pre class="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs overflow-auto select-text" style="max-height: 200px;">{{ aiPromptText }}</pre>
+      </div>
+      <el-input v-model="importContent" type="textarea" :autosize="{ minRows: 6 }" placeholder="请输入或粘贴JSON格式的题库内容" style="max-height: 200px; overflow: auto;" />
       <div class="mt-4">
         <el-upload :show-file-list="false" :before-upload="handleFileUpload" accept=".json,.txt">
           <el-button>从文件导入</el-button>
@@ -271,8 +278,8 @@ window.addEventListener('resize', handleResize)
 const formatExampleText = `{
   "title": "题库名称",
   "questions": [
-    {"type": "single", "question": "单选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": "A", "explanation": "解析"},
-    {"type": "multiple", "question": "多选题内容", "options": ["A. 选项1", "B. 选项2"], "answer": ["A", "B"], "explanation": "解析"},
+    {"type": "single", "question": "单选题内容", "options": ["选项1", "选项2", "选项3"], "answer": "选项1", "explanation": "解析"},
+    {"type": "multiple", "question": "多选题内容", "options": ["选项1", "选项2", "选项3"], "answer": ["选项1", "选项2"], "explanation": "解析"},
     {"type": "judge", "question": "判断题内容", "answer": true, "explanation": "解析"},
     {"type": "short", "question": "简答题内容", "answer": "参考答案", "explanation": "解析"}
   ]
@@ -282,6 +289,31 @@ const copyFormatExample = async () => {
   try {
     await navigator.clipboard.writeText(formatExampleText)
     ElMessage.success('示例已复制到剪贴板')
+  } catch (e) {
+    ElMessage.warning('复制失败，请手动选中复制')
+  }
+}
+
+const aiPromptText = `请将以下题目转换为JSON格式，严格按照此规则：
+1. 输出完整JSON结构，包含title和questions数组
+2. 题目类型：单选题type为"single"，多选题为"multiple"，判断题为"judge"，简答题为"short"
+3. 选项格式：options数组中只写选项内容，不要带A/B/C/D前缀
+4. 答案格式：单选题answer为正确选项的完整内容；多选题answer为正确选项内容的数组；判断题answer为true或false
+5. 解析：如果题目没有解析，请根据题目内容生成一段简要解析
+6. 输出格式：
+{
+  "title": "题库名称",
+  "questions": [
+    {"type":"single","question":"问题","options":["选项1","选项2"],"answer":"选项1","explanation":"解析"}
+  ]
+}
+
+请直接输出完整JSON，不要有其他内容。题目如下：`
+
+const copyAiPrompt = async () => {
+  try {
+    await navigator.clipboard.writeText(aiPromptText)
+    ElMessage.success('提示词已复制到剪贴板')
   } catch (e) {
     ElMessage.warning('复制失败，请手动选中复制')
   }

@@ -30,11 +30,11 @@
 
           <!-- 单选/多选 -->
           <div v-if="currentQuestion.type === 'single' || currentQuestion.type === 'multiple'" class="space-y-2">
-            <div v-for="(opt, idx) in parsedOptions" :key="idx" 
-                 class="p-2 sm:p-3 border rounded-lg cursor-pointer transition-colors text-sm sm:text-base" 
-                 :class="optionClass(opt)" 
+            <div v-for="(opt, idx) in parsedOptions" :key="idx"
+                 class="p-2 sm:p-3 border rounded-lg cursor-pointer transition-colors text-sm sm:text-base"
+                 :class="optionClass(opt)"
                  @click="selectOption(opt)">
-              {{ opt }}
+              {{ String.fromCharCode(65 + idx) }}. {{ opt }}
             </div>
           </div>
 
@@ -333,15 +333,54 @@ const parsedAnswer = computed(() => {
   try { return JSON.parse(currentQuestion.value.answer) } catch { return currentQuestion.value.answer }
 })
 
+// 判断是否为字母格式答案 (A-Z)，且不在选项内容中
+const isLetterAnswer = (ans, options = []) => {
+  if (typeof ans !== 'string' || !/^[A-Z]$/.test(ans)) return false
+  // 如果答案与某个选项内容完全匹配，优先视为内容格式
+  return !options.includes(ans)
+}
+
+// 将选项内容转换为字母
+const optionToLetter = (opt, options) => {
+  const idx = options.indexOf(opt)
+  return idx >= 0 ? String.fromCharCode(65 + idx) : null
+}
+
+// 将字母转换为选项内容
+const letterToOption = (letter, options) => {
+  const idx = letter.charCodeAt(0) - 65
+  return options[idx] || null
+}
+
+// 比较用户选择和正确答案
+const compareAnswer = (selected, correct, options) => {
+  if (Array.isArray(correct)) {
+    // 多选题
+    const selArr = Array.isArray(selected) ? selected : [selected]
+    if (correct.every(c => isLetterAnswer(c, options))) {
+      // 答案是字母格式，转换用户选择为字母
+      const selLetters = selArr.map(s => optionToLetter(s, options))
+      return correct.length === selLetters.length && correct.every(c => selLetters.includes(c))
+    } else {
+      // 答案是内容格式
+      return correct.length === selArr.length && correct.every(c => selArr.includes(c))
+    }
+  } else {
+    // 单选题
+    const sel = Array.isArray(selected) ? selected[0] : selected
+    if (isLetterAnswer(correct, options)) {
+      return optionToLetter(sel, options) === correct
+    } else {
+      return sel === correct
+    }
+  }
+}
+
 const isCorrect = computed(() => {
   const ans = userAnswers.value[currentIndex.value]
   if (!ans?.submitted) return false
   if (currentQuestion.value?.type === 'short') return true
-  const correct = parsedAnswer.value
-  if (Array.isArray(correct)) {
-    return Array.isArray(ans.selected) && correct.length === ans.selected.length && correct.every(c => ans.selected.includes(c))
-  }
-  return ans.selected === correct
+  return compareAnswer(ans.selected, parsedAnswer.value, parsedOptions.value)
 })
 
 const checkCorrect = (idx) => {
@@ -349,13 +388,10 @@ const checkCorrect = (idx) => {
   if (!ans?.submitted) return null
   const q = questions.value[idx]
   if (q.type === 'short') return true
-  try {
-    const correct = JSON.parse(q.answer)
-    if (Array.isArray(correct)) {
-      return Array.isArray(ans.selected) && correct.length === ans.selected.length && correct.every(c => ans.selected.includes(c))
-    }
-    return ans.selected === correct
-  } catch { return false }
+  let correct, options
+  try { correct = JSON.parse(q.answer) } catch { correct = q.answer }
+  try { options = JSON.parse(q.options) } catch { options = [] }
+  return compareAnswer(ans.selected, correct, options)
 }
 
 const correctRate = computed(() => {
@@ -390,13 +426,25 @@ const getQuestionStatusClass = (idx) => {
 
 const optionClass = (opt) => {
   const ans = userAnswers.value[currentIndex.value]
-  const letter = opt.charAt(0)
-  const isSelected = Array.isArray(ans?.selected) ? ans.selected.includes(letter) : ans?.selected === letter
+  const isSingle = currentQuestion.value?.type === 'single'
+  const isSelected = isSingle
+    ? (Array.isArray(ans?.selected) ? ans.selected[0] === opt : ans?.selected === opt)
+    : (Array.isArray(ans?.selected) ? ans.selected.includes(opt) : ans?.selected === opt)
   if (!ans?.submitted) {
     return isSelected ? 'border-2 border-primary-500 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
   }
   const correct = parsedAnswer.value
-  const isCorrectOption = Array.isArray(correct) ? correct.includes(letter) : correct === letter
+  const options = parsedOptions.value
+  let isCorrectOption
+  if (Array.isArray(correct)) {
+    isCorrectOption = correct.every(c => isLetterAnswer(c, options))
+      ? correct.includes(optionToLetter(opt, options))
+      : correct.includes(opt)
+  } else {
+    isCorrectOption = isLetterAnswer(correct, options)
+      ? optionToLetter(opt, options) === correct
+      : correct === opt
+  }
   if (isCorrectOption) return 'border-green-500 bg-green-50 dark:bg-green-900/20'
   if (isSelected && !isCorrectOption) return 'border-red-500 bg-red-50 dark:bg-red-900/20'
   return 'border-gray-200 dark:border-gray-700'
@@ -415,16 +463,16 @@ const judgeClass = (val) => {
 
 const selectOption = (opt) => {
   if (answered.value) return
-  const letter = opt.charAt(0)
   if (!userAnswers.value[currentIndex.value]) userAnswers.value[currentIndex.value] = { selected: null, submitted: false }
   if (currentQuestion.value.type === 'multiple') {
-    const arr = userAnswers.value[currentIndex.value].selected || []
-    const idx = arr.indexOf(letter)
+    let arr = userAnswers.value[currentIndex.value].selected
+    if (!Array.isArray(arr)) arr = []
+    const idx = arr.indexOf(opt)
     if (idx > -1) arr.splice(idx, 1)
-    else arr.push(letter)
+    else arr.push(opt)
     userAnswers.value[currentIndex.value].selected = [...arr]
   } else {
-    userAnswers.value[currentIndex.value].selected = letter
+    userAnswers.value[currentIndex.value].selected = opt
   }
   saveProgress()
 }
