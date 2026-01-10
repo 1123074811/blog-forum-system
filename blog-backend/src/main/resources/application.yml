@@ -17,11 +17,15 @@ spring:
       port: 6379
       password: ojc132598.
       database: 3
+      timeout: 10000ms
+      connect-timeout: 10000ms
       lettuce:
         pool:
-          max-active: 8
+          max-active: 16
           max-idle: 8
-          min-idle: 0
+          min-idle: 2
+          max-wait: 5000ms
+        shutdown-timeout: 5000ms
   mail:
     host: smtp.qq.com
     port: 587
