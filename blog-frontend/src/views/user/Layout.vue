@@ -25,6 +25,7 @@
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
           <el-button :icon="isDark ? Sunny : Moon" :size="isMobile ? 'small' : 'default'" circle @click="userStore.toggleDark" />
+          <el-button :icon="Headset" :size="isMobile ? 'small' : 'default'" circle @click="musicStore.showPlayer = true" title="音乐播放器" />
           <template v-if="userStore.isLoggedIn">
             <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
               <template #reference>
@@ -130,6 +131,9 @@
     <main class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
       <router-view />
     </main>
+
+    <!-- 音乐播放器 -->
+    <MusicPlayer />
   </div>
 </template>
 
@@ -137,13 +141,16 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { Search, Menu, Sunny, Moon, Bell, ChatDotRound } from '@element-plus/icons-vue'
+import { useMusicStore } from '@/stores/music'
+import { Search, Menu, Sunny, Moon, Bell, ChatDotRound, Headset } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, getMessageUnreadCount, getConversations } from '@/api/blog'
 import config from '@/config'
+import MusicPlayer from '@/components/MusicPlayer.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const musicStore = useMusicStore()
 const showMobileMenu = ref(false)
 const showSearchDialog = ref(false)
 const searchQuery = ref('')

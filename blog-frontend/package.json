@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"node node_modules/NeteaseCloudMusicApi/app.js\" \"vite\"",
+    "dev:vite": "vite",
+    "music-api": "node node_modules/NeteaseCloudMusicApi/app.js",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -26,6 +28,8 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.2",
     "autoprefixer": "^10.4.16",
+    "concurrently": "^9.2.1",
+    "NeteaseCloudMusicApi": "^4.28.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "unplugin-auto-import": "^0.17.3",
