@@ -74,4 +74,15 @@ public class JwtUtil {
         }
         return null;
     }
+
+    // 获取 token 剩余有效时间（毫秒）
+    public long getRemainingTime(String token) {
+        Date expiration = parseToken(token).getExpiration();
+        return expiration.getTime() - System.currentTimeMillis();
+    }
+
+    // 获取 token 过期时间配置
+    public long getExpiration() {
+        return expiration;
+    }
 }

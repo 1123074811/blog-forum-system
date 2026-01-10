@@ -15,7 +15,14 @@ api.interceptors.request.use(config => {
 })
 
 api.interceptors.response.use(
-  response => response.data,
+  response => {
+    // 滑动过期：检查是否有新 token
+    const newToken = response.headers['x-new-token']
+    if (newToken) {
+      localStorage.setItem('token', newToken)
+    }
+    return response.data
+  },
   error => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')

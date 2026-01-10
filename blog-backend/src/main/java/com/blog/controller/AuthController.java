@@ -8,6 +8,7 @@ import com.blog.entity.User;
 import com.blog.service.CaptchaService;
 import com.blog.service.EmailService;
 import com.blog.service.RateLimitService;
+import com.blog.service.TokenService;
 import com.blog.service.UserService;
 import com.blog.util.JwtUtil;
 import jakarta.mail.MessagingException;
@@ -33,6 +34,10 @@ public class AuthController {
     private final CaptchaService captchaService;
     private final EmailService emailService;
     private final RateLimitService rateLimitService;
+    private final TokenService tokenService;
+
+    @org.springframework.beans.factory.annotation.Value("${jwt.expiration}")
+    private long tokenExpiration;
 
     @GetMapping("/captcha")
     public ApiResponse<Map<String, String>> getCaptcha() throws IOException {
@@ -114,6 +119,8 @@ public class AuthController {
         }
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+        // 将 token 存储到 Redis
+        tokenService.saveToken(token, user.getId(), tokenExpiration);
         user.setPassword(null);
         return ApiResponse.success(new AuthResponse(token, refreshToken, user));
     }
@@ -130,7 +137,18 @@ public class AuthController {
         Long userId = jwtUtil.getUserIdFromToken(refreshToken);
         String username = jwtUtil.getUsernameFromToken(refreshToken);
         String newToken = jwtUtil.generateToken(userId, username);
+        // 将新 token 存储到 Redis
+        tokenService.saveToken(newToken, userId, tokenExpiration);
         return ApiResponse.success(newToken);
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<String> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            tokenService.deleteToken(token);
+        }
+        return ApiResponse.success("登出成功");
     }
 
     private String getClientIp(HttpServletRequest request) {

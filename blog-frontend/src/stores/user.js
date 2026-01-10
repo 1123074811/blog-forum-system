@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import api from '@/api'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
@@ -17,7 +18,13 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('refreshToken', refreshToken)
   }
 
-  function logout() {
+  async function logout() {
+    // 调用后端登出接口删除 Redis 中的 token
+    try {
+      await api.post('/api/auth/logout')
+    } catch (e) {
+      // 忽略错误，继续清理本地状态
+    }
     user.value = null
     token.value = ''
     localStorage.removeItem('user')
