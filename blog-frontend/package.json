@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node node_modules/NeteaseCloudMusicApi/app.js\" \"vite\"",
+    "dev": "concurrently \"node node_modules/NeteaseCloudMusicApi/app.js\" \"node meting-server.js\" \"vite\"",
     "dev:vite": "vite",
     "music-api": "node node_modules/NeteaseCloudMusicApi/app.js",
+    "music-parse": "node meting-server.js",
     "build": "vite build",
     "preview": "vite preview"
   },
