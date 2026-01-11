@@ -33,10 +33,16 @@
 
         <!-- 搜索结果 -->
         <div v-if="searchResults.length" class="search-results">
-          <div v-for="song in searchResults" :key="song.id" class="result-item" @click="playSong(song)">
+          <div v-for="song in searchResults" :key="song.id" 
+               class="result-item" 
+               :class="{ 'vip-song': song._isVip }"
+               @click="playSong(song)">
             <img :src="getSongCover(song)" @error="handleImgError" />
             <div class="info">
-              <div class="name">{{ song.name }}</div>
+              <div class="name">
+                {{ song.name }}
+                <span v-if="song._isVip" class="vip-badge">VIP</span>
+              </div>
               <div class="artist">{{ getArtists(song) }}</div>
             </div>
             <button class="add-btn" @click.stop="addToPlaylist(song)">+</button>
@@ -341,8 +347,20 @@ const getArtists = (song) => {
 .result-item:hover { background: rgba(255,255,255,0.1); }
 .result-item img { width: 36px; height: 36px; border-radius: 4px; object-fit: cover; }
 .result-item .info { flex: 1; min-width: 0; }
-.result-item .name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-item .name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
 .result-item .artist { font-size: 11px; opacity: 0.7; }
+.vip-song { opacity: 0.6; }
+.vip-song:hover { opacity: 0.8; }
+.vip-badge { 
+  display: inline-block;
+  padding: 1px 4px;
+  font-size: 10px;
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  color: white;
+  border-radius: 3px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
 .add-btn { background: none; border: none; font-size: 18px; color: var(--el-color-primary); cursor: pointer; }
 
 .now-playing {

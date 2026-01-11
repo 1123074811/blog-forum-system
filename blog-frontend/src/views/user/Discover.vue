@@ -31,6 +31,17 @@
           </p>
         </div>
 
+        <!-- 背书神器 -->
+        <div class="tool-card recitation-card" @click="goToRecitation">
+          <div class="tool-icon recitation-icon">
+            <el-icon size="32"><Reading /></el-icon>
+          </div>
+          <h3 class="tool-title">背书神器</h3>
+          <p class="tool-description">
+            导入背诵内容进行打字练习，支持显示原文、隐藏提示、拼音提示三种模式，帮助高效记忆。
+          </p>
+        </div>
+
         <!-- 敬请期待 -->
         <div class="tool-card coming-soon-card">
           <div class="tool-icon coming-soon-icon">
@@ -48,7 +59,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { Grid, ChatDotRound, Sunrise } from '@element-plus/icons-vue'
+import { Grid, ChatDotRound, Sunrise, Reading } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -58,6 +69,10 @@ function goToERDiagram() {
 
 function goToLifeSimulator() {
   router.push('/life-simulator')
+}
+
+function goToRecitation() {
+  router.push('/recitation')
 }
 </script>
 
@@ -192,6 +207,15 @@ function goToLifeSimulator() {
 .life-simulator-icon {
   background: linear-gradient(135deg, #1a1a2e 0%, #00ff88 100%);
   box-shadow: 0 4px 16px rgba(0, 255, 136, 0.3);
+}
+
+.recitation-card::before {
+  background: linear-gradient(90deg, #ff6b6b 0%, #feca57 100%);
+}
+
+.recitation-icon {
+  background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
 }
 
 /* 响应式设计 */

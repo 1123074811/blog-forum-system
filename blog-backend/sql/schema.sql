@@ -291,3 +291,20 @@ INSERT INTO site_info (site_name, site_description, site_keywords, contact_email
 INSERT INTO announcements (title, content, type, is_pinned, created_by, created_at, updated_at) VALUES
 ('欢迎来到墨香阁', '欢迎大家来到墨香阁博客系统！这里是一个分享技术与生活的平台，希望大家能够在这里找到有价值的内容。', 'info', 1, 1, NOW(), NOW()),
 ('网站功能介绍', '本站支持文章发布、评论互动、私信聊天、相册分享、刷题练习等功能，欢迎大家体验使用！', 'success', 0, 1, NOW(), NOW());
+
+-- Recitation table (背诵记录)
+CREATE TABLE IF NOT EXISTS recitation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(100),
+    content LONGTEXT NOT NULL,
+    progress INT DEFAULT 0,
+    duration INT DEFAULT 0,
+    timing_enabled TINYINT(1) DEFAULT 0,
+    completed TINYINT(1) DEFAULT 0,
+    created_at VARCHAR(30),
+    updated_at VARCHAR(30),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_recitation_user (user_id),
+    INDEX idx_recitation_completed (completed)
+);

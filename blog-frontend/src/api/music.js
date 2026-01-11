@@ -40,7 +40,7 @@ export const searchSongs = async (keywords, limit = 30, platform = 'netease') =>
       params: { keyword: keywords, page: 1, pagesize: limit }
     })
     const list = res.data?.data?.info || []
-    // 移除付费过滤，酷狗API返回的歌曲字段结构不同
+    // 标记VIP歌曲：privilege为8或pay_type不为0的都是VIP
     const songs = list.map(s => ({
       id: s.hash,
       name: s.songname,
@@ -51,7 +51,8 @@ export const searchSongs = async (keywords, limit = 30, platform = 'netease') =>
       },
       duration: s.duration * 1000,
       _platform: 'kugou',
-      _hash: s.hash
+      _hash: s.hash,
+      _isVip: s.privilege === 8 || (s.pay_type !== undefined && s.pay_type !== 0)
     }))
     return {
       result: { songs }
