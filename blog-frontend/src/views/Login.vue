@@ -50,13 +50,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { login, getCaptcha } from '@/api/blog'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const loading = ref(false)
 const captchaUrl = ref('')
@@ -71,7 +72,13 @@ const refreshCaptcha = async () => {
     }
   } catch (e) { console.error(e) }
 }
-onMounted(refreshCaptcha)
+
+onMounted(() => {
+  refreshCaptcha()
+  if (route.query.msg) {
+    ElMessage.warning(route.query.msg)
+  }
+})
 
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) {

@@ -46,6 +46,11 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/wallpaper/**").permitAll()
                 .requestMatchers("/api/life-simulator/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/albums/public").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/albums/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/media/public").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/media/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/media/album/*").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

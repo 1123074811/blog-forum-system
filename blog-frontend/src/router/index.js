@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import config from '@/config'
+import { toast } from '@/utils/toast'
 
 const routes = [
   {
@@ -62,8 +63,9 @@ router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? `${to.meta.title} | ${config.siteName}` : config.siteName
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    next('/login')
+    next({ path: '/login', query: { redirect: to.fullPath, msg: '请先登录后再访问该页面' } })
   } else if (to.meta.requiresAdmin && !userStore.isAdmin) {
+    toast('需要管理员权限才能访问')
     next('/')
   } else {
     next()
