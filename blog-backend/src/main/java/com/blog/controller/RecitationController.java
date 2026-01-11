@@ -63,6 +63,7 @@ public class RecitationController {
         if (existing == null || !existing.getUserId().equals(userId)) {
             return ApiResponse.error("记录不存在");
         }
+        existing.setUserInput(recitation.getUserInput());
         existing.setProgress(recitation.getProgress());
         existing.setDuration(recitation.getDuration());
         existing.setTimingEnabled(recitation.getTimingEnabled());

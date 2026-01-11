@@ -18,12 +18,12 @@ export const useMusicStore = defineStore('music', () => {
   const playlist = ref(savedState?.playlist || [])
   // 当前播放索引
   const currentIndex = ref(savedState?.currentIndex ?? -1)
-  // 播放状态
+  // 播放状态（刷新后保持停止状态）
   const isPlaying = ref(false)
-  // 当前播放时间
-  const currentTime = ref(0)
+  // 当前播放时间（保存进度）
+  const currentTime = ref(savedState?.currentTime ?? 0)
   // 总时长
-  const duration = ref(0)
+  const duration = ref(savedState?.duration ?? 0)
   // 音量
   const volume = ref(savedState?.volume ?? 0.7)
   // 播放模式: 0-顺序 1-随机 2-单曲循环
@@ -33,11 +33,13 @@ export const useMusicStore = defineStore('music', () => {
   // 显示播放列表
   const showPlaylist = ref(false)
 
-  // 保存状态到 localStorage
+  // 保存状态到 localStorage（包括播放进度）
   const saveState = () => {
     localStorage.setItem('music-player-state', JSON.stringify({
       playlist: playlist.value,
       currentIndex: currentIndex.value,
+      currentTime: currentTime.value,
+      duration: duration.value,
       volume: volume.value,
       playMode: playMode.value
     }))
@@ -45,6 +47,13 @@ export const useMusicStore = defineStore('music', () => {
 
   // 监听变化自动保存
   watch([playlist, currentIndex, volume, playMode], saveState, { deep: true })
+  
+  // 监听播放进度变化（防抖保存，每秒1秒保存一次）
+  let saveProgressTimer = null
+  watch(currentTime, () => {
+    if (saveProgressTimer) clearTimeout(saveProgressTimer)
+    saveProgressTimer = setTimeout(saveState, 1000)
+  })
 
   // 当前歌曲
   const currentSong = computed(() => {
@@ -62,10 +71,14 @@ export const useMusicStore = defineStore('music', () => {
 
       audio.addEventListener('timeupdate', () => {
         currentTime.value = audio.currentTime
+        // 实时保存进度（防抖）
+        if (saveProgressTimer) clearTimeout(saveProgressTimer)
+        saveProgressTimer = setTimeout(saveState, 1000)
       })
 
       audio.addEventListener('loadedmetadata', () => {
         duration.value = audio.duration
+        saveState() // 保存总时长
       })
 
       audio.addEventListener('ended', () => {
@@ -128,6 +141,17 @@ export const useMusicStore = defineStore('music', () => {
         if (url) {
           audio.src = url
           audio.load()
+          
+          // 恢复播放进度
+          audio.addEventListener('loadedmetadata', () => {
+            const savedTime = savedState?.currentTime ?? 0
+            if (savedTime > 0 && savedTime < audio.duration) {
+              audio.currentTime = savedTime
+              currentTime.value = savedTime
+            }
+          }, { once: true })
+          
+          console.log('已恢复音乐播放器状态，点击播放按钮继续播放')
         }
       } catch (e) {
         console.error('恢复播放失败:', e)

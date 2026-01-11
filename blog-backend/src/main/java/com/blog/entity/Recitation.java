@@ -12,6 +12,7 @@ public class Recitation {
     private String title;
     @TableField("`content`")
     private String content;
+    private String userInput;
     private Integer progress;
     private Integer duration;
     private Boolean timingEnabled;

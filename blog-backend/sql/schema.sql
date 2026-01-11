@@ -298,6 +298,7 @@ CREATE TABLE IF NOT EXISTS recitation (
     user_id BIGINT NOT NULL,
     title VARCHAR(100),
     content LONGTEXT NOT NULL,
+    user_input LONGTEXT,
     progress INT DEFAULT 0,
     duration INT DEFAULT 0,
     timing_enabled TINYINT(1) DEFAULT 0,

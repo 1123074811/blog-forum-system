@@ -61,15 +61,16 @@
     <el-drawer v-model="showHistory" title="历史记录" size="400px">
       <div v-if="historyList.length === 0" class="empty">暂无记录</div>
       <div v-else class="history-list">
-        <div v-for="item in historyList" :key="item.id" class="history-item" @click="loadRecord(item)">
+        <div v-for="item in historyList" :key="item.id" class="history-item" @click="confirmLoadRecord(item)">
           <div class="info">
-            <span class="name">{{ item.title || '未命名' }}</span>
+            <span class="name">{{ getRecordTitle(item) }}</span>
+            <span v-if="!item.title" class="content-preview">{{ getContentPreview(item.content) }}</span>
             <span class="time">{{ item.updatedAt || item.createdAt }}</span>
           </div>
           <div class="meta">
             <el-tag v-if="item.isLocal" type="info" size="small">本地</el-tag>
             <el-tag :type="item.completed ? 'success' : 'warning'" size="small">
-              {{ item.completed ? '已完成' : `${Math.round(item.progress / item.content.length * 100)}%` }}
+              {{ item.completed ? '已完成' : `${getProgressPercent(item)}%` }}
             </el-tag>
             <el-button size="small" type="danger" text @click.stop="deleteRecord(item)">删除</el-button>
           </div>
@@ -93,7 +94,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { pinyin } from 'pinyin-pro'
 import api from '@/api'
 
@@ -120,10 +121,28 @@ let autoSaveTimer = null
 // 过滤掉空格的内容
 const filteredContent = computed(() => content.value.replace(/\s/g, ''))
 const contentChars = computed(() => filteredContent.value.split(''))
+
+// 计算正确字符数量
+const correctCharsCount = computed(() => {
+  let count = 0
+  const inputLen = userInput.value.length
+  const contentLen = contentChars.value.length
+  const minLen = Math.min(inputLen, contentLen)
+  
+  for (let i = 0; i < minLen; i++) {
+    if (userInput.value[i] === contentChars.value[i]) {
+      count++
+    }
+  }
+  return count
+})
+
+// 进度百分比：基于正确字符数量
 const progressPercent = computed(() => {
   if (!contentChars.value.length) return 0
-  return Math.round(userInput.value.length / contentChars.value.length * 100)
+  return Math.round(correctCharsCount.value / contentChars.value.length * 100)
 })
+
 const modeText = computed(() => ({ show: '显示原文', hide: '隐藏原文', pinyin: '拼音提示' }[mode.value]))
 
 // 本地缓存函数
@@ -132,7 +151,7 @@ const saveToLocalCache = () => {
   
   const cacheData = {
     ...localRecord.value,
-    progress: userInput.value.length, // 保存用户输入的长度作为进度
+    progress: correctCharsCount.value, // 保存正确字符数量作为进度
     duration: duration.value,
     userInput: userInput.value, // 保存完整的用户输入
     updatedAt: new Date().toLocaleString()
@@ -195,16 +214,8 @@ const onInput = () => {
 }
 
 const onKeydown = (e) => {
-  // 允许导航键：方向键、Home、End、Page Up、Page Down
-  const navigationKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']
-  if (navigationKeys.includes(e.key)) {
-    return // 允许导航键正常工作
-  }
-  
-  const len = userInput.value.length
-  if (len > 0 && userInput.value[len - 1] !== contentChars.value[len - 1] && e.key !== 'Backspace') {
-    e.preventDefault()
-  }
+  // 允许所有输入，包括错误的输入
+  // 用户可以自由输入，即使打错字也可以继续
 }
 
 const handleModeChange = (cmd) => { mode.value = cmd }
@@ -231,6 +242,41 @@ const formatTime = (s) => {
 }
 
 const startPractice = async () => {
+  // 检查是否已存在相同内容的记录（仅在首次开始时检查）
+  const existingRecord = await findExistingRecord(content.value)
+  
+  if (existingRecord && !practicing.value) {
+    // 计算进度百分比
+    const contentLength = (existingRecord.content || '').replace(/\s/g, '').length
+    const progressPercent = contentLength > 0 
+      ? Math.round((existingRecord.progress || 0) / contentLength * 100) 
+      : 0
+    
+    // 如果存在相同内容的记录，询问用户是否继续上次的进度
+    ElMessageBox.confirm(
+      `检测到相同内容的历史记录，进度：${progressPercent}%`,
+      '提示',
+      {
+        confirmButtonText: '继续上次进度',
+        cancelButtonText: '重新开始',
+        type: 'info'
+      }
+    ).then(() => {
+      // 用户选择继续
+      loadRecord(existingRecord)
+    }).catch(() => {
+      // 用户选择重新开始
+      createNewRecord()
+    })
+    return
+  }
+  
+  // 创建新记录
+  createNewRecord()
+}
+
+// 创建新的练习记录
+const createNewRecord = () => {
   // 创建本地练习记录
   const recordId = Date.now() // 使用时间戳作为临时ID
   localRecord.value = {
@@ -254,14 +300,55 @@ const startPractice = async () => {
   if (timingEnabled.value) toggleTiming(true)
 }
 
+// 查找是否已存在相同内容的记录
+const findExistingRecord = async (contentToCheck) => {
+  if (!contentToCheck || !contentToCheck.trim()) return null
+  
+  // 规范化内容（去除空格和换行）
+  const normalizedContent = contentToCheck.replace(/\s/g, '')
+  
+  // 检查本地缓存
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith('recitation_')) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(key))
+        const cachedNormalized = (cached.content || '').replace(/\s/g, '')
+        if (cachedNormalized === normalizedContent) {
+          return { ...cached, isLocal: true }
+        }
+      } catch (e) {
+        // 忽略解析错误
+      }
+    }
+  }
+  
+  // 检查数据库记录
+  try {
+    const res = await api.get('/recitation', { params: { page: 1, limit: 50 } })
+    const dbRecords = res.data?.data || []
+    for (const record of dbRecords) {
+      const recordNormalized = (record.content || '').replace(/\s/g, '')
+      if (recordNormalized === normalizedContent) {
+        return record
+      }
+    }
+  } catch (e) {
+    console.error('检查数据库记录失败:', e)
+  }
+  
+  return null
+}
+
 // 自动保存到数据库（输入过程中）
 const autoSaveToDatabase = async () => {
   try {
     const recordData = {
       title: title.value,
       content: content.value,
+      userInput: userInput.value, // 保存用户输入
       timingEnabled: timingEnabled.value,
-      progress: userInput.value.length,
+      progress: correctCharsCount.value, // 保存正确字符数量
       duration: duration.value,
       completed: false
     }
@@ -269,6 +356,7 @@ const autoSaveToDatabase = async () => {
     // 如果有数据库记录，直接更新
     if (currentRecord.value) {
       await api.put(`/recitation/${currentRecord.value.id}`, {
+        userInput: recordData.userInput,
         progress: recordData.progress,
         duration: recordData.duration,
         completed: recordData.completed
@@ -302,6 +390,7 @@ const savePracticeToDatabase = async (recordData) => {
       const res = await api.post('/recitation', {
         title: recordData.title,
         content: recordData.content,
+        userInput: recordData.userInput, // 保存用户输入
         timingEnabled: recordData.timingEnabled,
         progress: recordData.progress,
         duration: recordData.duration,
@@ -317,6 +406,7 @@ const savePracticeToDatabase = async (recordData) => {
     } else {
       // 更新现有记录
       await api.put(`/recitation/${currentRecord.value.id}`, {
+        userInput: recordData.userInput, // 更新用户输入
         progress: recordData.progress,
         duration: recordData.duration,
         completed: recordData.completed
@@ -339,8 +429,9 @@ const exitPractice = async () => {
     const recordData = {
       title: title.value,
       content: content.value,
+      userInput: userInput.value, // 保存用户输入
       timingEnabled: timingEnabled.value,
-      progress: userInput.value.length,
+      progress: correctCharsCount.value, // 保存正确字符数量
       duration: duration.value,
       completed: false
     }
@@ -373,8 +464,9 @@ const completeTask = async () => {
   const recordData = {
     title: title.value,
     content: content.value,
+    userInput: userInput.value, // 保存用户输入
     timingEnabled: timingEnabled.value,
-    progress: userInput.value.length,
+    progress: correctCharsCount.value, // 保存正确字符数量
     duration: duration.value,
     completed: true
   }
@@ -382,7 +474,7 @@ const completeTask = async () => {
   // 保存到本地缓存
   if (localRecord.value) {
     localRecord.value.completed = true
-    localRecord.value.progress = userInput.value.length
+    localRecord.value.progress = correctCharsCount.value
     localRecord.value.duration = duration.value
     saveToLocalCache()
   }
@@ -461,7 +553,8 @@ const loadHistory = async () => {
 const loadRecord = (item) => {
   content.value = item.content
   title.value = item.title || ''
-  userInput.value = item.userInput || item.content.substring(0, item.progress || 0)
+  // 优先使用保存的 userInput，如果不存在则从头开始
+  userInput.value = item.userInput || ''
   duration.value = item.duration || 0
   timingEnabled.value = item.timingEnabled || false
   
@@ -491,6 +584,44 @@ const loadRecord = (item) => {
   if (timingEnabled.value) toggleTiming(true)
 }
 
+// 确认加载记录（防止意外清空当前输入）
+const confirmLoadRecord = async (item) => {
+  // 如果当前正在练习且有输入，需要确认
+  if (practicing.value && userInput.value.length > 0) {
+    try {
+      await ElMessageBox.confirm(
+        '加载历史记录将会覆盖当前的练习内容，是否继续？',
+        '提示',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      // 用户确认，先保存当前进度
+      if (localRecord.value) {
+        saveToLocalCache()
+      }
+      loadRecord(item)
+    } catch {
+      // 用户取消，不做任何操作
+    }
+  } else {
+    // 没有当前输入，直接加载
+    loadRecord(item)
+  }
+}
+
+// 计算记录的进度百分比
+const getProgressPercent = (item) => {
+  if (!item || !item.content) return 0
+  // 去除空格后的内容长度
+  const contentLength = item.content.replace(/\s/g, '').length
+  if (contentLength === 0) return 0
+  // progress 是正确字符数
+  return Math.round((item.progress || 0) / contentLength * 100)
+}
+
 const deleteRecord = async (item) => {
   try {
     if (item.isLocal) {
@@ -509,6 +640,18 @@ const deleteRecord = async (item) => {
   }
 }
 
+// 获取记录标题（有标题显示标题，无标题显示“未命名”）
+const getRecordTitle = (item) => {
+  return item.title || '未命名'
+}
+
+// 获取内容预览（前30个字符）
+const getContentPreview = (content) => {
+  if (!content) return ''
+  const preview = content.replace(/\s/g, '').substring(0, 30)
+  return preview.length < content.replace(/\s/g, '').length ? preview + '...' : preview
+}
+
 // 在页面卸载前保存进度
 const handleBeforeUnload = () => {
   if (localRecord.value && practicing.value) {
@@ -518,6 +661,11 @@ const handleBeforeUnload = () => {
 
 // 恢复上次未完成的练习
 const restoreLastPractice = () => {
+  // 如果已经在练习中，不要自动恢复（避免打断用户）
+  if (practicing.value) {
+    return
+  }
+  
   // 查找所有本地缓存的记录
   const localRecords = []
   for (let i = 0; i < localStorage.length; i++) {
@@ -537,19 +685,10 @@ const restoreLastPractice = () => {
     }
   }
   
-  // 如果有未完成的记录，自动恢复最新的一条
+  // 如果有未完成的记录，询问用户是否恢复
   if (localRecords.length > 0) {
-    // 按更新时间排序，取最新的一条
-    localRecords.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-    const latest = localRecords[0]
-    
-    // 自动恢复最新的未完成练习
-    ElMessage({
-      message: '检测到未完成的练习，已自动恢复',
-      type: 'info',
-      duration: 2000
-    })
-    loadRecord(latest)
+    // 不自动恢复，让用户通过历史记录手动选择
+    console.log('检测到未完成的练习记录，可通过历史记录恢复')
   }
 }
 
@@ -711,7 +850,8 @@ watch(showHistory, (val) => { if (val) loadHistory() })
 
 .history-item .info { 
   display: flex; 
-  justify-content: space-between; 
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 8px; 
 }
 
@@ -719,9 +859,22 @@ watch(showHistory, (val) => { if (val) loadHistory() })
   font-weight: 500; 
 }
 
+.history-item .content-preview {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .history-item .time { 
   color: #999; 
   font-size: 12px; 
+  margin-top: 4px;
 }
 
 .history-item .meta { 
