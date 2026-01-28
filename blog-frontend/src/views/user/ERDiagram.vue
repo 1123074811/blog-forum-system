@@ -1116,6 +1116,7 @@ function finishConnectionLine() {
       stroke: '#000000',
       strokeWidth: 2,
       lineType: lineType.value,
+      arrow: lineArrow.value,
       startItemId: lineStartPoint.value.itemId,
       endItemId: snapTarget.value.itemId
     }
