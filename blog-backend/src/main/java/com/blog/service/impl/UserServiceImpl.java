@@ -66,6 +66,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return count(new LambdaQueryWrapper<User>().eq(User::getEmail, email)) > 0;
     }
 
+    @Override
     public void clearUserCache(Long id, String username) {
         cacheUtil.delete(AppConstants.CACHE_USER_PREFIX + id);
         cacheUtil.delete(AppConstants.CACHE_USER_PREFIX + "name:" + username);

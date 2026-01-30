@@ -6,7 +6,10 @@
         <el-avatar :src="profile.user?.avatar" :size="80">{{ profile.user?.username?.[0] }}</el-avatar>
         <div class="flex-1">
           <h2 class="text-xl font-bold dark:text-white">{{ profile.user?.nickname || profile.user?.username }}</h2>
-          <p class="text-sm text-gray-400">账号: {{ profile.user?.username }}</p>
+          <div class="flex flex-wrap gap-4 text-sm text-gray-400">
+            <span>账号: {{ profile.user?.username }}</span>
+            <span v-if="userStore.isLoggedIn && userStore.user?.id === Number(route.params.id)">邮箱: {{ profile.user?.email || '-' }}</span>
+          </div>
           <p class="text-gray-500 mt-1">{{ profile.user?.bio || '暂无简介' }}</p>
           <div class="flex gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
             <span>粉丝 {{ profile.followerCount }}</span>
@@ -117,6 +120,7 @@ const handleAvatarUpload = async (file) => {
   }
   return false
 }
+
 
 onMounted(async () => {
   const [userRes, articlesRes] = await Promise.all([

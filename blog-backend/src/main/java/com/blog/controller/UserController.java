@@ -54,6 +54,7 @@ public class UserController {
         if (updateData.getBio() != null) user.setBio(updateData.getBio());
 
         userService.updateById(user);
+        userService.clearUserCache(user.getId(), user.getUsername());
         user.setPassword(null);
         return ApiResponse.success(user);
     }

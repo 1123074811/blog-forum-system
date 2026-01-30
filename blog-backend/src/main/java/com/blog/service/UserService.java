@@ -9,4 +9,5 @@ public interface UserService extends IService<User> {
     User register(String username, String password, String email);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    void clearUserCache(Long id, String username);
 }

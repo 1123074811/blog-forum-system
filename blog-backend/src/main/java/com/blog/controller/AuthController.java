@@ -2,8 +2,11 @@ package com.blog.controller;
 
 import com.blog.dto.ApiResponse;
 import com.blog.dto.AuthResponse;
+import com.blog.dto.ForgotPasswordRequest;
 import com.blog.dto.LoginRequest;
 import com.blog.dto.RegisterRequest;
+import com.blog.dto.ResetPasswordRequest;
+import com.blog.dto.VerifyCodeRequest;
 import com.blog.entity.User;
 import com.blog.service.CaptchaService;
 import com.blog.service.EmailService;
@@ -11,11 +14,13 @@ import com.blog.service.RateLimitService;
 import com.blog.service.TokenService;
 import com.blog.service.UserService;
 import com.blog.util.JwtUtil;
+import com.blog.util.PasswordUtil;
 import jakarta.mail.MessagingException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.mail.MailException;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -46,45 +51,96 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ApiResponse<String> forgotPassword(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        if (email == null || !email.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$")) {
-            return ApiResponse.error("邮箱格式不正确");
+    public ApiResponse<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        String username = request.getUsername();
+        if (username == null || username.isBlank()) {
+            return ApiResponse.error("账号不能为空");
         }
-        User user = userService.findByEmail(email);
+        User user = userService.findByUsername(username);
         if (user == null) {
-            return ApiResponse.error("该邮箱未注册");
+            return ApiResponse.error("账号不存在");
         }
+        
+        String email = user.getEmail();
+        if (email == null || email.trim().isEmpty()) {
+            return ApiResponse.error("用户未绑定邮箱地址，无法重置密码");
+        }
+        
+        // 验证邮箱格式
+        if (!PasswordUtil.isValidEmail(email)) {
+            log.warn("用户 {} 绑定的邮箱地址格式无效: {}", username, email);
+            return ApiResponse.error("用户邮箱地址格式不正确，无法发送邮件");
+        }
+        
         String code = String.format("%06d", new Random().nextInt(1000000));
-        emailService.generateResetToken(user.getId());
         try {
             emailService.sendResetPasswordEmail(email, user.getUsername(), code);
             // 存储验证码到Redis
             emailService.storeResetCode(email, code);
+        } catch (MailException e) {
+            log.error("发送重置密码邮件失败", e);
+            if (e.getMessage() != null && e.getMessage().contains("550")) {
+                log.warn("邮件发送失败，邮箱地址可能不存在: {}", email);
+                return ApiResponse.error("邮箱地址不存在，请检查");
+            }
+            return ApiResponse.error("邮件发送失败: " + e.getMessage());
         } catch (MessagingException e) {
             log.error("发送重置密码邮件失败", e);
             if (e.getMessage() != null && e.getMessage().contains("550")) {
+                log.warn("邮件发送失败，邮箱地址可能不存在: {}", email);
                 return ApiResponse.error("邮箱地址不存在，请检查");
             }
-            return ApiResponse.error("邮件发送失败");
+            return ApiResponse.error("邮件发送失败: " + e.getMessage());
         }
         return ApiResponse.success("验证码已发送到邮箱");
     }
 
-    @PostMapping("/reset-password")
-    public ApiResponse<String> resetPassword(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String code = body.get("code");
-        String newPassword = body.get("password");
+    @PostMapping("/verify-code")
+    public ApiResponse<String> verifyCode(@RequestBody VerifyCodeRequest request) {
+        String username = request.getUsername();
+        String code = request.getCode();
+        if (username == null || username.isBlank() || code == null || code.isBlank()) {
+            return ApiResponse.error("参数不能为空");
+        }
+        User user = userService.findByUsername(username);
+        if (user == null) {
+            return ApiResponse.error("账号不存在");
+        }
+        String email = user.getEmail();
         if (!emailService.validateResetCode(email, code)) {
             return ApiResponse.error("验证码错误或已过期");
         }
-        User user = userService.findByEmail(email);
+        emailService.markResetVerified(email);
+        return ApiResponse.success("验证通过");
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        String username = request.getUsername();
+        String code = request.getCode();
+        String newPassword = request.getPassword();
+        
+        if (username == null || code == null || newPassword == null) {
+            return ApiResponse.error("参数不能为空");
+        }
+
+        User user = userService.findByUsername(username);
         if (user == null) {
             return ApiResponse.error("用户不存在");
         }
+
+        String email = user.getEmail();
+        if (!emailService.consumeResetVerified(email)) {
+            return ApiResponse.error("验证码已过期，请重新获取");
+        }
+        
+        if (!PasswordUtil.isValidPassword(newPassword)) {
+            return ApiResponse.error("密码格式不正确，长度至少6位");
+        }
+        
         user.setPassword(passwordEncoder.encode(newPassword));
         userService.updateById(user);
+        userService.clearUserCache(user.getId(), user.getUsername());
         return ApiResponse.success("密码重置成功");
     }
 

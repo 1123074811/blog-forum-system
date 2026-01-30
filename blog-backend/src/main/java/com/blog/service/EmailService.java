@@ -1,6 +1,7 @@
 package com.blog.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
@@ -24,6 +26,7 @@ public class EmailService {
 
     private static final String RESET_TOKEN_PREFIX = "reset:";
     private static final String RESET_CODE_PREFIX = "reset_code:";
+    private static final String RESET_VERIFIED_PREFIX = "reset_verified:";
     private static final long TOKEN_EXPIRE_MINUTES = 30;
 
     public String generateResetToken(Long userId) {
@@ -54,7 +57,22 @@ public class EmailService {
         return false;
     }
 
+    public void markResetVerified(String email) {
+        redisTemplate.opsForValue().set(RESET_VERIFIED_PREFIX + email, "1", TOKEN_EXPIRE_MINUTES, TimeUnit.MINUTES);
+    }
+
+    public boolean consumeResetVerified(String email) {
+        String key = RESET_VERIFIED_PREFIX + email;
+        String flag = redisTemplate.opsForValue().get(key);
+        if (flag != null) {
+            redisTemplate.delete(key);
+            return true;
+        }
+        return false;
+    }
+
     public void sendResetPasswordEmail(String toEmail, String username, String code) throws MessagingException {
+        log.info("正在发送重置密码邮件到: {}，用户名: {}", toEmail, username);
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         helper.setFrom(fromEmail);
@@ -62,7 +80,17 @@ public class EmailService {
         helper.setSubject("重置密码验证码");
         helper.setText(buildResetEmailContent(username, code), true);
         mailSender.send(message);
+        log.info("重置密码邮件已成功发送到: {}", toEmail);
     }
+
+    /**
+     * 检查重置密码令牌是否存在
+     */
+    public boolean hasValidResetToken(String token) {
+        String userId = redisTemplate.opsForValue().get(RESET_TOKEN_PREFIX + token);
+        return userId != null;
+    }
+
 
     private String buildResetEmailContent(String username, String code) {
         return "<div style=\"max-width:600px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;\">" +
@@ -75,4 +103,5 @@ public class EmailService {
             "<p style=\"color:#999;font-size:12px;\">此验证码30分钟内有效。如果您没有请求重置密码，请忽略此邮件。</p>" +
             "</div>";
     }
+
 }
