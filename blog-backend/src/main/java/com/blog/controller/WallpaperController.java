@@ -43,6 +43,10 @@ public class WallpaperController {
 
     @org.springframework.beans.factory.annotation.Value("${weather.default-city:北京}")
     private String defaultCity;
+    @org.springframework.beans.factory.annotation.Value("${amap.key:}")
+    private String amapKey;
+    @org.springframework.beans.factory.annotation.Value("${amap.weather.extensions:base}")
+    private String amapWeatherExtensions;
 
     @GetMapping("/bing")
     public ApiResponse<List<Map<String, String>>> getBingWallpapers() {
@@ -158,14 +162,21 @@ public class WallpaperController {
     }
 
     @GetMapping("/weather")
-    public ApiResponse<Map<String, Object>> getWeather(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getWeather(HttpServletRequest request,
+                                                       @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean debug) {
         try {
-            String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
-            if (ip.contains(",")) ip = ip.split(",")[0].trim();
+            String ip = getClientIp(request);
+            boolean isLocalIp = ip.startsWith("127.") || ip.startsWith("0:");
+            if (isLocalIp) {
+                String publicIp = getPublicIp();
+                if (publicIp != null && !publicIp.isBlank()) {
+                    ip = publicIp;
+                    isLocalIp = false;
+                }
+            }
 
             // 本地IP使用默认城市
-            String cacheKey = "weather:" + (ip.startsWith("127.") || ip.startsWith("0:") ? "default" : ip);
+            String cacheKey = "weather:v2:" + (isLocalIp ? "default" : ip);
 
             // 尝试从缓存获取
             String cached = stringRedisTemplate.opsForValue().get(cacheKey);
@@ -178,44 +189,79 @@ public class WallpaperController {
                     .build();
             String city = defaultCity;
             String region = "";
+            String adcode = null;
 
-            // 获取IP定位
-            if (!ip.startsWith("127.") && !ip.startsWith("0:")) {
-                try {
-                    HttpRequest locReq = HttpRequest.newBuilder()
-                            .uri(URI.create("http://whois.pconline.com.cn/ipJson.jsp?ip=" + ip + "&json=true"))
-                            .timeout(java.time.Duration.ofSeconds(3))
-                            .GET().build();
-                    HttpResponse<String> locRes = client.send(locReq, HttpResponse.BodyHandlers.ofString());
-                    JsonNode loc = objectMapper.readTree(locRes.body());
-                    if (loc.has("city") && !loc.get("city").asText().isEmpty()) {
-                        city = loc.get("city").asText().replace("市", "");
+            // 获取IP定位（高德）
+            if (!isLocalIp) {
+                GeoInfo geo = getGeoByIpFromAmap(client, ip);
+                if (geo != null) {
+                    if (geo.city != null && !geo.city.isBlank()) {
+                        city = geo.city.replace("市", "");
                     }
-                    if (loc.has("pro")) region = loc.get("pro").asText();
-                } catch (Exception ignored) {}
+                    if (geo.region != null) {
+                        region = geo.region;
+                    }
+                    adcode = geo.adcode;
+                }
             }
 
-            // 获取天气
+            // 获取天气（高德）
+            boolean usedAdcode = adcode != null && !adcode.isBlank();
+            String cityParam = usedAdcode ? adcode : city;
             HttpRequest weatherReq = HttpRequest.newBuilder()
-                    .uri(URI.create("http://wttr.in/" + java.net.URLEncoder.encode(city, "UTF-8") + "?format=j1"))
-                    .header("Accept-Language", "zh-CN")
-                    .header("User-Agent", "curl/7.64.1")
+                    .uri(URI.create("https://restapi.amap.com/v3/weather/weatherInfo?key="
+                            + java.net.URLEncoder.encode(amapKey, "UTF-8")
+                            + "&city=" + java.net.URLEncoder.encode(cityParam, "UTF-8")
+                            + "&extensions=" + java.net.URLEncoder.encode(amapWeatherExtensions, "UTF-8")
+                            + "&output=JSON"))
                     .timeout(java.time.Duration.ofSeconds(10))
                     .GET().build();
             HttpResponse<String> weatherRes = client.send(weatherReq, HttpResponse.BodyHandlers.ofString());
             JsonNode weatherData = objectMapper.readTree(weatherRes.body());
+            if (!"1".equals(weatherData.path("status").asText())) {
+                return ApiResponse.error("获取天气失败: " + weatherData.path("info").asText("未知错误"));
+            }
 
-            JsonNode current = weatherData.get("current_condition").get(0);
             Map<String, Object> result = new java.util.HashMap<>();
+            if ("all".equalsIgnoreCase(amapWeatherExtensions)) {
+                JsonNode forecasts = weatherData.path("forecasts");
+                JsonNode first = forecasts.isArray() && forecasts.size() > 0 ? forecasts.get(0) : null;
+                JsonNode cast = first != null && first.path("casts").isArray() && first.path("casts").size() > 0
+                        ? first.path("casts").get(0) : null;
+                if (first != null) {
+                    city = first.path("city").asText(city);
+                    region = first.path("province").asText(region);
+                }
+                if (cast != null) {
+                    result.put("temp", cast.path("daytemp").asText());
+                    result.put("feelsLike", cast.path("daytemp").asText());
+                    result.put("humidity", "");
+                    result.put("desc", cast.path("dayweather").asText());
+                    String dateStr = cast.path("date").asText();
+                    result.put("date", formatDateFromAmap(dateStr));
+                }
+            } else {
+                JsonNode lives = weatherData.path("lives");
+                JsonNode live = lives.isArray() && lives.size() > 0 ? lives.get(0) : null;
+                if (live != null) {
+                    city = live.path("city").asText(city);
+                    region = live.path("province").asText(region);
+                    result.put("temp", live.path("temperature").asText());
+                    result.put("feelsLike", live.path("temperature").asText());
+                    result.put("humidity", live.path("humidity").asText());
+                    result.put("desc", live.path("weather").asText());
+                    String reportTime = live.path("reporttime").asText();
+                    result.put("date", formatDateFromAmap(reportTime));
+                }
+            }
             result.put("city", city);
             result.put("region", region);
-            result.put("temp", current.get("temp_C").asText());
-            result.put("feelsLike", current.get("FeelsLikeC").asText());
-            result.put("humidity", current.get("humidity").asText());
-            result.put("desc", current.has("lang_zh") && current.get("lang_zh").size() > 0
-                    ? current.get("lang_zh").get(0).get("value").asText()
-                    : current.get("weatherDesc").get(0).get("value").asText());
-            result.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 E", java.util.Locale.CHINESE)));
+            if (Boolean.TRUE.equals(debug)) {
+                result.put("_debug_ip", ip);
+                result.put("_debug_adcode", adcode);
+                result.put("_debug_usedAdcode", usedAdcode);
+                result.put("_debug_provider", "amap");
+            }
 
             // 缓存30分钟
             stringRedisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(result), 30, TimeUnit.MINUTES);
@@ -224,5 +270,108 @@ public class WallpaperController {
         } catch (Exception e) {
             return ApiResponse.error("获取天气失败: " + e.getMessage());
         }
+    }
+
+    private static class GeoInfo {
+        String city;
+        String region;
+        String adcode;
+    }
+
+    private GeoInfo getGeoByIpFromAmap(HttpClient client, String ip) {
+        if (amapKey == null || amapKey.isBlank()) return null;
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("https://restapi.amap.com/v3/ip?key="
+                            + java.net.URLEncoder.encode(amapKey, "UTF-8")
+                            + "&ip=" + java.net.URLEncoder.encode(ip, "UTF-8")
+                            + "&output=JSON"))
+                    .timeout(java.time.Duration.ofSeconds(3))
+                    .GET().build();
+            HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+            String body = res.body() == null ? "" : res.body().trim();
+            if (body.isEmpty()) return null;
+            JsonNode node = objectMapper.readTree(body);
+            if (!"1".equals(node.path("status").asText())) return null;
+            GeoInfo geo = new GeoInfo();
+            geo.city = node.path("city").asText(null);
+            geo.region = node.path("province").asText(null);
+            geo.adcode = node.path("adcode").asText(null);
+            return geo;
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("CF-Connecting-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip == null ? "" : ip;
+    }
+
+    private String getPublicIp() {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(3))
+                    .build();
+            String[] urls = {
+                    "https://api.ipify.org?format=json",
+                    "https://api64.ipify.org?format=json",
+                    "https://ipv4.icanhazip.com",
+                    "https://ifconfig.me/ip",
+                    "https://ipinfo.io/ip"
+            };
+            for (String url : urls) {
+                try {
+                    HttpRequest req = HttpRequest.newBuilder()
+                            .uri(URI.create(url))
+                            .timeout(java.time.Duration.ofSeconds(3))
+                            .GET().build();
+                    HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+                    String body = res.body() == null ? "" : res.body().trim();
+                    String ip = extractIp(body);
+                    if (ip != null && !ip.isBlank()) {
+                        return ip;
+                    }
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private String extractIp(String body) {
+        if (body == null || body.isBlank()) return null;
+        try {
+            JsonNode node = objectMapper.readTree(body);
+            if (node.has("ip")) {
+                return node.get("ip").asText();
+            }
+        } catch (Exception ignored) {}
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("([0-9]{1,3}\\.){3}[0-9]{1,3}|([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}")
+                .matcher(body);
+        return matcher.find() ? matcher.group() : null;
+    }
+
+    private String formatDateFromAmap(String raw) {
+        try {
+            if (raw == null || raw.isBlank()) {
+                return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 E", java.util.Locale.CHINESE));
+            }
+            String datePart = raw.length() >= 10 ? raw.substring(0, 10) : raw;
+            LocalDate date = LocalDate.parse(datePart);
+            return date.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 E", java.util.Locale.CHINESE));
+        } catch (Exception ignored) {}
+        return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 E", java.util.Locale.CHINESE));
     }
 }

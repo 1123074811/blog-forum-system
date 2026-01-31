@@ -60,9 +60,13 @@ minio:
   secret-key: minioadmin
   bucket: blog
 
-# 天气配置（本地开发时IP无法定位，设置默认城市）
+# 天气配置（设置默认城市）
 weather:
   default-city: 乌鲁木齐
+amap:
+  key: 08a571b9e5fdf32e3ece1875c9c6e41c
+  weather:
+    extensions: base
 
 # 智谱AI配置
 zhipu:
