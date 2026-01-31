@@ -5,6 +5,7 @@
 @tailwind utilities;
 
 :root {
+  --app-header-height: 64px;
   --glass-bg: rgba(255, 255, 255, 0.65);
   --glass-bg-light: rgba(255, 255, 255, 0.45);
   --glass-border: rgba(255, 255, 255, 0.5);
@@ -13,6 +14,12 @@
   --accent-secondary: #38bdf8;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --app-header-height: 56px;
+  }
 }
 
 .dark {

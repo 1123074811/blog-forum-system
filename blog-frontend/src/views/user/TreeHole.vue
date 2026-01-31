@@ -35,15 +35,21 @@ const canvas = ref(null)
 const content = ref('')
 const visibleMessages = ref([])
 const allMessages = ref([]) // 保存所有消息用于循环
+const headerHeight = ref(64)
 let animationId = null
 let stars = []
 let loopTimer = null
+
+const getHeaderHeight = () => {
+  const header = document.querySelector('header')
+  return header?.offsetHeight || 64
+}
 
 // 星空动画
 const initStars = () => {
   const ctx = canvas.value.getContext('2d')
   canvas.value.width = window.innerWidth
-  canvas.value.height = window.innerHeight
+  canvas.value.height = window.innerHeight - headerHeight.value
   stars = Array.from({ length: 200 }, () => ({
     x: Math.random() * canvas.value.width,
     y: Math.random() * canvas.value.height,
@@ -73,7 +79,7 @@ const addDanmaku = (msg) => {
   const exists = visibleMessages.value.some(m => m.id === msg.id)
   if (exists) return
   
-  const h = window.innerHeight - 200
+  const h = Math.max(0, (canvas.value?.height || (window.innerHeight - headerHeight.value)) - 200)
   const uid = `${msg.id || Date.now()}-${uidCounter++}`
   const duration = 10 + Math.random() * 2 // 10-12秒
   const item = {
@@ -134,14 +140,40 @@ const checkLength = () => {
   if (content.value.length < 50) warned = false
 }
 
-onMounted(() => { initStars(); loadMessages() })
-onUnmounted(() => { cancelAnimationFrame(animationId); clearTimeout(loopTimer) })
+const handleResize = () => {
+  headerHeight.value = getHeaderHeight()
+  if (canvas.value) {
+    canvas.value.width = window.innerWidth
+    canvas.value.height = window.innerHeight - headerHeight.value
+    stars = Array.from({ length: 200 }, () => ({
+      x: Math.random() * canvas.value.width,
+      y: Math.random() * canvas.value.height,
+      r: Math.random() * 1.5,
+      speed: Math.random() * 0.5 + 0.1
+    }))
+  }
+}
+
+onMounted(() => {
+  headerHeight.value = getHeaderHeight()
+  initStars()
+  loadMessages()
+  window.addEventListener('resize', handleResize)
+})
+onUnmounted(() => {
+  cancelAnimationFrame(animationId)
+  clearTimeout(loopTimer)
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>
 .tree-hole {
   position: fixed;
-  inset: 0;
+  top: var(--app-header-height);
+  left: 0;
+  right: 0;
+  height: calc(100vh - var(--app-header-height));
   overflow: hidden;
   background: #0f172a;
 }

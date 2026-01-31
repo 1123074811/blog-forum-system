@@ -334,7 +334,7 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-page {
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--app-header-height));
   margin: 0 -1rem -2rem -1rem;
   padding: 20px;
   overflow: hidden;

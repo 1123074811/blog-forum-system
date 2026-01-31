@@ -69,6 +69,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             List<Article> articles = result.getRecords();
             if (!articles.isEmpty()) {
                 fillAuthorInfo(articles, currentUserId);
+                fillViewCountFromCache(articles);
                 // 计算权重并排序：浏览量*1 + 点赞*5 + 评论*3 + 收藏*4
                 List<Long> ids = articles.stream().map(Article::getId).toList();
                 Map<Long, Long> favoriteMap = articleFavoriteMapper.selectList(
@@ -93,6 +94,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         Page<Article> result = page(pageParam, wrapper);
         fillAuthorInfo(result.getRecords(), currentUserId);
+        fillViewCountFromCache(result.getRecords());
         return result;
     }
 
@@ -126,6 +128,16 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             }
             article.setLikeCount(likeCountMap.getOrDefault(article.getId(), 0L));
             article.setLiked(likedArticleIds.contains(article.getId()));
+        }
+    }
+
+    private void fillViewCountFromCache(List<Article> articles) {
+        if (articles.isEmpty()) return;
+        for (Article article : articles) {
+            Number views = cacheUtil.get(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + article.getId());
+            if (views != null) {
+                article.setViewCount(views.intValue());
+            }
         }
     }
 

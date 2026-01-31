@@ -128,7 +128,7 @@
     </el-dialog>
 
     <!-- 主内容区 -->
-    <main class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
+    <main class="main-content pb-8 px-4 max-w-7xl mx-auto">
       <router-view />
     </main>
 
@@ -138,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMusicStore } from '@/stores/music'
@@ -165,9 +165,16 @@ let ws = null
 // 监听窗口大小变化
 const handleResize = () => {
   isMobile.value = window.innerWidth < 768
+  updateHeaderHeight()
 }
 
 window.addEventListener('resize', handleResize)
+
+const updateHeaderHeight = () => {
+  const header = document.querySelector('header')
+  const height = header?.offsetHeight || 64
+  document.documentElement.style.setProperty('--app-header-height', `${height}px`)
+}
 
 const getConvUnread = (conv) => {
   return conv.user1Id === userStore.user?.id ? conv.user1Unread : conv.user2Unread
@@ -216,7 +223,13 @@ const handleMarkAllRead = async () => {
   unreadCount.value = 0
 }
 
-onMounted(() => { fetchNotifications(); connectWebSocket() })
+onMounted(() => {
+  fetchNotifications()
+  connectWebSocket()
+  nextTick(() => {
+    updateHeaderHeight()
+  })
+})
 onUnmounted(() => {
   ws?.close()
   window.removeEventListener('resize', handleResize)
@@ -236,3 +249,9 @@ const handleLogout = () => {
   router.push('/')
 }
 </script>
+
+<style scoped>
+.main-content {
+  padding-top: calc(var(--app-header-height) + 1.5rem);
+}
+</style>

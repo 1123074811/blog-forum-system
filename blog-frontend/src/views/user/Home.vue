@@ -301,7 +301,7 @@ onUnmounted(() => {
 .home-container {
   display: flex;
   gap: 1.5rem;
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--app-header-height));
   overflow: hidden;
 }
 
