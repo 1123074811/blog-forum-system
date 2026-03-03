@@ -15,9 +15,22 @@
             <el-tag :type="row.role === 'admin' ? 'danger' : ''">{{ row.role }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="注册时间" />
-        <el-table-column label="操作" width="120">
+        <el-table-column prop="banned" label="状态" width="100">
           <template #default="{ row }">
+            <el-tag :type="row.banned ? 'danger' : 'success'">{{ row.banned ? '已封禁' : '正常' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="注册时间" />
+        <el-table-column label="操作" width="200">
+          <template #default="{ row }">
+            <el-switch
+              v-model="row.banned"
+              :disabled="row.role === 'admin'"
+              active-text="封禁"
+              inactive-text="正常"
+              @change="handleBanChange(row)"
+              style="--el-switch-on-color: #f56c6c; --el-switch-off-color: #67c23a; margin-right: 10px;"
+            />
             <el-popconfirm title="确定删除该用户？" @confirm="handleDelete(row.id)">
               <template #reference>
                 <el-button type="danger" size="small" :disabled="row.role === 'admin'">删除</el-button>
@@ -59,6 +72,16 @@ const handleBatchDelete = async () => {
   await api.post('/admin/users/batch-delete', { ids: selectedIds.value })
   ElMessage.success('批量删除成功')
   fetchUsers()
+}
+
+const handleBanChange = async (row) => {
+  try {
+    await api.put(`/admin/users/${row.id}/ban`, { banned: row.banned })
+    ElMessage.success(row.banned ? '已封禁该用户' : '已解除封禁')
+  } catch (error) {
+    ElMessage.error('操作失败')
+    row.banned = !row.banned
+  }
 }
 
 onMounted(fetchUsers)

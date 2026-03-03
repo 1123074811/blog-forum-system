@@ -54,6 +54,22 @@ public class AdminController {
         return ApiResponse.success(true);
     }
 
+    @PutMapping("/users/{id}/ban")
+    public ApiResponse<Boolean> banUser(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        Boolean banned = body.get("banned");
+        User user = userService.getById(id);
+        if (user == null) {
+            return ApiResponse.error("用户不存在");
+        }
+        if ("admin".equals(user.getRole())) {
+            return ApiResponse.error("不能封禁管理员");
+        }
+        user.setBanned(banned);
+        userService.updateById(user);
+        userService.clearUserCache(user.getId(), user.getUsername());
+        return ApiResponse.success(true);
+    }
+
     // Article Management
     @GetMapping("/articles")
     public ApiResponse<List<Article>> getArticles() {

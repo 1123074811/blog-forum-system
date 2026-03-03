@@ -17,6 +17,7 @@ public class User {
     private String role;
     private String githubId;
     private String giteeId;
+    private Boolean banned;
     private String createdAt;
     private String updatedAt;
 }

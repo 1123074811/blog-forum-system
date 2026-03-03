@@ -173,6 +173,9 @@ public class AuthController {
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             return ApiResponse.error("用户名或密码错误");
         }
+        if (Boolean.TRUE.equals(user.getBanned())) {
+            return ApiResponse.error("该账号已被封禁，无法登录");
+        }
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
         // 将 token 存储到 Redis
