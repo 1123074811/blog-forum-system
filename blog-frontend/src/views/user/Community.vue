@@ -43,8 +43,9 @@
             </div>
           </div>
         </div>
-        <div class="text-center mt-4" v-if="hasMoreAlbums">
-          <el-button @click="loadMoreAlbums">加载更多</el-button>
+        <div ref="albumsLoadTrigger" class="h-20 flex items-center justify-center">
+          <el-icon v-if="hasMoreAlbums" class="is-loading"><Loading /></el-icon>
+          <span v-else-if="albums.length" class="text-gray-400">没有更多了</span>
         </div>
       </el-tab-pane>
 
@@ -54,8 +55,9 @@
             <img :src="item.url" class="w-full h-full object-cover" />
           </div>
         </div>
-        <div class="text-center mt-4" v-if="hasMoreMedia">
-          <el-button @click="loadMoreMedia">加载更多</el-button>
+        <div ref="mediaLoadTrigger" class="h-20 flex items-center justify-center">
+          <el-icon v-if="hasMoreMedia" class="is-loading"><Loading /></el-icon>
+          <span v-else-if="mediaList.length" class="text-gray-400">没有更多了</span>
         </div>
       </el-tab-pane>
 
@@ -68,8 +70,9 @@
             </div>
           </div>
         </div>
-        <div class="text-center mt-4" v-if="hasMoreMedia">
-          <el-button @click="loadMoreMedia">加载更多</el-button>
+        <div ref="mediaLoadTrigger" class="h-20 flex items-center justify-center">
+          <el-icon v-if="hasMoreMedia" class="is-loading"><Loading /></el-icon>
+          <span v-else-if="mediaList.length" class="text-gray-400">没有更多了</span>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -116,8 +119,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { Picture, VideoPlay } from '@element-plus/icons-vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { Picture, VideoPlay, Loading } from '@element-plus/icons-vue'
 import * as api from '@/api/blog'
 
 const activeTab = ref('albums')
@@ -131,30 +134,83 @@ const previewItem = ref(null)
 const page = ref(1)
 const hasMoreAlbums = ref(true)
 const hasMoreMedia = ref(true)
+const albumsLoadTrigger = ref(null)
+const mediaLoadTrigger = ref(null)
+const isLoading = ref(false)
 
 const loadAlbums = async (reset = false) => {
-  if (reset) { page.value = 1; albums.value = [] }
-  const res = await api.getPublicAlbums(page.value)
-  const data = res.data || []
-  albums.value.push(...data)
-  hasMoreAlbums.value = data.length === 20
+  if (isLoading.value) return
+  isLoading.value = true
+
+  try {
+    if (reset) { page.value = 1; albums.value = [] }
+    const res = await api.getPublicAlbums(page.value)
+    const data = res.data || []
+    albums.value.push(...data)
+    hasMoreAlbums.value = data.length === 20
+  } catch (error) {
+    console.error('加载相册失败:', error)
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const loadMedia = async (reset = false) => {
-  if (reset) { page.value = 1; mediaList.value = [] }
-  const type = activeTab.value === 'images' ? 'image' : activeTab.value === 'videos' ? 'video' : null
-  const res = await api.getPublicMedia(type, page.value)
-  const data = res.data || []
-  mediaList.value.push(...data)
-  hasMoreMedia.value = data.length === 20
+  if (isLoading.value) return
+  isLoading.value = true
+
+  try {
+    if (reset) { page.value = 1; mediaList.value = [] }
+    const type = activeTab.value === 'images' ? 'image' : activeTab.value === 'videos' ? 'video' : null
+    const res = await api.getPublicMedia(type, page.value)
+    const data = res.data || []
+    mediaList.value.push(...data)
+    hasMoreMedia.value = data.length === 20
+  } catch (error) {
+    console.error('加载媒体失败:', error)
+  } finally {
+    isLoading.value = false
+  }
 }
 
-const loadMoreAlbums = () => { page.value++; loadAlbums() }
-const loadMoreMedia = () => { page.value++; loadMedia() }
+const loadMoreAlbums = () => {
+  if (!isLoading.value && hasMoreAlbums.value) {
+    page.value++
+    loadAlbums()
+  }
+}
 
-const handleTabChange = (tab) => {
-  if (tab === 'albums') loadAlbums(true)
-  else loadMedia(true)
+const loadMoreMedia = () => {
+  if (!isLoading.value && hasMoreMedia.value) {
+    page.value++
+    loadMedia()
+  }
+}
+
+// 使用 scroll 事件监听
+const handleScroll = () => {
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+  const windowHeight = window.innerHeight
+  const documentHeight = document.documentElement.scrollHeight
+
+  // 距离底部 300px 时触发加载
+  const distanceToBottom = documentHeight - (scrollTop + windowHeight)
+
+  if (distanceToBottom < 300) {
+    if (activeTab.value === 'albums' && hasMoreAlbums.value && !isLoading.value) {
+      loadMoreAlbums()
+    } else if ((activeTab.value === 'images' || activeTab.value === 'videos') && hasMoreMedia.value && !isLoading.value) {
+      loadMoreMedia()
+    }
+  }
+}
+
+const handleTabChange = async (tab) => {
+  if (tab === 'albums') {
+    await loadAlbums(true)
+  } else {
+    await loadMedia(true)
+  }
 }
 
 const viewAlbum = async (album) => {
@@ -175,5 +231,12 @@ const openSource = (item) => {
   }
 }
 
-onMounted(() => loadAlbums())
+onMounted(async () => {
+  await loadAlbums()
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
