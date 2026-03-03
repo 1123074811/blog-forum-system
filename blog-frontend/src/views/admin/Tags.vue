@@ -7,8 +7,22 @@
         <el-button type="primary" @click="showDialog = true">新增标签</el-button>
       </div>
     </div>
+
+    <!-- 搜索筛选区域 -->
+    <div class="glass rounded-xl p-4 mb-4">
+      <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="searchQuery" placeholder="标签名称" clearable @clear="handleSearch" style="width: 200px" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
     <div class="glass rounded-xl p-6">
-      <el-table :data="tags" stripe @selection-change="handleSelectionChange">
+      <el-table :data="filteredTags" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" />
@@ -41,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getAdminTags, createTag, updateTag, deleteTag } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -51,6 +65,14 @@ const selectedIds = ref([])
 const showDialog = ref(false)
 const editingId = ref(null)
 const form = ref({ name: '' })
+const searchQuery = ref('')
+
+const filteredTags = computed(() => {
+  return tags.value.filter(tag => {
+    return !searchQuery.value ||
+      tag.name?.toLowerCase().includes(searchQuery.value.toLowerCase())
+  })
+})
 
 const fetchTags = async () => {
   const res = await getAdminTags()
@@ -92,6 +114,14 @@ const handleBatchDelete = async () => {
   await api.post('/admin/tags/batch-delete', { ids: selectedIds.value })
   ElMessage.success('批量删除成功')
   fetchTags()
+}
+
+const handleSearch = () => {
+  // 触发计算属性重新计算
+}
+
+const handleReset = () => {
+  searchQuery.value = ''
 }
 
 onMounted(fetchTags)

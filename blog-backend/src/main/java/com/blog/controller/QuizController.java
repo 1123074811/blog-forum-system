@@ -131,4 +131,23 @@ public class QuizController {
         }
         return ApiResponse.success(true);
     }
+
+    // 题目管理接口
+    @PostMapping("/admin/{quizBankId}/questions")
+    public ApiResponse<Question> addQuestion(@PathVariable Long quizBankId, @RequestBody Question question) {
+        question.setQuizBankId(quizBankId);
+        return ApiResponse.success(quizService.addQuestion(question));
+    }
+
+    @PutMapping("/admin/questions/{id}")
+    public ApiResponse<Question> updateQuestion(@PathVariable Long id, @RequestBody Question question) {
+        question.setId(id);
+        return ApiResponse.success(quizService.updateQuestion(question));
+    }
+
+    @DeleteMapping("/admin/questions/{id}")
+    public ApiResponse<Boolean> deleteQuestion(@PathVariable Long id) {
+        quizService.deleteQuestion(id);
+        return ApiResponse.success(true);
+    }
 }

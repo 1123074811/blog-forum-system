@@ -4,7 +4,38 @@
       <h1 class="text-2xl font-bold">媒体管理</h1>
       <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
     </div>
-    <el-table :data="mediaList" v-loading="loading" @selection-change="handleSelectionChange">
+
+    <!-- 搜索筛选区域 -->
+    <div class="glass rounded-xl p-4 mb-4">
+      <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="searchQuery" placeholder="标题/描述" clearable @clear="handleSearch" style="width: 200px" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="typeFilter" placeholder="全部" clearable style="width: 120px">
+            <el-option label="全部" value="" />
+            <el-option label="图片" value="image" />
+            <el-option label="视频" value="video" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="statusFilter" placeholder="全部" clearable style="width: 120px">
+            <el-option label="全部" value="" />
+            <el-option label="公开" value="public" />
+            <el-option label="私密" value="private" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="用户ID">
+          <el-input v-model="userIdFilter" placeholder="用户ID" clearable style="width: 120px" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <el-table :data="filteredMedia" v-loading="loading" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="预览" width="100">
@@ -47,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 
@@ -57,6 +88,29 @@ const loading = ref(false)
 const showEditDialog = ref(false)
 const editForm = ref({})
 const editingId = ref(null)
+const searchQuery = ref('')
+const typeFilter = ref('')
+const statusFilter = ref('')
+const userIdFilter = ref('')
+
+const filteredMedia = computed(() => {
+  return mediaList.value.filter(media => {
+    const matchSearch = !searchQuery.value ||
+      media.title?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      media.description?.toLowerCase().includes(searchQuery.value.toLowerCase())
+
+    const matchType = !typeFilter.value || media.type === typeFilter.value
+
+    const matchStatus = !statusFilter.value ||
+      (statusFilter.value === 'public' && !!media.isPublic) ||
+      (statusFilter.value === 'private' && !media.isPublic)
+
+    const matchUserId = !userIdFilter.value ||
+      String(media.userId) === userIdFilter.value
+
+    return matchSearch && matchType && matchStatus && matchUserId
+  })
+})
 
 const loadMedia = async () => {
   loading.value = true
@@ -94,6 +148,17 @@ const handleDelete = async (row) => {
   await api.delete(`/media/admin/${row.id}`)
   ElMessage.success('删除成功')
   loadMedia()
+}
+
+const handleSearch = () => {
+  // 触发计算属性重新计算
+}
+
+const handleReset = () => {
+  searchQuery.value = ''
+  typeFilter.value = ''
+  statusFilter.value = ''
+  userIdFilter.value = ''
 }
 
 onMounted(loadMedia)

@@ -19,4 +19,9 @@ public interface QuizService {
     void save(QuizBank quizBank);
     QuizBank getById(Long id);
     void removeByIds(List<Long> ids);
+
+    // 题目管理方法
+    Question addQuestion(Question question);
+    Question updateQuestion(Question question);
+    void deleteQuestion(Long id);
 }

@@ -4,8 +4,36 @@
       <h2 class="text-2xl font-bold dark:text-white">用户管理</h2>
       <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
     </div>
+
+    <!-- 搜索筛选区域 -->
+    <div class="glass rounded-xl p-4 mb-4">
+      <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="searchQuery" placeholder="用户名/邮箱" clearable @clear="handleSearch" style="width: 200px" />
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="roleFilter" placeholder="全部" clearable style="width: 120px">
+            <el-option label="全部" value="" />
+            <el-option label="管理员" value="admin" />
+            <el-option label="普通用户" value="user" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="statusFilter" placeholder="全部" clearable style="width: 120px">
+            <el-option label="全部" value="" />
+            <el-option label="正常" value="normal" />
+            <el-option label="已封禁" value="banned" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
     <div class="glass rounded-xl p-6">
-      <el-table :data="users" stripe @selection-change="handleSelectionChange">
+      <el-table :data="filteredUsers" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" :selectable="row => row.role !== 'admin'" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" />
@@ -44,13 +72,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getAdminUsers, deleteUser } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 
 const users = ref([])
 const selectedIds = ref([])
+const searchQuery = ref('')
+const roleFilter = ref('')
+const statusFilter = ref('')
+
+const filteredUsers = computed(() => {
+  return users.value.filter(user => {
+    const matchSearch = !searchQuery.value ||
+      user.username?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.value.toLowerCase())
+
+    const matchRole = !roleFilter.value || user.role === roleFilter.value
+
+    const matchStatus = !statusFilter.value ||
+      (statusFilter.value === 'banned' && user.banned) ||
+      (statusFilter.value === 'normal' && !user.banned)
+
+    return matchSearch && matchRole && matchStatus
+  })
+})
 
 const fetchUsers = async () => {
   const res = await getAdminUsers()
@@ -82,6 +129,16 @@ const handleBanChange = async (row) => {
     ElMessage.error('操作失败')
     row.banned = !row.banned
   }
+}
+
+const handleSearch = () => {
+  // 触发计算属性重新计算
+}
+
+const handleReset = () => {
+  searchQuery.value = ''
+  roleFilter.value = ''
+  statusFilter.value = ''
 }
 
 onMounted(fetchUsers)

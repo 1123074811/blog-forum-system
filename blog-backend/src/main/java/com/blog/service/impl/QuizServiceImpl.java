@@ -167,4 +167,53 @@ public class QuizServiceImpl implements QuizService {
         }
         quizBankMapper.deleteBatchIds(ids);
     }
+
+    @Override
+    @Transactional
+    public Question addQuestion(Question question) {
+        // 获取当前题库的最大排序号
+        List<Question> questions = questionMapper.selectList(
+            new LambdaQueryWrapper<Question>()
+                .eq(Question::getQuizBankId, question.getQuizBankId())
+                .orderByDesc(Question::getSortOrder)
+                .last("LIMIT 1")
+        );
+        int maxOrder = questions.isEmpty() ? 0 : questions.get(0).getSortOrder() + 1;
+        question.setSortOrder(maxOrder);
+
+        questionMapper.insert(question);
+
+        // 更新题库的题目数量
+        updateQuestionCount(question.getQuizBankId());
+        return question;
+    }
+
+    @Override
+    @Transactional
+    public Question updateQuestion(Question question) {
+        questionMapper.updateById(question);
+        return question;
+    }
+
+    @Override
+    @Transactional
+    public void deleteQuestion(Long id) {
+        Question question = questionMapper.selectById(id);
+        if (question != null) {
+            questionMapper.deleteById(id);
+            // 更新题库的题目数量
+            updateQuestionCount(question.getQuizBankId());
+        }
+    }
+
+    private void updateQuestionCount(Long quizBankId) {
+        Long count = questionMapper.selectCount(
+            new LambdaQueryWrapper<Question>().eq(Question::getQuizBankId, quizBankId)
+        );
+        QuizBank quizBank = quizBankMapper.selectById(quizBankId);
+        if (quizBank != null) {
+            quizBank.setQuestionCount(count.intValue());
+            quizBankMapper.updateById(quizBank);
+        }
+    }
 }

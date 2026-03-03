@@ -30,10 +30,27 @@
         </el-table-column>
         <el-table-column prop="sortOrder" label="排序" width="80" />
         <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="editAnnouncement(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deleteAnnouncementItem(row.id)">删除</el-button>
+            <div class="flex gap-2">
+              <el-button
+                type="primary"
+                size="small"
+                :icon="Edit"
+                @click="editAnnouncement(row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                :icon="Delete"
+                @click="deleteAnnouncementItem(row.id)"
+                plain
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -78,7 +95,7 @@
 import { ref, onMounted } from 'vue'
 import { getAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 
 const announcements = ref([])
 const showAddDialog = ref(false)
