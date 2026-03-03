@@ -58,6 +58,18 @@ public class CsdnParser implements ArticleParser {
             contentElement.select("script").remove();
             contentElement.select("style").remove();
             contentElement.select(".comment-box").remove();
+            contentElement.select("svg").remove();
+            contentElement.select(".tool-box").remove();
+
+            // 清理CSDN特有的装饰性元素
+            contentElement.select("hr").remove();
+
+            // 规范化标题标签
+            for (Element h : contentElement.select("h1, h2, h3, h4, h5, h6")) {
+                // 移除标题中的多余空格和特殊字符
+                String text = h.text().trim();
+                h.text(text);
+            }
 
             String html = contentElement.html();
             log.info("CSDN解析内容成功，长度: {}", html.length());

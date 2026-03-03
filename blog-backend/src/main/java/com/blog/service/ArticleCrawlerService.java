@@ -179,8 +179,18 @@ public class ArticleCrawlerService {
         // 清理Markdown中的锚点ID语法 {#xxx}
         markdown = markdown.replaceAll("\\s*\\{#[^}]+\\}", "");
 
+        // 清理标题中的多余星号和分隔符
+        markdown = markdown.replaceAll("(#{1,6})\\s*\\*+\\s*\\*+\\s*\\*+\\s*\\*+\\s*\\*+", "$1");
+        markdown = markdown.replaceAll("\\*\\*\\* \\*\\* \\* \\*\\* \\*\\*\\*", "---");
+
+        // 修复标题格式：确保#后有空格
+        markdown = markdown.replaceAll("(#{1,6})([^\\s#])", "$1 $2");
+
         // 清理多余的空行（超过2个连续空行）
         markdown = markdown.replaceAll("\\n{3,}", "\n\n");
+
+        // 清理标题前后多余的空格
+        markdown = markdown.replaceAll("(#{1,6})\\s+([^\\n]+?)\\s*\\n", "$1 $2\n");
 
         return markdown;
     }

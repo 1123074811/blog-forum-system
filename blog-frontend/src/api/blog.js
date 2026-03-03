@@ -13,6 +13,7 @@ export const getArticle = (id) => api.get(`/articles/${id}`)
 export const createArticle = (data) => api.post('/articles', data)
 export const updateArticle = (id, data) => api.put(`/articles/${id}`, data)
 export const deleteArticle = (id) => api.delete(`/articles/${id}`)
+export const crawlArticle = (url) => api.post('/articles/crawl', { url })
 
 export const getComments = (articleId) => api.get(`/articles/${articleId}/comments`)
 export const createComment = (data) => api.post('/comments', data)
