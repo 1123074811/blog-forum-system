@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.blog.dto.ApiResponse;
 import com.blog.dto.ArticleRequest;
+import com.blog.dto.CrawlRequest;
+import com.blog.dto.CrawlResponse;
 import com.blog.dto.PageResponse;
 import com.blog.entity.Article;
 import com.blog.entity.ArticleTag;
@@ -13,6 +15,7 @@ import com.blog.mapper.ArticleTagMapper;
 import com.blog.mapper.FollowMapper;
 import com.blog.mapper.UserMapper;
 import com.blog.service.ArticleService;
+import com.blog.service.ArticleCrawlerService;
 import com.blog.service.ZhipuAiService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,7 @@ public class ArticleController {
     private final FollowMapper followMapper;
     private final UserMapper userMapper;
     private final ZhipuAiService zhipuAiService;
+    private final ArticleCrawlerService articleCrawlerService;
 
     @GetMapping
     public ApiResponse<PageResponse<Article>> getArticles(
@@ -177,5 +181,18 @@ public class ArticleController {
             return ApiResponse.error("AI 总结生成失败");
         }
         return ApiResponse.success(summary);
+    }
+
+    @PostMapping("/crawl")
+    public ApiResponse<CrawlResponse> crawlArticle(@RequestBody CrawlRequest request) {
+        try {
+            if (request.getUrl() == null || request.getUrl().isEmpty()) {
+                return ApiResponse.error("请提供文章链接");
+            }
+            CrawlResponse response = articleCrawlerService.crawlArticle(request.getUrl());
+            return ApiResponse.success(response);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
     }
 }
