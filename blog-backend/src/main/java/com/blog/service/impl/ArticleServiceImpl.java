@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.blog.constant.AppConstants;
+import com.blog.event.ArticlePublishedEvent;
 import com.blog.exception.BusinessException;
 import com.blog.exception.ErrorCode;
 import com.blog.mapper.*;
@@ -14,6 +15,7 @@ import com.blog.service.HotArticleService;
 import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,6 +37,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final FollowMapper followMapper;
     private final CacheUtil cacheUtil;
     private final HotArticleService hotArticleService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public Page<Article> getArticles(int page, int limit, Long categoryId, Long userId, String search, String sort) {
@@ -155,7 +158,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     public void clearArticleCache(Long id) {
+        // 清理文章详情缓存
         cacheUtil.delete(AppConstants.CACHE_ARTICLE_PREFIX + id);
+        // 清理文章列表缓存（使用模糊匹配）
+        cacheUtil.deleteByPattern(AppConstants.CACHE_ARTICLE_LIST_PREFIX + "*");
+        // 更新热度分数
+        hotArticleService.updateArticleHotScore(id);
     }
 
     @Override
@@ -208,6 +216,13 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             }
         }
 
+        // 如果是发布状态，发布事件通知粉丝
+        if ("published".equals(article.getStatus())) {
+            eventPublisher.publishEvent(new ArticlePublishedEvent(
+                this, article.getId(), userId, article.getTitle()
+            ));
+        }
+
         return article;
     }
 
@@ -222,6 +237,9 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
 
+        // 记录旧状态
+        String oldStatus = article.getStatus();
+
         if (request.getTitle() != null) article.setTitle(request.getTitle());
         if (request.getContent() != null) article.setContent(request.getContent());
         if (request.getCategoryId() != null) article.setCategoryId(request.getCategoryId());
@@ -230,6 +248,14 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         updateById(article);
         clearArticleCache(id);
+
+        // 如果从草稿变为发布，发布事件通知粉丝
+        if (!"published".equals(oldStatus) && "published".equals(article.getStatus())) {
+            eventPublisher.publishEvent(new ArticlePublishedEvent(
+                this, article.getId(), userId, article.getTitle()
+            ));
+        }
+
         return article;
     }
 

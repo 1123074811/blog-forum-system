@@ -20,6 +20,7 @@ public final class AppConstants {
     public static final String CACHE_NULL_VALUE = "NULL";
     public static final String CACHE_LOCK_PREFIX = "lock:";
     public static final String CACHE_ARTICLE_PREFIX = "article:";
+    public static final String CACHE_ARTICLE_LIST_PREFIX = "article:list:";
     public static final String CACHE_ARTICLE_VIEW_PREFIX = "article:view:";
     public static final String CACHE_USER_PREFIX = "user:";
     public static final String CACHE_CATEGORY_LIST = "category:list";
