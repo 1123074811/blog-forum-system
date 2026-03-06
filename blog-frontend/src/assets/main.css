@@ -57,18 +57,20 @@
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .glass-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
-  border-color: rgba(14, 165, 233, 0.3);
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 25px 50px rgba(14, 165, 233, 0.2);
+  border-color: rgba(14, 165, 233, 0.4);
 }
 
 .dark .glass-card:hover {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 25px 50px rgba(56, 189, 248, 0.3);
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 /* 按钮玻璃效果 */
@@ -88,12 +90,29 @@ body {
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
   background:
-    radial-gradient(ellipse at 20% 20%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(56, 189, 248, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(125, 211, 252, 0.08) 0%, transparent 60%),
-    linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    radial-gradient(ellipse at 20% 20%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(56, 189, 248, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(125, 211, 252, 0.1) 0%, transparent 60%),
+    linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%);
   background-attachment: fixed;
   color: var(--text-primary);
+  position: relative;
+}
+
+/* 添加动态网格背景 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .dark body,
@@ -167,12 +186,32 @@ textarea {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
   border: none !important;
   box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.el-button--primary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.el-button--primary:hover::before {
+  width: 300px;
+  height: 300px;
 }
 
 .el-button--primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4) !important;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.5) !important;
 }
 
 .el-card {
@@ -236,4 +275,76 @@ textarea {
 
 .dark .glow {
   box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+}
+
+/* 脉冲动画 */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(14, 165, 233, 0.6);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* 浮动动画 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* 渐变边框动画 */
+@keyframes gradient-border {
+  0% {
+    border-color: rgba(14, 165, 233, 0.3);
+  }
+  50% {
+    border-color: rgba(56, 189, 248, 0.6);
+  }
+  100% {
+    border-color: rgba(14, 165, 233, 0.3);
+  }
+}
+
+.gradient-border-animate {
+  animation: gradient-border 3s ease-in-out infinite;
+}
+
+/* 卡片进入动画 */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-enter {
+  animation: card-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 标签悬浮效果 */
+.el-tag {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.el-tag:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }

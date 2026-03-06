@@ -26,6 +26,7 @@ const routes = [
       { path: 'about', name: 'About', component: () => import('@/views/user/About.vue'), meta: { title: '关于我们' } },
       { path: 'life-simulator', name: 'LifeSimulator', component: () => import('@/views/user/LifeSimulator.vue'), meta: { title: '人生模拟器' } },
       { path: 'recitation', name: 'Recitation', component: () => import('@/views/user/Recitation.vue'), meta: { requiresAuth: true, title: '背书神器' } },
+      { path: 'pomodoro', name: 'Pomodoro', component: () => import('@/views/user/Pomodoro.vue'), meta: { title: '番茄时钟' } },
     ]
   },
   { path: '/login', name: 'Login', component: () => import('@/views/Login.vue'), meta: { title: '登临门' } },

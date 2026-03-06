@@ -42,6 +42,17 @@
           </p>
         </div>
 
+        <!-- 番茄时钟 -->
+        <div class="tool-card pomodoro-card" @click="goToPomodoro">
+          <div class="tool-icon pomodoro-icon">
+            <el-icon size="32"><Timer /></el-icon>
+          </div>
+          <h3 class="tool-title">番茄时钟</h3>
+          <p class="tool-description">
+            专注工作25分钟，休息5分钟。使用番茄工作法提升专注力和工作效率。
+          </p>
+        </div>
+
         <!-- 敬请期待 -->
         <div class="tool-card coming-soon-card">
           <div class="tool-icon coming-soon-icon">
@@ -59,7 +70,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { Grid, ChatDotRound, Sunrise, Reading } from '@element-plus/icons-vue'
+import { Grid, ChatDotRound, Sunrise, Reading, Timer } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -73,6 +84,10 @@ function goToLifeSimulator() {
 
 function goToRecitation() {
   router.push('/recitation')
+}
+
+function goToPomodoro() {
+  router.push('/pomodoro')
 }
 </script>
 
@@ -216,6 +231,15 @@ function goToRecitation() {
 .recitation-icon {
   background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
   box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+}
+
+.pomodoro-card::before {
+  background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+}
+
+.pomodoro-icon {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 0 4px 16px rgba(240, 147, 251, 0.3);
 }
 
 /* 响应式设计 */

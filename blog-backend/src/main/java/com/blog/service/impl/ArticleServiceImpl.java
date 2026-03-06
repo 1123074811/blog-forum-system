@@ -63,31 +63,69 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (AppConstants.SORT_LATEST.equals(sort)) {
             wrapper.orderByDesc(Article::getCreatedAt);
         } else if (AppConstants.SORT_POPULAR.equals(sort)) {
-            // 热门文章使用权重计算，先查出所有已发布文章再排序
+            // 热门文章使用权重计算：先查出所有已发布文章，计算权重排序后再分页
             wrapper.orderByDesc(Article::getCreatedAt);
-            Page<Article> result = page(pageParam, wrapper);
-            List<Article> articles = result.getRecords();
-            if (!articles.isEmpty()) {
-                fillAuthorInfo(articles, currentUserId);
-                fillViewCountFromCache(articles);
-                // 计算权重并排序：浏览量*1 + 点赞*5 + 评论*3 + 收藏*4
-                List<Long> ids = articles.stream().map(Article::getId).toList();
+            // 查询所有符合条件的文章（不分页）
+            List<Article> allArticles = list(wrapper);
+
+            if (!allArticles.isEmpty()) {
+                fillAuthorInfo(allArticles, currentUserId);
+                fillViewCountFromCache(allArticles);
+
+                // 计算权重并排序：(浏览量*1 + 点赞*5 + 评论*3 + 收藏*4) / (时间差/小时 + 2)^1.5
+                // 类似Reddit热度算法，时间越久权重越低
+                List<Long> ids = allArticles.stream().map(Article::getId).toList();
                 Map<Long, Long> favoriteMap = articleFavoriteMapper.selectList(
                         new LambdaQueryWrapper<ArticleFavorite>().in(ArticleFavorite::getArticleId, ids))
                         .stream().collect(Collectors.groupingBy(ArticleFavorite::getArticleId, Collectors.counting()));
                 Map<Long, Long> commentMap = commentMapper.selectList(
                         new LambdaQueryWrapper<Comment>().in(Comment::getArticleId, ids))
                         .stream().collect(Collectors.groupingBy(Comment::getArticleId, Collectors.counting()));
-                articles.forEach(a -> {
-                    long score = (a.getViewCount() != null ? a.getViewCount() : 0)
+
+                long currentTime = System.currentTimeMillis();
+                allArticles.forEach(a -> {
+                    // 基础分数（使用double避免整数除法）
+                    double baseScore = (a.getViewCount() != null ? a.getViewCount() : 0)
                             + (a.getLikeCount() != null ? a.getLikeCount() * 5 : 0)
                             + commentMap.getOrDefault(a.getId(), 0L) * 3
                             + favoriteMap.getOrDefault(a.getId(), 0L) * 4;
-                    a.setHotScore(score);
+
+                    // 时间衰减：计算文章发布到现在的小时数
+                    try {
+                        long createdTime = java.time.LocalDateTime.parse(a.getCreatedAt(),
+                            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                            .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                        double hoursSinceCreated = (currentTime - createdTime) / (1000.0 * 3600.0);
+                        // 使用幂函数衰减，越久的文章权重越低
+                        double timeFactor = Math.pow(hoursSinceCreated + 2, 1.5);
+                        // 使用浮点数计算，避免整数除法导致结果为0
+                        double finalScoreDouble = baseScore / timeFactor;
+                        long finalScore = Math.round(finalScoreDouble);
+                        a.setHotScore(finalScore);
+                    } catch (Exception e) {
+                        // 解析失败则使用基础分数
+                        a.setHotScore(Math.round(baseScore));
+                    }
                 });
-                articles.sort(Comparator.comparing(Article::getHotScore).reversed());
+
+                // 按权重排序
+                allArticles.sort(Comparator.comparing(Article::getHotScore).reversed());
+
+                // 手动分页
+                int start = (page - 1) * limit;
+                int end = Math.min(start + limit, allArticles.size());
+                List<Article> pagedArticles = start < allArticles.size()
+                    ? allArticles.subList(start, end)
+                    : List.of();
+
+                // 构造分页结果
+                Page<Article> result = new Page<>(page, limit, allArticles.size());
+                result.setRecords(pagedArticles);
+                return result;
             }
-            return result;
+
+            // 如果没有文章，返回空分页
+            return new Page<>(page, limit, 0);
         } else {
             wrapper.orderByDesc(Article::getCreatedAt);
         }
