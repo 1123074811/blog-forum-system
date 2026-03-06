@@ -10,6 +10,15 @@ spring:
     username: root
     password: ojc132598.
     driver-class-name: com.mysql.cj.jdbc.Driver
+    # HikariCP 连接池优化配置
+    hikari:
+      maximum-pool-size: 20              # 最大连接数
+      minimum-idle: 5                    # 最小空闲连接数
+      connection-timeout: 30000          # 连接超时时间（毫秒）
+      idle-timeout: 600000               # 空闲连接超时时间（10分钟）
+      max-lifetime: 1800000              # 连接最大存活时间（30分钟）
+      connection-test-query: SELECT 1    # 连接测试查询
+      pool-name: BlogHikariPool          # 连接池名称
 
   data:
     redis:

@@ -4,12 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.blog.constant.AppConstants;
-import com.blog.pojo.dto.ArticleRequest;
-import com.blog.pojo.entity.*;
 import com.blog.exception.BusinessException;
 import com.blog.exception.ErrorCode;
 import com.blog.mapper.*;
+import com.blog.pojo.dto.ArticleRequest;
+import com.blog.pojo.entity.*;
 import com.blog.service.ArticleService;
+import com.blog.service.HotArticleService;
 import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +34,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final ArticleTagMapper articleTagMapper;
     private final FollowMapper followMapper;
     private final CacheUtil cacheUtil;
+    private final HotArticleService hotArticleService;
 
     @Override
     public Page<Article> getArticles(int page, int limit, Long categoryId, Long userId, String search, String sort) {
@@ -62,69 +63,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (AppConstants.SORT_LATEST.equals(sort)) {
             wrapper.orderByDesc(Article::getCreatedAt);
         } else if (AppConstants.SORT_POPULAR.equals(sort)) {
-            // 热门文章使用权重计算：先查出所有已发布文章，计算权重排序后再分页
-            wrapper.orderByDesc(Article::getCreatedAt);
-            // 查询所有符合条件的文章（不分页）
-            List<Article> allArticles = list(wrapper);
-
-            if (!allArticles.isEmpty()) {
-                fillAuthorInfo(allArticles, currentUserId);
-                fillViewCountFromCache(allArticles);
-
-                // 计算权重并排序：(浏览量*1 + 点赞*5 + 评论*3 + 收藏*4) / (时间差/小时 + 2)^1.5
-                // 类似Reddit热度算法，时间越久权重越低
-                List<Long> ids = allArticles.stream().map(Article::getId).toList();
-                Map<Long, Long> favoriteMap = articleFavoriteMapper.selectList(
-                        new LambdaQueryWrapper<ArticleFavorite>().in(ArticleFavorite::getArticleId, ids))
-                        .stream().collect(Collectors.groupingBy(ArticleFavorite::getArticleId, Collectors.counting()));
-                Map<Long, Long> commentMap = commentMapper.selectList(
-                        new LambdaQueryWrapper<Comment>().in(Comment::getArticleId, ids))
-                        .stream().collect(Collectors.groupingBy(Comment::getArticleId, Collectors.counting()));
-
-                long currentTime = System.currentTimeMillis();
-                allArticles.forEach(a -> {
-                    // 基础分数（使用double避免整数除法）
-                    double baseScore = (a.getViewCount() != null ? a.getViewCount() : 0)
-                            + (a.getLikeCount() != null ? a.getLikeCount() * 5 : 0)
-                            + commentMap.getOrDefault(a.getId(), 0L) * 3
-                            + favoriteMap.getOrDefault(a.getId(), 0L) * 4;
-
-                    // 时间衰减：计算文章发布到现在的小时数
-                    try {
-                        long createdTime = java.time.LocalDateTime.parse(a.getCreatedAt(),
-                            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                            .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-                        double hoursSinceCreated = (currentTime - createdTime) / (1000.0 * 3600.0);
-                        // 使用幂函数衰减，越久的文章权重越低
-                        double timeFactor = Math.pow(hoursSinceCreated + 2, 1.5);
-                        // 使用浮点数计算，避免整数除法导致结果为0
-                        double finalScoreDouble = baseScore / timeFactor;
-                        long finalScore = Math.round(finalScoreDouble);
-                        a.setHotScore(finalScore);
-                    } catch (Exception e) {
-                        // 解析失败则使用基础分数
-                        a.setHotScore(Math.round(baseScore));
-                    }
-                });
-
-                // 按权重排序
-                allArticles.sort(Comparator.comparing(Article::getHotScore).reversed());
-
-                // 手动分页
-                int start = (page - 1) * limit;
-                int end = Math.min(start + limit, allArticles.size());
-                List<Article> pagedArticles = start < allArticles.size()
-                    ? allArticles.subList(start, end)
-                    : List.of();
-
-                // 构造分页结果
-                Page<Article> result = new Page<>(page, limit, allArticles.size());
-                result.setRecords(pagedArticles);
-                return result;
-            }
-
-            // 如果没有文章，返回空分页
-            return new Page<>(page, limit, 0);
+            // 热门文章使用 Redis ZSet 预计算结果，避免每次查询都计算权重
+            return hotArticleService.getHotArticlesFromCache(page, limit, categoryId, search, currentUserId);
         } else {
             wrapper.orderByDesc(Article::getCreatedAt);
         }
@@ -135,11 +75,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         return result;
     }
 
-    private void fillAuthorInfo(List<Article> articles) {
+    // 改为 public，供 HotArticleService 调用
+    public void fillAuthorInfo(List<Article> articles) {
         fillAuthorInfo(articles, null);
     }
 
-    private void fillAuthorInfo(List<Article> articles, Long currentUserId) {
+    public void fillAuthorInfo(List<Article> articles, Long currentUserId) {
         if (articles.isEmpty()) return;
         List<Long> userIds = articles.stream().map(Article::getUserId).distinct().toList();
         Map<Long, User> userMap = userMapper.selectBatchIds(userIds).stream()
@@ -168,7 +109,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
     }
 
-    private void fillViewCountFromCache(List<Article> articles) {
+    // 改为 public，供 HotArticleService 调用
+    public void fillViewCountFromCache(List<Article> articles) {
         if (articles.isEmpty()) return;
         for (Article article : articles) {
             Number views = cacheUtil.get(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + article.getId());
@@ -189,6 +131,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             if (article != null) {
                 article.setViewCount(views.intValue());
                 updateById(article);
+                // 更新热度分数
+                hotArticleService.updateArticleHotScore(articleId);
             }
         }
     }

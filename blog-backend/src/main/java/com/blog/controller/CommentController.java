@@ -17,6 +17,7 @@ import java.util.List;
 public class CommentController {
 
     private final CommentService commentService;
+    private final com.blog.service.HotArticleService hotArticleService;
 
     @GetMapping("/articles/{articleId}/comments")
     public ApiResponse<List<Comment>> getComments(@PathVariable Long articleId) {
@@ -37,6 +38,8 @@ public class CommentController {
         comment.setUpdatedAt(DateUtil.now());
 
         commentService.save(comment);
+        // 更新文章热度分数
+        hotArticleService.updateArticleHotScore(request.getArticleId());
         return ApiResponse.success(comment);
     }
 
@@ -71,7 +74,10 @@ public class CommentController {
             return ApiResponse.error("Unauthorized");
         }
 
+        Long articleId = comment.getArticleId();
         commentService.removeById(id);
+        // 更新文章热度分数
+        hotArticleService.updateArticleHotScore(articleId);
         return ApiResponse.success(true);
     }
 

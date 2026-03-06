@@ -32,6 +32,7 @@ public class ArticleInteractionController {
     private final ArticleService articleService;
     private final NotificationService notificationService;
     private final UserMapper userMapper;
+    private final com.blog.service.HotArticleService hotArticleService;
 
     // 点赞/取消点赞
     @PostMapping("/{id}/like")
@@ -43,6 +44,8 @@ public class ArticleInteractionController {
                         .eq(ArticleLike::getArticleId, id));
         if (existing != null) {
             likeMapper.deleteById(existing.getId());
+            // 更新热度分数
+            hotArticleService.updateArticleHotScore(id);
             return ApiResponse.success(Map.of("liked", false));
         }
         ArticleLike like = new ArticleLike();
@@ -55,6 +58,8 @@ public class ArticleInteractionController {
         if (article != null) {
             notificationService.send(article.getUserId(), userId, "like", id, "赞了你的文章");
         }
+        // 更新热度分数
+        hotArticleService.updateArticleHotScore(id);
         return ApiResponse.success(Map.of("liked", true));
     }
 
@@ -68,6 +73,8 @@ public class ArticleInteractionController {
                         .eq(ArticleFavorite::getArticleId, id));
         if (existing != null) {
             favoriteMapper.deleteById(existing.getId());
+            // 更新热度分数
+            hotArticleService.updateArticleHotScore(id);
             return ApiResponse.success(Map.of("favorited", false));
         }
         ArticleFavorite fav = new ArticleFavorite();
@@ -80,6 +87,8 @@ public class ArticleInteractionController {
         if (article != null) {
             notificationService.send(article.getUserId(), userId, "favorite", id, "收藏了你的文章");
         }
+        // 更新热度分数
+        hotArticleService.updateArticleHotScore(id);
         return ApiResponse.success(Map.of("favorited", true));
     }
 
