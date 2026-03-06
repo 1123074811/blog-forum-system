@@ -217,6 +217,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { getQuizList, getPublicQuizList, importQuiz, deleteQuiz, toggleQuizPublic, uploadQuizFile } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderAsync } from 'docx-preview'
@@ -224,6 +225,7 @@ import * as XLSX from 'xlsx'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 const activeTab = ref('public')
 const publicList = ref([])
 const myList = ref([])
@@ -324,7 +326,14 @@ const switchTab = (tab) => {
   // 更新URL查询参数
   router.replace({ query: { ...route.query, tab } })
   if (tab === 'public' && !publicList.value.length) fetchPublicList()
-  if (tab === 'mine' && !myList.value.length) fetchMyList()
+  if (tab === 'mine') {
+    if (!userStore.isLoggedIn) {
+      ElMessage.warning('请先登录')
+      router.push('/login')
+      return
+    }
+    if (!myList.value.length) fetchMyList()
+  }
 }
 
 const fetchPublicList = async () => {
@@ -333,8 +342,16 @@ const fetchPublicList = async () => {
 }
 
 const fetchMyList = async () => {
-  const res = await getQuizList()
-  if (res.success) myList.value = res.data
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  try {
+    const res = await getQuizList()
+    if (res.success) myList.value = res.data
+  } catch (error) {
+    console.error('获取我的题库失败:', error)
+  }
 }
 
 const handleFileUpload = (file) => {
@@ -519,6 +536,11 @@ onMounted(() => {
   // 从URL查询参数恢复标签页状态
   const tabFromQuery = route.query.tab
   if (tabFromQuery === 'mine') {
+    if (!userStore.isLoggedIn) {
+      ElMessage.warning('请先登录')
+      router.push('/login')
+      return
+    }
     activeTab.value = 'mine'
     fetchMyList()
   } else {

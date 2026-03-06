@@ -182,23 +182,35 @@ const getConvUnread = (conv) => {
 
 const fetchNotifications = async () => {
   if (!userStore.isLoggedIn) return
-  const [res1, res2, res3, res4] = await Promise.all([
-    getNotifications(), getUnreadCount(), getMessageUnreadCount(), getConversations()
-  ])
-  if (res1.success) notifications.value = res1.data
-  if (res2.success) unreadCount.value = res2.data.count
-  if (res3.success) msgUnreadCount.value = res3.data
-  if (res4.success) conversations.value = res4.data || []
+  try {
+    const [res1, res2, res3, res4] = await Promise.all([
+      getNotifications(), getUnreadCount(), getMessageUnreadCount(), getConversations()
+    ])
+    if (res1.success) notifications.value = res1.data
+    if (res2.success) unreadCount.value = res2.data.count
+    if (res3.success) msgUnreadCount.value = res3.data
+    if (res4.success) conversations.value = res4.data || []
+  } catch (error) {
+    // 静默处理错误，避免影响页面加载
+    console.error('获取通知失败:', error)
+  }
 }
 
 const connectWebSocket = () => {
-  if (!userStore.isLoggedIn) return
-  ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?userId=${userStore.user.id}`)
-  ws.onmessage = (e) => {
-    const n = JSON.parse(e.data)
-    notifications.value.unshift(n)
-    unreadCount.value++
-    ElMessage.info(getNotificationText(n))
+  if (!userStore.isLoggedIn || !userStore.user?.id) return
+  try {
+    ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?userId=${userStore.user.id}`)
+    ws.onmessage = (e) => {
+      const n = JSON.parse(e.data)
+      notifications.value.unshift(n)
+      unreadCount.value++
+      ElMessage.info(getNotificationText(n))
+    }
+    ws.onerror = (error) => {
+      console.error('WebSocket 连接错误:', error)
+    }
+  } catch (error) {
+    console.error('WebSocket 初始化失败:', error)
   }
 }
 
@@ -224,8 +236,10 @@ const handleMarkAllRead = async () => {
 }
 
 onMounted(() => {
-  fetchNotifications()
-  connectWebSocket()
+  if (userStore.isLoggedIn) {
+    fetchNotifications()
+    connectWebSocket()
+  }
   nextTick(() => {
     updateHeaderHeight()
   })

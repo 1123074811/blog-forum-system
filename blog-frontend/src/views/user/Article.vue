@@ -27,11 +27,25 @@
             </div>
             <span>{{ article.createdAt }}</span>
             <span><el-icon><View /></el-icon> {{ article.viewCount }}</span>
-            <span class="cursor-pointer flex items-center gap-1" :class="interaction.liked ? 'text-red-500' : 'hover:text-red-500'" @click="toggleLike">
+            <!-- 点赞按钮 - 未登录时显示提示 -->
+            <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可点赞" placement="top">
+              <span class="cursor-pointer flex items-center gap-1 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                {{ interaction.likeCount }}
+              </span>
+            </el-tooltip>
+            <span v-else class="cursor-pointer flex items-center gap-1" :class="interaction.liked ? 'text-red-500' : 'hover:text-red-500'" @click="toggleLike">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" :fill="interaction.liked ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
               {{ interaction.likeCount }}
             </span>
-            <span class="cursor-pointer flex items-center gap-1" :class="interaction.favorited ? 'text-yellow-500' : 'hover:text-yellow-500'" @click="toggleFavorite">
+            <!-- 收藏按钮 - 未登录时显示提示 -->
+            <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可收藏" placement="top">
+              <span class="cursor-pointer flex items-center gap-1 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                {{ interaction.favoriteCount }}
+              </span>
+            </el-tooltip>
+            <span v-else class="cursor-pointer flex items-center gap-1" :class="interaction.favorited ? 'text-yellow-500' : 'hover:text-yellow-500'" @click="toggleFavorite">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" :fill="interaction.favorited ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
               {{ interaction.favoriteCount }}
             </span>
@@ -50,7 +64,14 @@
         <div class="glass rounded-xl p-6">
           <h3 class="text-lg font-semibold mb-4 dark:text-white">评论 ({{ comments.length }})</h3>
 
-          <div v-if="userStore.isLoggedIn" class="mb-6">
+          <!-- 未登录提示 -->
+          <div v-if="!userStore.isLoggedIn" class="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+            <p class="text-gray-600 dark:text-gray-400 mb-3">登录后可以发表评论</p>
+            <el-button type="primary" size="small" @click="router.push('/login')">立即登录</el-button>
+          </div>
+
+          <!-- 已登录评论输入框 -->
+          <div v-else class="mb-6">
             <div class="comment-input-box">
               <el-input v-model="newComment" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="写下你的评论..." />
               <div class="input-actions">
@@ -71,11 +92,26 @@
                   </div>
                   <p class="text-gray-700 dark:text-gray-300 mb-2">{{ comment.content }}</p>
                   <div class="flex items-center gap-4 text-sm text-gray-500">
-                    <span class="cursor-pointer flex items-center gap-1" :class="likedComments.has(comment.id) ? 'text-red-500' : 'hover:text-red-500'" @click="handleLike(comment)">
+                    <!-- 未登录时显示提示 -->
+                    <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可点赞" placement="top">
+                      <span class="cursor-pointer flex items-center gap-1 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                        {{ comment.likeCount }}
+                      </span>
+                    </el-tooltip>
+                    <span v-else class="cursor-pointer flex items-center gap-1" :class="likedComments.has(comment.id) ? 'text-red-500' : 'hover:text-red-500'" @click="handleLike(comment)">
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" :fill="likedComments.has(comment.id) ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                       {{ comment.likeCount }}
                     </span>
-                    <span class="cursor-pointer flex items-center gap-1 hover:text-primary-500" @click="replyTo = comment.id"><el-icon><ChatLineRound /></el-icon>回复</span>
+                    <!-- 回复按钮 -->
+                    <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可回复" placement="top">
+                      <span class="cursor-pointer flex items-center gap-1 text-gray-400">
+                        <el-icon><ChatLineRound /></el-icon>回复
+                      </span>
+                    </el-tooltip>
+                    <span v-else class="cursor-pointer flex items-center gap-1 hover:text-primary-500" @click="replyTo = comment.id">
+                      <el-icon><ChatLineRound /></el-icon>回复
+                    </span>
                   </div>
 
                   <!-- 回复输入框 -->
@@ -102,11 +138,26 @@
                           </div>
                           <p class="text-sm text-gray-700 dark:text-gray-300">{{ reply.content }}</p>
                           <div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                            <span class="cursor-pointer flex items-center gap-1" :class="likedComments.has(reply.id) ? 'text-red-500' : 'hover:text-red-500'" @click="handleLike(reply)">
+                            <!-- 未登录时显示提示 -->
+                            <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可点赞" placement="top">
+                              <span class="cursor-pointer flex items-center gap-1 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                {{ reply.likeCount }}
+                              </span>
+                            </el-tooltip>
+                            <span v-else class="cursor-pointer flex items-center gap-1" :class="likedComments.has(reply.id) ? 'text-red-500' : 'hover:text-red-500'" @click="handleLike(reply)">
                               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" :fill="likedComments.has(reply.id) ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                               {{ reply.likeCount }}
                             </span>
-                            <span class="cursor-pointer flex items-center gap-1 hover:text-primary-500" @click="replyTo = reply.id"><el-icon><ChatLineRound /></el-icon>回复</span>
+                            <!-- 回复按钮 -->
+                            <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可回复" placement="top">
+                              <span class="cursor-pointer flex items-center gap-1 text-gray-400">
+                                <el-icon><ChatLineRound /></el-icon>回复
+                              </span>
+                            </el-tooltip>
+                            <span v-else class="cursor-pointer flex items-center gap-1 hover:text-primary-500" @click="replyTo = reply.id">
+                              <el-icon><ChatLineRound /></el-icon>回复
+                            </span>
                           </div>
 
                           <!-- 子评论的回复输入框 -->

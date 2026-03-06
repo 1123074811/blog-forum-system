@@ -28,11 +28,15 @@
                @click="selectCategory('all')">
             <span class="dark:text-gray-300 font-medium">全部</span>
           </div>
+          <!-- 只在登录后显示关注分类 -->
           <div v-if="userStore.isLoggedIn"
                class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
                :class="{ 'bg-gradient-to-r from-primary-200 to-primary-50 dark:from-gray-700 dark:to-gray-800 shadow-sm': selectedCategory === 'following' }"
                @click="selectCategory('following')">
-            <span class="dark:text-gray-300 font-medium">关注</span>
+            <span class="dark:text-gray-300 font-medium flex items-center gap-1">
+              <el-icon><Star /></el-icon>
+              关注
+            </span>
           </div>
           <div v-for="cat in categories" :key="cat.id"
                class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
@@ -220,7 +224,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getArticles, getCategories, getTags } from '@/api/blog'
 import api from '@/api'
-import { View, Loading, Location, Top, Edit } from '@element-plus/icons-vue'
+import { View, Loading, Location, Top, Edit, Star } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -271,6 +275,12 @@ const fetchArticles = async (reset = false) => {
   try {
     let res
     if (selectedCategory.value === 'following') {
+      // 未登录时不请求关注的文章
+      if (!userStore.isLoggedIn) {
+        articles.value = []
+        hasMore.value = false
+        return
+      }
       res = await api.get('/articles/following', { params: { page: page.value, limit: 10 } })
     } else {
       const category = selectedCategory.value === 'all' ? null : selectedCategory.value
@@ -281,6 +291,9 @@ const fetchArticles = async (reset = false) => {
       hasMore.value = articles.value.length < res.data.total
       if (loadMoreRef.value) setupObserver()
     }
+  } catch (error) {
+    // 静默处理错误，避免影响页面加载
+    console.error('获取文章失败:', error)
   } finally {
     loading.value = false
   }

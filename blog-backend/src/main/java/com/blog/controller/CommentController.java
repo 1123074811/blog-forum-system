@@ -1,5 +1,7 @@
 package com.blog.controller;
 
+import com.blog.exception.BusinessException;
+import com.blog.exception.ErrorCode;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.dto.CommentRequest;
 import com.blog.pojo.entity.Comment;
@@ -7,14 +9,17 @@ import com.blog.service.CommentService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class CommentController {
+@Validated
+public class CommentController extends BaseController {
 
     private final CommentService commentService;
     private final com.blog.service.HotArticleService hotArticleService;
@@ -25,8 +30,8 @@ public class CommentController {
     }
 
     @PostMapping("/comments")
-    public ApiResponse<Comment> createComment(@RequestBody CommentRequest request, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
+    public ApiResponse<Comment> createComment(@Valid @RequestBody CommentRequest request, Authentication auth) {
+        Long userId = getCurrentUserId(auth);
 
         Comment comment = new Comment();
         comment.setArticleId(request.getArticleId());
@@ -44,16 +49,15 @@ public class CommentController {
     }
 
     @PutMapping("/comments/{id}")
-    public ApiResponse<Comment> updateComment(@PathVariable Long id, @RequestBody CommentRequest request, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
+    public ApiResponse<Comment> updateComment(@PathVariable Long id, @Valid @RequestBody CommentRequest request, Authentication auth) {
+        Long userId = getCurrentUserId(auth);
         Comment comment = commentService.getById(id);
 
         if (comment == null) {
-            return ApiResponse.error("Comment not found");
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
-        if (!comment.getUserId().equals(userId)) {
-            return ApiResponse.error("Unauthorized");
-        }
+        
+        checkPermission(comment.getUserId(), userId);
 
         comment.setContent(request.getContent());
         comment.setUpdatedAt(DateUtil.now());
@@ -64,15 +68,14 @@ public class CommentController {
 
     @DeleteMapping("/comments/{id}")
     public ApiResponse<Boolean> deleteComment(@PathVariable Long id, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
+        Long userId = getCurrentUserId(auth);
         Comment comment = commentService.getById(id);
 
         if (comment == null) {
-            return ApiResponse.error("Comment not found");
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
-        if (!comment.getUserId().equals(userId)) {
-            return ApiResponse.error("Unauthorized");
-        }
+        
+        checkPermission(comment.getUserId(), userId);
 
         Long articleId = comment.getArticleId();
         commentService.removeById(id);
@@ -83,14 +86,14 @@ public class CommentController {
 
     @PostMapping("/comments/{id}/like")
     public ApiResponse<Boolean> likeComment(@PathVariable Long id, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
+        Long userId = getCurrentUserId(auth);
         commentService.likeComment(id, userId);
         return ApiResponse.success(true);
     }
 
     @DeleteMapping("/comments/{id}/like")
     public ApiResponse<Boolean> unlikeComment(@PathVariable Long id, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
+        Long userId = getCurrentUserId(auth);
         commentService.unlikeComment(id, userId);
         return ApiResponse.success(true);
     }

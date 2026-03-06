@@ -40,6 +40,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/tags/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/quiz/public").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/quiz/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/quiz/*/questions").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/site-info").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
                 .requestMatchers("/api/tree-hole/**").permitAll()
