@@ -2,6 +2,8 @@ package com.blog.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -11,7 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,12 +26,19 @@ public class ZhipuAiService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
 
+    /**
+     * 生成文章摘要
+     * 使用熔断器和重试机制
+     */
+    @CircuitBreaker(name = "zhipuAi", fallbackMethod = "generateSummaryFallback")
+    @Retry(name = "zhipuAi")
     public String generateSummary(String content) {
         try {
+            log.info("调用智谱AI生成摘要");
             String text = content.length() > 2000 ? content.substring(0, 2000) : content;
             Map<String, Object> body = Map.of(
                 "model", "glm-4-flash",
-                "messages", List.of(Map.of("role", "user", "content", "请用一句话总结以下文章的核心内容，不超过50字：\n\n" + text))
+                "messages", List.of(Map.of("role", "user", "content", "请用一句话总结以下文章的核心内容，不超过100字：\n\n" + text))
             );
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://open.bigmodel.cn/api/paas/v4/chat/completions"))
@@ -40,20 +48,43 @@ public class ZhipuAiService {
                 .timeout(Duration.ofSeconds(30))
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() != 200) {
+                log.error("智谱AI API返回错误状态码: {}", response.statusCode());
+                throw new RuntimeException("智谱AI服务返回错误: " + response.statusCode());
+            }
+            
             JsonNode root = objectMapper.readTree(response.body());
-            return root.path("choices").get(0).path("message").path("content").asText();
+            String summary = root.path("choices").get(0).path("message").path("content").asText();
+            log.info("摘要生成成功");
+            return summary;
         } catch (Exception e) {
             log.error("智谱AI调用失败", e);
-            return null;
+            throw new RuntimeException("智谱AI服务调用失败", e);
         }
     }
 
     /**
+     * 生成摘要的降级方法
+     */
+    private String generateSummaryFallback(String content, Exception e) {
+        log.warn("智谱AI服务降级，使用默认摘要。原因: {}", e.getMessage());
+        // 返回文章前100个字符作为摘要
+        String fallbackSummary = content.length() > 100 
+            ? content.substring(0, 100) + "..." 
+            : content;
+        return fallbackSummary;
+    }
+
+    /**
      * 翻译数据库字段名或表名为中文
+     * 使用熔断器和重试机制
      * @param text 要翻译的文本
      * @param context 上下文类型：database_field 或 table
      * @return 翻译后的中文名称
      */
+    @CircuitBreaker(name = "zhipuAi", fallbackMethod = "translateDatabaseNameFallback")
+    @Retry(name = "zhipuAi")
     public String translateDatabaseName(String text, String context) {
         log.info("开始翻译: text={}, context={}", text, context);
         
@@ -107,7 +138,7 @@ public class ZhipuAiService {
             
             if (response.statusCode() != 200) {
                 log.error("智谱AI翻译API调用失败，状态码：{}, 响应：{}", response.statusCode(), response.body());
-                return null;
+                throw new RuntimeException("智谱AI服务返回错误: " + response.statusCode());
             }
 
             JsonNode root = objectMapper.readTree(response.body());
@@ -121,13 +152,25 @@ public class ZhipuAiService {
             
         } catch (Exception e) {
             log.error("智谱AI翻译调用失败，原文：{}", text, e);
-            return null;
+            throw new RuntimeException("智谱AI翻译服务调用失败", e);
         }
     }
 
     /**
-     * 生成人生模拟器事件
+     * 翻译的降级方法
      */
+    private String translateDatabaseNameFallback(String text, String context, Exception e) {
+        log.warn("智谱AI翻译服务降级，返回原文。原因: {}", e.getMessage());
+        // 简单的驼峰转中文处理
+        return text.replaceAll("([A-Z])", " $1").trim();
+    }
+
+    /**
+     * 生成人生模拟器事件
+     * 使用熔断器和重试机制
+     */
+    @CircuitBreaker(name = "zhipuAi", fallbackMethod = "generateLifeEventFallback")
+    @Retry(name = "zhipuAi")
     public Map<String, Object> generateLifeEvent(int age, Map<String, Object> attributes, long wealth, List<String> recentEvents) {
         try {
             String recentEventsStr = recentEvents != null && !recentEvents.isEmpty()
@@ -195,7 +238,7 @@ public class ZhipuAiService {
 
             if (response.statusCode() != 200) {
                 log.error("人生事件生成失败，状态码：{}", response.statusCode());
-                return null;
+                throw new RuntimeException("智谱AI服务返回错误: " + response.statusCode());
             }
 
             JsonNode root = objectMapper.readTree(response.body());
@@ -211,10 +254,25 @@ public class ZhipuAiService {
                 content = content.substring(start, end + 1);
             }
 
-            return objectMapper.readValue(content, Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = objectMapper.readValue(content, Map.class);
+            return result;
         } catch (Exception e) {
             log.error("人生事件生成失败", e);
-            return null;
+            throw new RuntimeException("人生事件生成失败", e);
         }
+    }
+
+    /**
+     * 人生事件生成的降级方法
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> generateLifeEventFallback(int age, Map<String, Object> attributes, long wealth, List<String> recentEvents, Exception e) {
+        log.warn("人生事件生成服务降级，使用默认事件。原因: {}", e.getMessage());
+        // 返回一个默认的简单事件
+        return Map.of(
+            "text", "平凡的一天，没有什么特别的事情发生。",
+            "effects", Map.of()
+        );
     }
 }

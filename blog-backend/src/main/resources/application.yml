@@ -4,6 +4,7 @@
 spring:
   profiles:
     active: dev  # 默认激活开发环境，生产环境通过启动参数指定
+    include: resilience4j  # 包含 Resilience4j 配置
 
   servlet:
     multipart:
@@ -34,3 +35,45 @@ weather:
 amap:
   weather:
     extensions: base
+
+# ============================================
+# Spring Boot Actuator 监控配置
+# ============================================
+management:
+  endpoints:
+    web:
+      exposure:
+        # 暴露的端点：health, info, metrics, prometheus
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      # 显示详细健康信息
+      show-details: when-authorized
+      # 启用健康检查组件
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  # 健康检查配置
+  health:
+    # Redis 健康检查
+    redis:
+      enabled: true
+    # 数据库健康检查
+    db:
+      enabled: true
+    # 磁盘空间健康检查
+    diskspace:
+      enabled: true
+      threshold: 10MB
+  # 指标配置
+  metrics:
+    tags:
+      application: ${spring.application.name:blog-backend}
+    export:
+      prometheus:
+        enabled: true
+

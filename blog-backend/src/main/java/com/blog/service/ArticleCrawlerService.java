@@ -3,6 +3,8 @@ package com.blog.service;
 import com.blog.pojo.dto.CrawlResponse;
 import com.blog.service.crawler.ArticleParser;
 import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -29,21 +31,24 @@ public class ArticleCrawlerService {
 
     /**
      * 爬取文章
+     * 使用熔断器和重试机制
      */
+    @CircuitBreaker(name = "crawler", fallbackMethod = "crawlArticleFallback")
+    @Retry(name = "crawler")
     public CrawlResponse crawlArticle(String url) {
         try {
             log.info("开始爬取文章: {}", url);
 
             // 验证URL格式
             if (url == null || url.trim().isEmpty()) {
-                throw new RuntimeException("请提供文章链接");
+                throw new IllegalArgumentException("请提供文章链接");
             }
 
             // 查找支持的解析器
             ArticleParser parser = findParser(url);
             if (parser == null) {
                 log.warn("不支持的网站: {}", url);
-                throw new RuntimeException("暂不支持该网站，目前支持：CSDN、掘金、博客园、知乎");
+                throw new IllegalArgumentException("暂不支持该网站，目前支持：CSDN、掘金、博客园、知乎");
             }
 
             log.info("使用解析器: {}", parser.getPlatformName());
@@ -89,13 +94,26 @@ public class ArticleCrawlerService {
                     .sourceUrl(url)
                     .build();
 
+        } catch (IllegalArgumentException e) {
+            // 参数错误不重试
+            log.error("爬取文章参数错误: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("爬取文章失败: {}", e.getMessage(), e);
-            if (e.getMessage() != null && (e.getMessage().contains("支持") || e.getMessage().contains("链接"))) {
-                throw new RuntimeException(e.getMessage());
-            }
-            throw new RuntimeException("无法解析该链接，请检查链接是否正确。错误: " + e.getMessage());
+            throw new RuntimeException("无法解析该链接，请检查链接是否正确。错误: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 爬取文章的降级方法
+     */
+    private CrawlResponse crawlArticleFallback(String url, Exception e) {
+        log.warn("文章爬取服务降级。URL: {}, 原因: {}", url, e.getMessage());
+        return CrawlResponse.builder()
+                .title("爬取失败")
+                .content("抱歉，文章爬取服务暂时不可用，请稍后再试。\n\n原始链接：" + url)
+                .sourceUrl(url)
+                .build();
     }
 
     /**

@@ -1,0 +1,102 @@
+# Resilience4j 配置
+resilience4j:
+  # 熔断器配置
+  circuitbreaker:
+    configs:
+      default:
+        # 滑动窗口大小
+        sliding-window-size: 10
+        # 滑动窗口类型：COUNT_BASED（基于次数）或 TIME_BASED（基于时间）
+        sliding-window-type: COUNT_BASED
+        # 最小调用次数，达到此次数后才会计算失败率
+        minimum-number-of-calls: 5
+        # 失败率阈值（百分比），超过此值熔断器打开
+        failure-rate-threshold: 50
+        # 慢调用率阈值（百分比）
+        slow-call-rate-threshold: 100
+        # 慢调用时间阈值（毫秒）
+        slow-call-duration-threshold: 60000
+        # 熔断器打开后等待时间（毫秒），之后进入半开状态
+        wait-duration-in-open-state: 60000
+        # 半开状态下允许的调用次数
+        permitted-number-of-calls-in-half-open-state: 3
+        # 自动从打开状态转换到半开状态
+        automatic-transition-from-open-to-half-open-enabled: true
+        # 记录的异常
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.ResourceAccessException
+    instances:
+      # 智谱AI服务熔断器
+      zhipuAi:
+        base-config: default
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 30000
+      # 爬虫服务熔断器
+      crawler:
+        base-config: default
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 60000
+      # Redis服务熔断器
+      redis:
+        base-config: default
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 10000
+
+  # 重试配置
+  retry:
+    configs:
+      default:
+        # 最大重试次数
+        max-attempts: 3
+        # 重试间隔时间（毫秒）
+        wait-duration: 1000
+        # 启用指数退避
+        enable-exponential-backoff: true
+        # 指数退避倍数
+        exponential-backoff-multiplier: 2
+        # 重试的异常
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+    instances:
+      # 智谱AI重试
+      zhipuAi:
+        base-config: default
+        max-attempts: 2
+        wait-duration: 2000
+      # 爬虫重试
+      crawler:
+        base-config: default
+        max-attempts: 3
+        wait-duration: 1000
+
+  # 限流配置
+  ratelimiter:
+    configs:
+      default:
+        # 限流周期（纳秒）
+        limit-refresh-period: 1s
+        # 限流周期内允许的请求数
+        limit-for-period: 10
+        # 等待许可的超时时间（毫秒）
+        timeout-duration: 0
+    instances:
+      # AI服务限流
+      aiService:
+        limit-for-period: 5
+        limit-refresh-period: 1s
+
+  # 舱壁隔离配置
+  bulkhead:
+    configs:
+      default:
+        # 最大并发调用数
+        max-concurrent-calls: 10
+        # 最大等待时间（毫秒）
+        max-wait-duration: 0
+    instances:
+      # AI服务舱壁
+      aiService:
+        max-concurrent-calls: 5
