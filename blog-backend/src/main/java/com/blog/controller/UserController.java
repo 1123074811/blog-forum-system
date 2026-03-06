@@ -1,52 +1,53 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.User;
+import com.blog.converter.UserConverter;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.UserUpdateRequest;
+import com.blog.pojo.entity.User;
+import com.blog.exception.BusinessException;
+import com.blog.exception.ErrorCode;
 import com.blog.service.FollowService;
 import com.blog.service.NotificationService;
 import com.blog.service.UserService;
+import com.blog.pojo.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController extends BaseController {
 
     private final UserService userService;
     private final FollowService followService;
     private final NotificationService notificationService;
+    private final UserConverter userConverter;
 
     @GetMapping("/{id}")
-    public ApiResponse<Map<String, Object>> getUser(@PathVariable Long id) {
+    public ApiResponse<UserVO> getUser(@PathVariable Long id) {
         User user = userService.getById(id);
         if (user == null) {
-            return ApiResponse.error("User not found");
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
-        user.setPassword(null);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("user", user);
-        result.put("followerCount", followService.getFollowerCount(id));
-        result.put("followingCount", followService.getFollowingCount(id));
+        UserVO userVO = userConverter.toVO(user);
+        userVO.setFollowerCount(followService.getFollowerCount(id));
+        userVO.setFollowingCount(followService.getFollowingCount(id));
 
-        return ApiResponse.success(result);
+        return ApiResponse.success(userVO);
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<User> updateUser(@PathVariable Long id, @RequestBody User updateData, Authentication auth) {
-        Long currentUserId = (Long) auth.getPrincipal();
-        if (!currentUserId.equals(id)) {
-            return ApiResponse.error("Unauthorized");
-        }
+    public ApiResponse<UserVO> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest updateData, Authentication auth) {
+        Long currentUserId = getCurrentUserId(auth);
+        checkPermission(id, currentUserId);
 
         User user = userService.getById(id);
         if (user == null) {
-            return ApiResponse.error("User not found");
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
 
         if (updateData.getAvatar() != null) user.setAvatar(updateData.getAvatar());
@@ -55,25 +56,24 @@ public class UserController {
 
         userService.updateById(user);
         userService.clearUserCache(user.getId(), user.getUsername());
-        user.setPassword(null);
-        return ApiResponse.success(user);
+        return ApiResponse.success(userConverter.toVO(user));
     }
 
     @PostMapping("/{id}/follow")
-    public ApiResponse<Boolean> follow(@PathVariable Long id, Authentication auth) {
-        Long currentUserId = (Long) auth.getPrincipal();
+    public ApiResponse<Void> follow(@PathVariable Long id, Authentication auth) {
+        Long currentUserId = getCurrentUserId(auth);
         if (currentUserId.equals(id)) {
-            return ApiResponse.error("Cannot follow yourself");
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "不能关注自己");
         }
         followService.follow(currentUserId, id);
         notificationService.send(id, currentUserId, "follow", currentUserId, "关注了你");
-        return ApiResponse.success(true);
+        return ApiResponse.success(null);
     }
 
     @DeleteMapping("/{id}/follow")
-    public ApiResponse<Boolean> unfollow(@PathVariable Long id, Authentication auth) {
-        Long currentUserId = (Long) auth.getPrincipal();
+    public ApiResponse<Void> unfollow(@PathVariable Long id, Authentication auth) {
+        Long currentUserId = getCurrentUserId(auth);
         followService.unfollow(currentUserId, id);
-        return ApiResponse.success(true);
+        return ApiResponse.success(null);
     }
 }

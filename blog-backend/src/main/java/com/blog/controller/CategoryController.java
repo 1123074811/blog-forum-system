@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Category;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Category;
 import com.blog.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

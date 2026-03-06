@@ -1,6 +1,6 @@
 package com.blog.service.impl;
 
-import com.blog.entity.FileEntity;
+import com.blog.pojo.entity.FileEntity;
 import com.blog.mapper.FileMapper;
 import com.blog.service.FileService;
 import com.blog.service.MinioService;

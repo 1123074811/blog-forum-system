@@ -1,9 +1,9 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.blog.dto.ApiResponse;
-import com.blog.dto.PageResponse;
-import com.blog.entity.Recitation;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.PageResponse;
+import com.blog.pojo.entity.Recitation;
 import com.blog.service.RecitationService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;

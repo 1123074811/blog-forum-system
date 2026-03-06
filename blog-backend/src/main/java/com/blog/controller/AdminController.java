@@ -2,8 +2,8 @@ package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.blog.constant.AppConstants;
-import com.blog.dto.ApiResponse;
-import com.blog.entity.*;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.*;
 import com.blog.service.*;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;

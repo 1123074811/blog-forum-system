@@ -2,12 +2,12 @@ package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.blog.dto.ApiResponse;
-import com.blog.dto.PageResponse;
-import com.blog.entity.Article;
-import com.blog.entity.ArticleFavorite;
-import com.blog.entity.ArticleLike;
-import com.blog.entity.User;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.PageResponse;
+import com.blog.pojo.entity.Article;
+import com.blog.pojo.entity.ArticleFavorite;
+import com.blog.pojo.entity.ArticleLike;
+import com.blog.pojo.entity.User;
 import com.blog.mapper.ArticleFavoriteMapper;
 import com.blog.mapper.ArticleLikeMapper;
 import com.blog.mapper.UserMapper;

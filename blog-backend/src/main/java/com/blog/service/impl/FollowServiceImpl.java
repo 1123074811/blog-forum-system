@@ -2,8 +2,8 @@ package com.blog.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.blog.entity.Follow;
-import com.blog.entity.User;
+import com.blog.pojo.entity.Follow;
+import com.blog.pojo.entity.User;
 import com.blog.mapper.FollowMapper;
 import com.blog.mapper.UserMapper;
 import com.blog.service.FollowService;

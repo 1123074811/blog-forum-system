@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Media;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Media;
 import com.blog.service.MediaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;

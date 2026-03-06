@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.SiteInfo;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.SiteInfo;
 import com.blog.service.SiteInfoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;

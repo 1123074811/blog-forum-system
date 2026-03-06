@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Album;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Album;
 import com.blog.service.AlbumService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;

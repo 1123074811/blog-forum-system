@@ -1,8 +1,8 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Media;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Media;
 import com.blog.mapper.MediaMapper;
 import com.blog.service.MinioService;
 import com.blog.util.DateUtil;

@@ -1,7 +1,7 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.entity.User;
+import com.blog.pojo.entity.User;
 import com.blog.service.UserService;
 import com.blog.util.DateUtil;
 import com.blog.util.JwtUtil;

@@ -1,9 +1,9 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.dto.ApiResponse;
-import com.blog.entity.ArticleTag;
-import com.blog.entity.Tag;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.ArticleTag;
+import com.blog.pojo.entity.Tag;
 import com.blog.mapper.ArticleTagMapper;
 import com.blog.service.TagService;
 import com.blog.util.CacheUtil;

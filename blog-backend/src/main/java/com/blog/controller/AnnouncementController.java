@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Announcement;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Announcement;
 import com.blog.service.AnnouncementService;
 import com.blog.util.DateUtil;
 import com.blog.util.SecurityUtil;

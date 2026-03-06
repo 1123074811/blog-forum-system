@@ -1,9 +1,9 @@
 package com.blog.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.entity.Album;
-import com.blog.entity.Media;
-import com.blog.entity.User;
+import com.blog.pojo.entity.Album;
+import com.blog.pojo.entity.Media;
+import com.blog.pojo.entity.User;
 import com.blog.mapper.AlbumMapper;
 import com.blog.mapper.MediaMapper;
 import com.blog.mapper.UserMapper;

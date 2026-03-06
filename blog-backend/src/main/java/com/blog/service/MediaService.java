@@ -1,6 +1,6 @@
 package com.blog.service;
 
-import com.blog.entity.Media;
+import com.blog.pojo.entity.Media;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 

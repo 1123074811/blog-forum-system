@@ -1,13 +1,14 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.dto.AuthResponse;
-import com.blog.dto.ForgotPasswordRequest;
-import com.blog.dto.LoginRequest;
-import com.blog.dto.RegisterRequest;
-import com.blog.dto.ResetPasswordRequest;
-import com.blog.dto.VerifyCodeRequest;
-import com.blog.entity.User;
+import com.blog.annotation.RateLimit;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.AuthResponse;
+import com.blog.pojo.dto.ForgotPasswordRequest;
+import com.blog.pojo.dto.LoginRequest;
+import com.blog.pojo.dto.RegisterRequest;
+import com.blog.pojo.dto.ResetPasswordRequest;
+import com.blog.pojo.dto.VerifyCodeRequest;
+import com.blog.pojo.entity.User;
 import com.blog.service.CaptchaService;
 import com.blog.service.EmailService;
 import com.blog.service.RateLimitService;
@@ -45,12 +46,14 @@ public class AuthController {
     private long tokenExpiration;
 
     @GetMapping("/captcha")
+    @RateLimit(key = "captcha", count = 10, time = 60, limitType = RateLimit.LimitType.IP)
     public ApiResponse<Map<String, String>> getCaptcha() throws IOException {
         CaptchaService.CaptchaResult result = captchaService.generateCaptcha();
         return ApiResponse.success(Map.of("key", result.captchaId(), "image", result.imageBase64()));
     }
 
     @PostMapping("/forgot-password")
+    @RateLimit(key = "forgot_password", count = 3, time = 300, limitType = RateLimit.LimitType.IP, message = "请求过于频繁，请5分钟后再试")
     public ApiResponse<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         String username = request.getUsername();
         if (username == null || username.isBlank()) {
@@ -145,6 +148,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @RateLimit(key = "register", count = 3, time = 3600, limitType = RateLimit.LimitType.IP, message = "注册过于频繁，请1小时后再试")
     public ApiResponse<String> register(@RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
         if (!captchaService.validateCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
             return ApiResponse.error("验证码错误或已过期");
@@ -165,6 +169,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @RateLimit(key = "login", count = 5, time = 60, limitType = RateLimit.LimitType.IP, message = "登录失败次数过多，请1分钟后再试")
     public ApiResponse<AuthResponse> login(@RequestBody LoginRequest request) {
         if (!captchaService.validateCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
             return ApiResponse.error("验证码错误或已过期");

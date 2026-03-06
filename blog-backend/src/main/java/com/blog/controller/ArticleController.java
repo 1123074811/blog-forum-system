@@ -1,45 +1,39 @@
 package com.blog.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.blog.dto.ApiResponse;
-import com.blog.dto.ArticleRequest;
-import com.blog.dto.CrawlRequest;
-import com.blog.dto.CrawlResponse;
-import com.blog.dto.PageResponse;
-import com.blog.entity.Article;
-import com.blog.entity.ArticleTag;
-import com.blog.entity.Follow;
-import com.blog.entity.User;
-import com.blog.mapper.ArticleTagMapper;
-import com.blog.mapper.FollowMapper;
-import com.blog.mapper.UserMapper;
+import com.blog.converter.ArticleConverter;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.ArticleRequest;
+import com.blog.pojo.dto.CrawlRequest;
+import com.blog.pojo.dto.CrawlResponse;
+import com.blog.pojo.dto.PageResponse;
+import com.blog.pojo.entity.Article;
+import com.blog.exception.BusinessException;
+import com.blog.exception.ErrorCode;
 import com.blog.service.ArticleService;
 import com.blog.service.ArticleCrawlerService;
 import com.blog.service.ZhipuAiService;
-import com.blog.util.DateUtil;
+import com.blog.pojo.vo.ArticleVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/articles")
 @RequiredArgsConstructor
-public class ArticleController {
+@Validated
+public class ArticleController extends BaseController {
 
     private final ArticleService articleService;
-    private final ArticleTagMapper articleTagMapper;
-    private final FollowMapper followMapper;
-    private final UserMapper userMapper;
+    private final ArticleConverter articleConverter;
     private final ZhipuAiService zhipuAiService;
     private final ArticleCrawlerService articleCrawlerService;
 
     @GetMapping
-    public ApiResponse<PageResponse<Article>> getArticles(
+    public ApiResponse<PageResponse<ArticleVO>> getArticles(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(required = false) Long category,
@@ -47,152 +41,87 @@ public class ArticleController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "latest") String sort,
             Authentication auth) {
-        Long currentUserId = auth != null && auth.getPrincipal() instanceof Long ? (Long) auth.getPrincipal() : null;
+        Long currentUserId = getCurrentUserIdOptional(auth);
         Page<Article> result = articleService.getArticles(page, limit, category, userId, search, sort, currentUserId);
-        return ApiResponse.success(new PageResponse<>(result.getRecords(), result.getTotal(), page, limit));
+        PageResponse<ArticleVO> response = new PageResponse<>(
+                articleConverter.toVOList(result.getRecords()),
+                result.getTotal(),
+                page,
+                limit
+        );
+        return ApiResponse.success(response);
     }
 
     @GetMapping("/following")
-    public ApiResponse<PageResponse<Article>> getFollowingArticles(
+    public ApiResponse<PageResponse<ArticleVO>> getFollowingArticles(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int limit,
             Authentication auth) {
-        if (auth == null) {
-            return ApiResponse.error("请先登录");
-        }
-        Long userId = (Long) auth.getPrincipal();
-        // 获取关注的用户ID列表
-        List<Long> followingIds = followMapper.selectList(
-                new LambdaQueryWrapper<Follow>().eq(Follow::getFollowerId, userId)
-        ).stream().map(Follow::getFollowingId).toList();
-
-        if (followingIds.isEmpty()) {
-            return ApiResponse.success(new PageResponse<>(List.of(), 0L, page, limit));
-        }
-
-        // 查询关注用户的文章，按时间倒序
-        Page<Article> pageObj = new Page<>(page, limit);
-        Page<Article> result = articleService.page(pageObj,
-                new LambdaQueryWrapper<Article>()
-                        .in(Article::getUserId, followingIds)
-                        .eq(Article::getStatus, "published")
-                        .orderByDesc(Article::getCreatedAt));
-        // 填充用户信息
-        List<Article> articles = result.getRecords();
-        if (!articles.isEmpty()) {
-            Map<Long, User> userMap = userMapper.selectBatchIds(
-                    articles.stream().map(Article::getUserId).distinct().toList()
-            ).stream().collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
-            for (Article article : articles) {
-                User user = userMap.get(article.getUserId());
-                if (user != null) {
-                    article.setAuthorName(user.getUsername());
-                    article.setAuthorAvatar(user.getAvatar());
-                }
-            }
-        }
-        return ApiResponse.success(new PageResponse<>(result.getRecords(), result.getTotal(), page, limit));
+        Long userId = getCurrentUserId(auth);
+        Page<Article> result = articleService.getFollowingArticles(page, limit, userId);
+        PageResponse<ArticleVO> response = new PageResponse<>(
+                articleConverter.toVOList(result.getRecords()),
+                result.getTotal(),
+                page,
+                limit
+        );
+        return ApiResponse.success(response);
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<Article> getArticle(@PathVariable Long id) {
+    public ApiResponse<ArticleVO> getArticle(@PathVariable Long id) {
         Article article = articleService.getArticleWithAuthor(id);
         if (article == null) {
-            return ApiResponse.error("Article not found");
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
         }
         articleService.incrementViewCount(id);
-        return ApiResponse.success(article);
+        return ApiResponse.success(articleConverter.toVO(article));
     }
 
     @PostMapping
-    public ApiResponse<Article> createArticle(@RequestBody ArticleRequest request, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
-
-        Article article = new Article();
-        article.setUserId(userId);
-        article.setTitle(request.getTitle());
-        article.setContent(request.getContent());
-        article.setCategoryId(request.getCategoryId());
-        article.setStatus(request.getStatus() != null ? request.getStatus() : "draft");
-        article.setViewCount(0);
-        article.setCreatedAt(DateUtil.now());
-        article.setUpdatedAt(DateUtil.now());
-
-        articleService.save(article);
-
-        if (request.getTags() != null) {
-            for (Long tagId : request.getTags()) {
-                ArticleTag at = new ArticleTag();
-                at.setArticleId(article.getId());
-                at.setTagId(tagId);
-                articleTagMapper.insert(at);
-            }
-        }
-
-        return ApiResponse.success(article);
+    public ApiResponse<ArticleVO> createArticle(@Valid @RequestBody ArticleRequest request, Authentication auth) {
+        Long userId = getCurrentUserId(auth);
+        Article article = articleService.createArticle(request, userId);
+        return ApiResponse.success(articleConverter.toVO(article));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<Article> updateArticle(@PathVariable Long id, @RequestBody ArticleRequest request, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
-        Article article = articleService.getById(id);
-
-        if (article == null) {
-            return ApiResponse.error("Article not found");
-        }
-        if (!article.getUserId().equals(userId)) {
-            return ApiResponse.error("Unauthorized");
-        }
-
-        if (request.getTitle() != null) article.setTitle(request.getTitle());
-        if (request.getContent() != null) article.setContent(request.getContent());
-        if (request.getCategoryId() != null) article.setCategoryId(request.getCategoryId());
-        if (request.getStatus() != null) article.setStatus(request.getStatus());
-        article.setUpdatedAt(DateUtil.now());
-
-        articleService.updateById(article);
-        return ApiResponse.success(article);
+    public ApiResponse<ArticleVO> updateArticle(@PathVariable Long id, @Valid @RequestBody ArticleRequest request, Authentication auth) {
+        Long userId = getCurrentUserId(auth);
+        Article article = articleService.updateArticle(id, request, userId);
+        return ApiResponse.success(articleConverter.toVO(article));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Boolean> deleteArticle(@PathVariable Long id, Authentication auth) {
-        Long userId = (Long) auth.getPrincipal();
-        Article article = articleService.getById(id);
-
-        if (article == null) {
-            return ApiResponse.error("Article not found");
-        }
-        if (!article.getUserId().equals(userId)) {
-            return ApiResponse.error("Unauthorized");
-        }
-
-        articleService.removeById(id);
-        return ApiResponse.success(true);
+    public ApiResponse<Void> deleteArticle(@PathVariable Long id, Authentication auth) {
+        Long userId = getCurrentUserId(auth);
+        articleService.deleteArticle(id, userId);
+        return ApiResponse.success(null);
     }
 
     @GetMapping("/{id}/summary")
     public ApiResponse<String> getArticleSummary(@PathVariable Long id) {
         Article article = articleService.getById(id);
         if (article == null) {
-            return ApiResponse.error("Article not found");
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
         }
         String summary = zhipuAiService.generateSummary(article.getContent());
         if (summary == null) {
-            return ApiResponse.error("AI 总结生成失败");
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
         return ApiResponse.success(summary);
     }
 
     @PostMapping("/crawl")
-    public ApiResponse<CrawlResponse> crawlArticle(@RequestBody CrawlRequest request) {
+    public ApiResponse<CrawlResponse> crawlArticle(@Valid @RequestBody CrawlRequest request) {
+        if (request.getUrl() == null || request.getUrl().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "请提供文章链接");
+        }
         try {
-            if (request.getUrl() == null || request.getUrl().isEmpty()) {
-                return ApiResponse.error("请提供文章链接");
-            }
             CrawlResponse response = articleCrawlerService.crawlArticle(request.getUrl());
             return ApiResponse.success(response);
         } catch (Exception e) {
-            return ApiResponse.error(e.getMessage());
+            throw new BusinessException(ErrorCode.CRAWL_SERVICE_ERROR, e.getMessage());
         }
     }
 }

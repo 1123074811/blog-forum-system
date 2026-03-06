@@ -1,5 +1,6 @@
 package com.blog.security;
 
+import com.blog.context.BaseContext;
 import com.blog.service.TokenService;
 import com.blog.util.JwtUtil;
 import jakarta.servlet.FilterChain;
@@ -43,11 +44,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         userId, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
+                // 同时设置到 ThreadLocal，方便 AOP 和 Service 使用
+                BaseContext.setCurrentId(userId);
+
                 // 滑动过期：每次请求都刷新 Redis 中 token 的过期时间
                 tokenService.refreshToken(token, expiration);
             }
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // 请求结束后清理 ThreadLocal，防止内存泄漏
+            BaseContext.removeCurrentId();
+        }
     }
 }

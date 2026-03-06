@@ -2,9 +2,9 @@ package com.blog.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.blog.entity.Conversation;
-import com.blog.entity.Message;
-import com.blog.entity.User;
+import com.blog.pojo.entity.Conversation;
+import com.blog.pojo.entity.Message;
+import com.blog.pojo.entity.User;
 import com.blog.mapper.ConversationMapper;
 import com.blog.mapper.MessageMapper;
 import com.blog.websocket.ChatWebSocketHandler;

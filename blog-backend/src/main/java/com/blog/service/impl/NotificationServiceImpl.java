@@ -3,7 +3,7 @@ package com.blog.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.blog.constant.AppConstants;
-import com.blog.entity.Notification;
+import com.blog.pojo.entity.Notification;
 import com.blog.mapper.NotificationMapper;
 import com.blog.service.NotificationService;
 import com.blog.util.DateUtil;

@@ -2,9 +2,9 @@ package com.blog.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.blog.entity.Comment;
-import com.blog.entity.CommentLike;
-import com.blog.entity.User;
+import com.blog.pojo.entity.Comment;
+import com.blog.pojo.entity.CommentLike;
+import com.blog.pojo.entity.User;
 import com.blog.mapper.CommentLikeMapper;
 import com.blog.mapper.CommentMapper;
 import com.blog.mapper.UserMapper;

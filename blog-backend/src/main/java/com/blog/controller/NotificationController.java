@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Notification;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Notification;
 import com.blog.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;

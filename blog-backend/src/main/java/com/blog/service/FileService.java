@@ -1,6 +1,6 @@
 package com.blog.service;
 
-import com.blog.entity.FileEntity;
+import com.blog.pojo.entity.FileEntity;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface FileService {

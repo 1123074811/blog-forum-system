@@ -1,6 +1,6 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
+import com.blog.pojo.dto.ApiResponse;
 import com.blog.service.ZhipuAiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

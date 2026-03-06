@@ -4,20 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.blog.constant.AppConstants;
-import com.blog.entity.Article;
-import com.blog.entity.ArticleFavorite;
-import com.blog.entity.ArticleLike;
-import com.blog.entity.Comment;
-import com.blog.entity.User;
-import com.blog.mapper.ArticleFavoriteMapper;
-import com.blog.mapper.ArticleLikeMapper;
-import com.blog.mapper.ArticleMapper;
-import com.blog.mapper.CommentMapper;
-import com.blog.mapper.UserMapper;
+import com.blog.pojo.dto.ArticleRequest;
+import com.blog.pojo.entity.*;
+import com.blog.exception.BusinessException;
+import com.blog.exception.ErrorCode;
+import com.blog.mapper.*;
 import com.blog.service.ArticleService;
 import com.blog.util.CacheUtil;
+import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Comparator;
@@ -34,6 +31,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final ArticleLikeMapper articleLikeMapper;
     private final ArticleFavoriteMapper articleFavoriteMapper;
     private final CommentMapper commentMapper;
+    private final ArticleTagMapper articleTagMapper;
+    private final FollowMapper followMapper;
     private final CacheUtil cacheUtil;
 
     @Override
@@ -213,5 +212,95 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     public void clearArticleCache(Long id) {
         cacheUtil.delete(AppConstants.CACHE_ARTICLE_PREFIX + id);
+    }
+
+    @Override
+    public Page<Article> getFollowingArticles(int page, int limit, Long currentUserId) {
+        // 获取关注的用户ID列表
+        List<Long> followingIds = followMapper.selectList(
+                new LambdaQueryWrapper<Follow>().eq(Follow::getFollowerId, currentUserId)
+        ).stream().map(Follow::getFollowingId).toList();
+
+        if (followingIds.isEmpty()) {
+            return new Page<>(page, limit, 0);
+        }
+
+        // 查询关注用户的文章，按时间倒序
+        Page<Article> pageObj = new Page<>(page, limit);
+        Page<Article> result = page(pageObj,
+                new LambdaQueryWrapper<Article>()
+                        .in(Article::getUserId, followingIds)
+                        .eq(Article::getStatus, "published")
+                        .orderByDesc(Article::getCreatedAt));
+
+        // 填充作者信息
+        fillAuthorInfo(result.getRecords(), currentUserId);
+        fillViewCountFromCache(result.getRecords());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Article createArticle(ArticleRequest request, Long userId) {
+        Article article = new Article();
+        article.setUserId(userId);
+        article.setTitle(request.getTitle());
+        article.setContent(request.getContent());
+        article.setCategoryId(request.getCategoryId());
+        article.setStatus(request.getStatus() != null ? request.getStatus() : "draft");
+        article.setViewCount(0);
+        article.setCreatedAt(DateUtil.now());
+        article.setUpdatedAt(DateUtil.now());
+
+        save(article);
+
+        // 保存标签关联
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            for (Long tagId : request.getTags()) {
+                ArticleTag at = new ArticleTag();
+                at.setArticleId(article.getId());
+                at.setTagId(tagId);
+                articleTagMapper.insert(at);
+            }
+        }
+
+        return article;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Article updateArticle(Long id, ArticleRequest request, Long userId) {
+        Article article = getById(id);
+        if (article == null) {
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
+        }
+        if (!article.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
+        }
+
+        if (request.getTitle() != null) article.setTitle(request.getTitle());
+        if (request.getContent() != null) article.setContent(request.getContent());
+        if (request.getCategoryId() != null) article.setCategoryId(request.getCategoryId());
+        if (request.getStatus() != null) article.setStatus(request.getStatus());
+        article.setUpdatedAt(DateUtil.now());
+
+        updateById(article);
+        clearArticleCache(id);
+        return article;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteArticle(Long id, Long userId) {
+        Article article = getById(id);
+        if (article == null) {
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
+        }
+        if (!article.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
+        }
+
+        removeById(id);
+        clearArticleCache(id);
     }
 }

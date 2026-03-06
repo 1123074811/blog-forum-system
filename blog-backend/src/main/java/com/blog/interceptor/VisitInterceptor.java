@@ -1,7 +1,7 @@
 package com.blog.interceptor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.entity.SiteVisit;
+import com.blog.pojo.entity.SiteVisit;
 import com.blog.service.SiteVisitService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;

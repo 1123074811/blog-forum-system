@@ -1,6 +1,6 @@
 package com.blog.service;
 
-import com.blog.entity.Notification;
+import com.blog.pojo.entity.Notification;
 import java.util.List;
 
 public interface NotificationService {

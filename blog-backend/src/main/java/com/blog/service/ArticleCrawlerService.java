@@ -1,6 +1,6 @@
 package com.blog.service;
 
-import com.blog.dto.CrawlResponse;
+import com.blog.pojo.dto.CrawlResponse;
 import com.blog.service.crawler.ArticleParser;
 import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
 package com.blog.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.entity.Media;
+import com.blog.pojo.entity.Media;
 import com.blog.mapper.MediaMapper;
 import com.blog.service.MinioService;
 import com.blog.util.DateUtil;

@@ -1,7 +1,7 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.dto.TranslateRequest;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.TranslateRequest;
 import com.blog.service.ZhipuAiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

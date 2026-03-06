@@ -3,7 +3,7 @@ package com.blog.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.blog.constant.AppConstants;
-import com.blog.entity.Tag;
+import com.blog.pojo.entity.Tag;
 import com.blog.mapper.TagMapper;
 import com.blog.service.TagService;
 import com.blog.util.CacheUtil;

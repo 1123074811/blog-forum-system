@@ -1,9 +1,9 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.entity.Conversation;
-import com.blog.entity.Message;
-import com.blog.entity.User;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.entity.Conversation;
+import com.blog.pojo.entity.Message;
+import com.blog.pojo.entity.User;
 import com.blog.service.MessageService;
 import com.blog.service.MinioService;
 import com.blog.util.JwtUtil;

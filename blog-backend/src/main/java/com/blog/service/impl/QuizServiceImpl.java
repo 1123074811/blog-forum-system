@@ -2,8 +2,8 @@ package com.blog.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.blog.entity.Question;
-import com.blog.entity.QuizBank;
+import com.blog.pojo.entity.Question;
+import com.blog.pojo.entity.QuizBank;
 import com.blog.mapper.QuestionMapper;
 import com.blog.mapper.QuizBankMapper;
 import com.blog.service.QuizService;

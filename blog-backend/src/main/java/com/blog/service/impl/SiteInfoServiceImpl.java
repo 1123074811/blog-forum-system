@@ -1,7 +1,7 @@
 package com.blog.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.blog.entity.SiteInfo;
+import com.blog.pojo.entity.SiteInfo;
 import com.blog.mapper.SiteInfoMapper;
 import com.blog.service.SiteInfoService;
 import com.blog.util.DateUtil;

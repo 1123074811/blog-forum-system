@@ -1,10 +1,10 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.blog.dto.ApiResponse;
-import com.blog.dto.QuizImportRequest;
-import com.blog.entity.Question;
-import com.blog.entity.QuizBank;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.QuizImportRequest;
+import com.blog.pojo.entity.Question;
+import com.blog.pojo.entity.QuizBank;
 import com.blog.service.MinioService;
 import com.blog.service.QuizService;
 import com.blog.util.DateUtil;

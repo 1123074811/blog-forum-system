@@ -1,6 +1,6 @@
 package com.blog.service;
 
-import com.blog.entity.Album;
+import com.blog.pojo.entity.Album;
 import java.util.List;
 
 public interface AlbumService {

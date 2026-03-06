@@ -1,8 +1,8 @@
 package com.blog.controller;
 
-import com.blog.dto.ApiResponse;
-import com.blog.dto.CommentRequest;
-import com.blog.entity.Comment;
+import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.CommentRequest;
+import com.blog.pojo.entity.Comment;
 import com.blog.service.CommentService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
