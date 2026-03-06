@@ -8,15 +8,20 @@ USE blog_forum;
 CREATE TABLE users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) DEFAULT NULL,
+    email VARCHAR(100) DEFAULT NULL,
     nickname VARCHAR(50),
     avatar VARCHAR(255),
     bio TEXT,
     role VARCHAR(20) DEFAULT 'user',
+    github_id VARCHAR(50) DEFAULT NULL COMMENT 'GitHub用户ID',
+    gitee_id VARCHAR(50) DEFAULT NULL COMMENT 'Gitee用户ID',
+    banned TINYINT(1) DEFAULT 0 COMMENT '是否被封禁',
     activated TINYINT(1) DEFAULT 0,
     created_at VARCHAR(30),
-    updated_at VARCHAR(30)
+    updated_at VARCHAR(30),
+    INDEX idx_github_id (github_id),
+    INDEX idx_gitee_id (gitee_id)
 );
 
 -- Categories table

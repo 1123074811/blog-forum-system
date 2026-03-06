@@ -119,6 +119,15 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             Number views = cacheUtil.get(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + article.getId());
             if (views != null) {
                 article.setViewCount(views.intValue());
+            } else {
+                // Redis中没有数据时，从数据库读取并回填到Redis
+                Article dbArticle = getById(article.getId());
+                if (dbArticle != null && dbArticle.getViewCount() != null) {
+                    article.setViewCount(dbArticle.getViewCount());
+                    // 回填到Redis
+                    cacheUtil.set(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + article.getId(), 
+                                 dbArticle.getViewCount(), 30, TimeUnit.MINUTES);
+                }
             }
         }
     }
@@ -127,6 +136,17 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public void incrementViewCount(Long articleId) {
         // 使用Redis原子递增，高并发安全
         String key = AppConstants.CACHE_ARTICLE_VIEW_PREFIX + articleId;
+        
+        // 检查Redis中是否有数据，如果没有则从数据库加载
+        Number currentViews = cacheUtil.get(key);
+        if (currentViews == null) {
+            Article article = getById(articleId);
+            if (article != null && article.getViewCount() != null) {
+                // 从数据库回填到Redis
+                cacheUtil.set(key, article.getViewCount(), 30, TimeUnit.MINUTES);
+            }
+        }
+        
         Long views = cacheUtil.increment(key, 30, TimeUnit.MINUTES);
         // 每10次写入数据库
         if (views != null && views % 10 == 0) {
@@ -152,6 +172,15 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             Number views = cacheUtil.get(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + id);
             if (views != null) {
                 article.setViewCount(views.intValue());
+            } else {
+                // Redis中没有数据时，从数据库读取并回填
+                Article dbArticle = getById(id);
+                if (dbArticle != null && dbArticle.getViewCount() != null) {
+                    article.setViewCount(dbArticle.getViewCount());
+                    // 回填到Redis
+                    cacheUtil.set(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + id, 
+                                 dbArticle.getViewCount(), 30, TimeUnit.MINUTES);
+                }
             }
         }
         return article;
