@@ -23,6 +23,7 @@ public class AdminController {
     private final CommentService commentService;
     private final CategoryService categoryService;
     private final TagService tagService;
+    private final com.blog.mapper.ArticleFavoriteMapper articleFavoriteMapper;
 
     // Statistics
     @GetMapping("/statistics")
@@ -146,6 +147,44 @@ public class AdminController {
         return ApiResponse.success(true);
     }
 
+    // Favorite Management
+    @GetMapping("/favorites")
+    public ApiResponse<List<ArticleFavorite>> getFavorites() {
+        List<ArticleFavorite> favorites = articleFavoriteMapper.selectList(null);
+        if (favorites != null && !favorites.isEmpty()) {
+            List<Long> userIds = favorites.stream().map(ArticleFavorite::getUserId).distinct().toList();
+            List<Long> articleIds = favorites.stream().map(ArticleFavorite::getArticleId).distinct().toList();
+
+            Map<Long, User> userMap = new HashMap<>();
+            if (!userIds.isEmpty()) {
+                userService.listByIds(userIds).forEach(u -> userMap.put(u.getId(), u));
+            }
+
+            Map<Long, Article> articleMap = new HashMap<>();
+            if (!articleIds.isEmpty()) {
+                articleService.listByIds(articleIds).forEach(a -> articleMap.put(a.getId(), a));
+            }
+
+            for (ArticleFavorite fav : favorites) {
+                User user = userMap.get(fav.getUserId());
+                if (user != null) {
+                    fav.setUsername(user.getUsername());
+                }
+                Article article = articleMap.get(fav.getArticleId());
+                if (article != null) {
+                    fav.setArticleTitle(article.getTitle());
+                }
+            }
+        }
+        return ApiResponse.success(favorites);
+    }
+
+    @DeleteMapping("/favorites/{id}")
+    public ApiResponse<Boolean> deleteFavorite(@PathVariable Long id) {
+        articleFavoriteMapper.deleteById(id);
+        return ApiResponse.success(true);
+    }
+
     // Batch Delete APIs
     @PostMapping("/users/batch-delete")
     public ApiResponse<Boolean> batchDeleteUsers(@RequestBody Map<String, List<Long>> body) {
@@ -188,6 +227,15 @@ public class AdminController {
         List<Long> ids = body.get("ids");
         if (ids != null && !ids.isEmpty()) {
             tagService.removeByIds(ids);
+        }
+        return ApiResponse.success(true);
+    }
+
+    @PostMapping("/favorites/batch-delete")
+    public ApiResponse<Boolean> batchDeleteFavorites(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.get("ids");
+        if (ids != null && !ids.isEmpty()) {
+            articleFavoriteMapper.deleteBatchIds(ids);
         }
         return ApiResponse.success(true);
     }

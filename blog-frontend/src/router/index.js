@@ -44,6 +44,7 @@ const routes = [
       { path: 'comments', name: 'AdminComments', component: () => import('@/views/admin/Comments.vue'), meta: { title: '留言册' } },
       { path: 'categories', name: 'AdminCategories', component: () => import('@/views/admin/Categories.vue'), meta: { title: '分卷目' } },
       { path: 'tags', name: 'AdminTags', component: () => import('@/views/admin/Tags.vue'), meta: { title: '标签簿' } },
+      { path: 'favorites', name: 'AdminFavorites', component: () => import('@/views/admin/Favorites.vue'), meta: { title: '收藏阁' } },
       { path: 'albums', name: 'AdminAlbums', component: () => import('@/views/admin/Albums.vue'), meta: { title: '影集馆' } },
       { path: 'media', name: 'AdminMedia', component: () => import('@/views/admin/Media.vue'), meta: { title: '素材库' } },
       { path: 'quiz', name: 'AdminQuiz', component: () => import('@/views/admin/Quiz.vue'), meta: { title: '题库房' } },

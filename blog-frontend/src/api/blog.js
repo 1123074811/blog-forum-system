@@ -65,6 +65,8 @@ export const getAdminTags = () => api.get('/admin/tags')
 export const createTag = (data) => api.post('/admin/tags', data)
 export const updateTag = (id, data) => api.put(`/admin/tags/${id}`, data)
 export const deleteTag = (id) => api.delete(`/admin/tags/${id}`)
+export const getAdminFavorites = () => api.get('/admin/favorites')
+export const deleteAdminFavorite = (id) => api.delete(`/admin/favorites/${id}`)
 
 // Quiz APIs
 export const importQuiz = (content) => api.post('/quiz/import', { content })

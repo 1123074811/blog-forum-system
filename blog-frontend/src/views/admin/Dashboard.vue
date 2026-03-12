@@ -43,39 +43,80 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 import { getStatistics } from '@/api/blog'
-import * as echarts from 'echarts'
+// 引入 echarts 核心模块
+import * as echarts from 'echarts/core'
+// 引入柱状图图表
+import { BarChart } from 'echarts/charts'
+// 引入提示框，标题，直角坐标系等组件
+import { TitleComponent, TooltipComponent, GridComponent } from 'echarts/components'
+// 引入 Canvas 渲染器
+import { CanvasRenderer } from 'echarts/renderers'
+
+// 注册必须的组件
+echarts.use([
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  BarChart,
+  CanvasRenderer
+])
 
 const stats = ref({ totalArticles: 0, totalUsers: 0, totalCategories: 0, totalComments: 0, viewRanking: [] })
 const viewChartRef = ref(null)
+let chartInstance = null
 
 const initChart = () => {
   if (!viewChartRef.value || !stats.value.viewRanking?.length) return
 
-  const chart = echarts.init(viewChartRef.value)
-  chart.setOption({
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  
+  chartInstance = echarts.init(viewChartRef.value)
+  const option = {
     tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: stats.value.viewRanking.map(a => a.title?.substring(0, 8) + (a.title?.length > 8 ? '...' : '')),
-      axisLabel: { rotate: 45 }
+      data: stats.value.viewRanking.map(a => {
+        const title = a.title || ''
+        return title.length > 8 ? title.substring(0, 8) + '...' : title
+      }),
+      axisLabel: { rotate: 45, interval: 0 }
     },
     yAxis: { type: 'value' },
     series: [{
       data: stats.value.viewRanking.map(a => a.viewCount),
       type: 'bar',
-      itemStyle: { color: '#0ea5e9', borderRadius: [4, 4, 0, 0] }
+      itemStyle: { color: '#0ea5e9', borderRadius: [4, 4, 0, 0] },
+      barMaxWidth: 50
     }]
-  })
+  }
+  chartInstance.setOption(option)
+}
+
+// 监听窗口大小变化
+const handleResize = () => {
+  chartInstance?.resize()
 }
 
 onMounted(async () => {
+  window.addEventListener('resize', handleResize)
   const res = await getStatistics()
   if (res.success) {
     stats.value = res.data
     await nextTick()
-    initChart()
+    // 延迟一点初始化图表，避免阻塞页面交互
+    setTimeout(() => {
+      initChart()
+    }, 100)
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  chartInstance?.dispose()
 })
 </script>

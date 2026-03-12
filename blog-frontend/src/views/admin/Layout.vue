@@ -28,6 +28,10 @@
           <el-icon><PriceTag /></el-icon>
           <span class="dark:text-white">标签管理</span>
         </router-link>
+        <router-link to="/admin/favorites" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700" :class="{ 'bg-primary-100 dark:bg-gray-700': route.path === '/admin/favorites' }">
+          <el-icon><Star /></el-icon>
+          <span class="dark:text-white">收藏管理</span>
+        </router-link>
         <router-link to="/admin/albums" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700" :class="{ 'bg-primary-100 dark:bg-gray-700': route.path === '/admin/albums' }">
           <el-icon><Picture /></el-icon>
           <span class="dark:text-white">相册管理</span>
@@ -70,7 +74,7 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
-import { DataAnalysis, User, Document, ChatDotRound, Folder, PriceTag, Picture, Film, List, Back, ChatLineSquare, Setting, Bell } from '@element-plus/icons-vue'
+import { DataAnalysis, User, Document, ChatDotRound, Folder, PriceTag, Picture, Film, List, Back, ChatLineSquare, Setting, Bell, Star } from '@element-plus/icons-vue'
 
 const route = useRoute()
 </script>
