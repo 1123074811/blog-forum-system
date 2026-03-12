@@ -1,7 +1,20 @@
 <template>
   <div class="tree-hole">
-    <!-- 星空背景 -->
-    <canvas ref="canvas" class="starry-bg"></canvas>
+    <!-- 动态壁纸背景 -->
+    <video 
+      class="video-bg" 
+      autoplay 
+      loop 
+      muted 
+      playsinline
+      webkit-playsinline
+      x5-playsinline
+      x-webkit-airplay="allow"
+      disablePictureInPicture
+      controlsList="nodownload nofullscreen noremoteplayback"
+    >
+      <source src="/treehole_bg.mp4" type="video/mp4">
+    </video>
 
     <!-- 弹幕区域 -->
     <div class="danmaku-container">
@@ -31,45 +44,15 @@ import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const DANMAKU_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE']
 
-const canvas = ref(null)
 const content = ref('')
 const visibleMessages = ref([])
 const allMessages = ref([]) // 保存所有消息用于循环
 const headerHeight = ref(64)
-let animationId = null
-let stars = []
 let loopTimer = null
 
 const getHeaderHeight = () => {
   const header = document.querySelector('header')
   return header?.offsetHeight || 64
-}
-
-// 星空动画
-const initStars = () => {
-  const ctx = canvas.value.getContext('2d')
-  canvas.value.width = window.innerWidth
-  canvas.value.height = window.innerHeight - headerHeight.value
-  stars = Array.from({ length: 200 }, () => ({
-    x: Math.random() * canvas.value.width,
-    y: Math.random() * canvas.value.height,
-    r: Math.random() * 1.5,
-    speed: Math.random() * 0.5 + 0.1
-  }))
-  const animate = () => {
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.2)'
-    ctx.fillRect(0, 0, canvas.value.width, canvas.value.height)
-    stars.forEach(s => {
-      ctx.beginPath()
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.5 + 0.5})`
-      ctx.fill()
-      s.y += s.speed
-      if (s.y > canvas.value.height) { s.y = 0; s.x = Math.random() * canvas.value.width }
-    })
-    animationId = requestAnimationFrame(animate)
-  }
-  animate()
 }
 
 // 添加弹幕
@@ -79,7 +62,7 @@ const addDanmaku = (msg) => {
   const exists = visibleMessages.value.some(m => m.id === msg.id)
   if (exists) return
   
-  const h = Math.max(0, (canvas.value?.height || (window.innerHeight - headerHeight.value)) - 200)
+  const h = Math.max(0, (window.innerHeight - headerHeight.value) - 200)
   const uid = `${msg.id || Date.now()}-${uidCounter++}`
   const duration = 10 + Math.random() * 2 // 10-12秒
   const item = {
@@ -142,26 +125,14 @@ const checkLength = () => {
 
 const handleResize = () => {
   headerHeight.value = getHeaderHeight()
-  if (canvas.value) {
-    canvas.value.width = window.innerWidth
-    canvas.value.height = window.innerHeight - headerHeight.value
-    stars = Array.from({ length: 200 }, () => ({
-      x: Math.random() * canvas.value.width,
-      y: Math.random() * canvas.value.height,
-      r: Math.random() * 1.5,
-      speed: Math.random() * 0.5 + 0.1
-    }))
-  }
 }
 
 onMounted(() => {
   headerHeight.value = getHeaderHeight()
-  initStars()
   loadMessages()
   window.addEventListener('resize', handleResize)
 })
 onUnmounted(() => {
-  cancelAnimationFrame(animationId)
   clearTimeout(loopTimer)
   window.removeEventListener('resize', handleResize)
 })
@@ -177,14 +148,20 @@ onUnmounted(() => {
   overflow: hidden;
   background: #0f172a;
 }
-.starry-bg {
+.video-bg {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
 }
 .danmaku-container {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
 }
 .danmaku {
   position: absolute;
@@ -207,6 +184,7 @@ onUnmounted(() => {
   border-radius: 30px;
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(10px);
+  z-index: 2;
 }
 .input-box {
   position: relative;
