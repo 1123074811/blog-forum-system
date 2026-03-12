@@ -34,8 +34,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/translate").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/articles/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/articles/crawl").permitAll()
+                .requestMatchers("/api/articles/**").permitAll() // 文章相关接口全部放行，由Controller层校验权限
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/tags/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()

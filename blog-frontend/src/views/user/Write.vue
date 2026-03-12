@@ -1,5 +1,9 @@
 <template>
   <div class="max-w-4xl mx-auto">
+    <div class="mb-4">
+      <el-button @click="handleBack" :icon="ArrowLeft" text>返回</el-button>
+    </div>
+
     <div class="glass rounded-xl p-6">
       <h2 class="text-xl font-bold mb-6 dark:text-white">{{ isEdit ? '编辑文章' : '写文章' }}</h2>
 
@@ -82,7 +86,7 @@ import { getArticle, createArticle, updateArticle, getCategories, getTags, uploa
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import { ElMessage } from 'element-plus'
-import { Upload, Link } from '@element-plus/icons-vue'
+import { Upload, Link, ArrowLeft } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -143,6 +147,14 @@ const handleCrawl = async () => {
   }
 }
 
+const handleBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/')
+  }
+}
+
 const handleSubmit = async (status) => {
   if (!form.value.title || !form.value.content) {
     ElMessage.warning('请填写标题和内容')
@@ -178,7 +190,12 @@ onMounted(async () => {
   if (isEdit.value) {
     const res = await getArticle(route.params.id)
     if (res.success) {
-      form.value = { title: res.data.title, content: res.data.content, categoryId: res.data.categoryId, tags: [] }
+      form.value = {
+        title: res.data.title,
+        content: res.data.content,
+        categoryId: res.data.categoryId,
+        tags: res.data.tags ? res.data.tags.map(t => t.id) : []
+      }
     }
   }
 })

@@ -3,6 +3,8 @@ package com.blog.pojo.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @TableName("articles")
 public class Article {
@@ -27,4 +29,7 @@ public class Article {
     private Boolean liked;
     @TableField(exist = false)
     private Long hotScore;
+    
+    @TableField(exist = false)
+    private List<Tag> tags;
 }

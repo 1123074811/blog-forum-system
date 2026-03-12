@@ -27,6 +27,17 @@
             </div>
             <span>{{ article.createdAt }}</span>
             <span><el-icon><View /></el-icon> {{ article.viewCount }}</span>
+            
+            <!-- 编辑/删除按钮 -->
+            <div v-if="userStore.user?.id === article.userId" class="flex items-center gap-2 ml-auto">
+              <el-button link @click="handleEdit">
+                <el-icon class="mr-1"><Edit /></el-icon>编辑
+              </el-button>
+              <el-button type="danger" link @click="handleDelete">
+                <el-icon class="mr-1"><Delete /></el-icon>删除
+              </el-button>
+            </div>
+
             <!-- 点赞按钮 - 未登录时显示提示 -->
             <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可点赞" placement="top">
               <span class="cursor-pointer flex items-center gap-1 text-gray-400">
@@ -225,11 +236,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getArticle, getComments, createComment, likeComment, unlikeComment } from '@/api/blog'
+import { getArticle, getComments, createComment, likeComment, unlikeComment, deleteArticle } from '@/api/blog'
 import api from '@/api'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
-import { View, ChatLineRound, ArrowLeft } from '@element-plus/icons-vue'
+import { View, ChatLineRound, ArrowLeft, Edit, Delete } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import toast from '@/utils/toast'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
@@ -334,6 +346,36 @@ const handleBack = () => {
   } else {
     // 没有历史记录，返回首页
     router.push('/')
+  }
+}
+
+const handleEdit = () => {
+  router.push(`/edit/${article.value.id}`)
+}
+
+const handleDelete = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这篇文章吗？此操作不可恢复',
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const res = await deleteArticle(article.value.id)
+    if (res.success) {
+      toast('删除成功')
+      router.push('/')
+    } else {
+      toast(res.message || '删除失败', 'error')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error(error)
+    }
   }
 }
 

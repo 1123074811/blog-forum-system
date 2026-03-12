@@ -34,6 +34,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final ArticleFavoriteMapper articleFavoriteMapper;
     private final CommentMapper commentMapper;
     private final ArticleTagMapper articleTagMapper;
+    private final TagMapper tagMapper;
     private final FollowMapper followMapper;
     private final CacheUtil cacheUtil;
     private final HotArticleService hotArticleService;
@@ -182,6 +183,13 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                                  dbArticle.getViewCount(), 30, TimeUnit.MINUTES);
                 }
             }
+            // 填充标签
+            List<Long> tagIds = articleTagMapper.selectList(
+                    new LambdaQueryWrapper<ArticleTag>().eq(ArticleTag::getArticleId, id)
+            ).stream().map(ArticleTag::getTagId).toList();
+            if (!tagIds.isEmpty()) {
+                article.setTags(tagMapper.selectBatchIds(tagIds));
+            }
         }
         return article;
     }
@@ -276,6 +284,24 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setUpdatedAt(DateUtil.now());
 
         updateById(article);
+
+        // 更新标签
+        if (request.getTags() != null) {
+            articleTagMapper.delete(new LambdaQueryWrapper<ArticleTag>().eq(ArticleTag::getArticleId, id));
+            if (!request.getTags().isEmpty()) {
+                for (Long tagId : request.getTags()) {
+                    ArticleTag at = new ArticleTag();
+                    at.setArticleId(id);
+                    at.setTagId(tagId);
+                    articleTagMapper.insert(at);
+                }
+                // 设置返回对象的标签
+                article.setTags(tagMapper.selectBatchIds(request.getTags()));
+            } else {
+                article.setTags(List.of());
+            }
+        }
+
         clearArticleCache(id);
 
         // 如果从草稿变为发布，发布事件通知粉丝

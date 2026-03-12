@@ -32,6 +32,7 @@ public class ArticleConverter {
         vo.setUpdatedAt(article.getUpdatedAt());
         vo.setAuthorName(article.getAuthorName());
         vo.setAuthorAvatar(article.getAuthorAvatar());
+        vo.setTags(article.getTags());
         return vo;
     }
 

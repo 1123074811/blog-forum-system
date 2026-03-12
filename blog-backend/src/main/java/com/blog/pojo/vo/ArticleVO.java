@@ -1,5 +1,7 @@
 package com.blog.pojo.vo;
 
+import com.blog.pojo.entity.Tag;
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -23,4 +25,7 @@ public class ArticleVO {
     // 作者信息
     private String authorName;
     private String authorAvatar;
+
+    // 标签信息
+    private List<Tag> tags;
 }
