@@ -62,7 +62,7 @@ onMounted(async () => {
       
       if (res.success) {
         message.value = '登录成功，正在跳转...'
-        userStore.setUser(res.data.user, token, refreshToken)
+        userStore.setUser(res.data, token, refreshToken)
         ElMessage.success('登录成功')
         
         // 返回之前的页面

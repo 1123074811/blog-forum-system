@@ -34,7 +34,7 @@ const fetchFavorites = async () => {
   loading.value = true
   const res = await api.get('/articles/my/favorites', { params: { page: page.value, limit: 10 } })
   if (res.success) {
-    articles.value.push(...res.data.list)
+    articles.value.push(...res.data.data)
     hasMore.value = articles.value.length < res.data.total
   }
   loading.value = false

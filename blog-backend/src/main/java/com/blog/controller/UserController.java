@@ -27,7 +27,7 @@ public class UserController extends BaseController {
     private final UserConverter userConverter;
 
     @GetMapping("/{id}")
-    public ApiResponse<UserVO> getUser(@PathVariable Long id) {
+    public ApiResponse<UserVO> getUser(@PathVariable Long id, Authentication auth) {
         User user = userService.getById(id);
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
@@ -36,6 +36,12 @@ public class UserController extends BaseController {
         UserVO userVO = userConverter.toVO(user);
         userVO.setFollowerCount(followService.getFollowerCount(id));
         userVO.setFollowingCount(followService.getFollowingCount(id));
+        Long currentUserId = getCurrentUserIdOptional(auth);
+        if (currentUserId != null && !currentUserId.equals(id)) {
+            userVO.setIsFollowing(followService.isFollowing(currentUserId, id));
+        } else {
+            userVO.setIsFollowing(false);
+        }
 
         return ApiResponse.success(userVO);
     }

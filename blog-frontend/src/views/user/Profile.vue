@@ -43,7 +43,7 @@
 
     <!-- 编辑资料弹窗 -->
     <el-dialog v-model="showEditDialog" title="编辑资料" width="400px">
-      <el-form :model="editForm" label-width="80px">
+      <el-form ref="formRef" :model="editForm" :rules="rules" label-width="80px">
         <el-form-item label="头像">
           <div class="flex items-center gap-4">
             <el-avatar :src="editForm.avatar" :size="60">{{ profile.user?.username?.[0] }}</el-avatar>
@@ -52,10 +52,10 @@
             </el-upload>
           </div>
         </el-form-item>
-        <el-form-item label="昵称">
+        <el-form-item label="昵称" prop="nickname">
           <el-input v-model="editForm.nickname" placeholder="设置你的昵称" />
         </el-form-item>
-        <el-form-item label="个人简介">
+        <el-form-item label="个人简介" prop="bio">
           <el-input v-model="editForm.bio" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="介绍一下自己" />
         </el-form-item>
       </el-form>
@@ -79,11 +79,22 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const profile = ref({})
+const profile = ref({ user: null, followerCount: 0, followingCount: 0 })
 const articles = ref([])
 const isFollowing = ref(false)
 const showEditDialog = ref(false)
 const editForm = ref({ avatar: '', nickname: '', bio: '' })
+const formRef = ref(null)
+
+const rules = {
+  nickname: [
+    { required: true, message: '请输入昵称', trigger: 'blur' },
+    { min: 2, max: 50, message: '昵称长度必须在 2 到 50 个字符', trigger: 'blur' }
+  ],
+  bio: [
+    { max: 200, message: '个人简介不能超过 200 个字符', trigger: 'blur' }
+  ]
+}
 
 const handleFollow = async () => {
   if (isFollowing.value) {
@@ -100,16 +111,22 @@ const handleFollow = async () => {
 }
 
 const handleSaveProfile = async () => {
-  const res = await updateUser(route.params.id, editForm.value)
-  if (res.success) {
-    profile.value.user = res.data
-    userStore.user.avatar = res.data.avatar
-    userStore.user.nickname = res.data.nickname
-    userStore.user.bio = res.data.bio
-    localStorage.setItem('user', JSON.stringify(userStore.user))
-    showEditDialog.value = false
-    toast('保存成功')
-  }
+  if (!formRef.value) return
+  
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      const res = await updateUser(route.params.id, editForm.value)
+      if (res.success) {
+        profile.value.user = res.data
+        userStore.user.avatar = res.data.avatar
+        userStore.user.nickname = res.data.nickname
+        userStore.user.bio = res.data.bio
+        localStorage.setItem('user', JSON.stringify(userStore.user))
+        showEditDialog.value = false
+        toast('保存成功')
+      }
+    }
+  })
 }
 
 const handleAvatarUpload = async (file) => {
@@ -128,8 +145,14 @@ onMounted(async () => {
     getArticles({ userId: route.params.id })
   ])
   if (userRes.success) {
-    profile.value = userRes.data
-    editForm.value = { avatar: userRes.data.user?.avatar || '', nickname: userRes.data.user?.nickname || '', bio: userRes.data.user?.bio || '' }
+    const user = userRes.data
+    profile.value = {
+      user,
+      followerCount: user?.followerCount ?? 0,
+      followingCount: user?.followingCount ?? 0
+    }
+    isFollowing.value = !!user?.isFollowing
+    editForm.value = { avatar: user?.avatar || '', nickname: user?.nickname || '', bio: user?.bio || '' }
   }
   if (articlesRes.success) articles.value = articlesRes.data.data
 })

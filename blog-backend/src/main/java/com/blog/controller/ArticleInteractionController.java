@@ -43,7 +43,9 @@ public class ArticleInteractionController {
                         .eq(ArticleLike::getUserId, userId)
                         .eq(ArticleLike::getArticleId, id));
         if (existing != null) {
-            likeMapper.deleteById(existing.getId());
+            likeMapper.delete(new LambdaQueryWrapper<ArticleLike>()
+                    .eq(ArticleLike::getUserId, userId)
+                    .eq(ArticleLike::getArticleId, id));
             // 更新热度分数
             hotArticleService.updateArticleHotScore(id);
             return ApiResponse.success(Map.of("liked", false));
@@ -72,7 +74,9 @@ public class ArticleInteractionController {
                         .eq(ArticleFavorite::getUserId, userId)
                         .eq(ArticleFavorite::getArticleId, id));
         if (existing != null) {
-            favoriteMapper.deleteById(existing.getId());
+            favoriteMapper.delete(new LambdaQueryWrapper<ArticleFavorite>()
+                    .eq(ArticleFavorite::getUserId, userId)
+                    .eq(ArticleFavorite::getArticleId, id));
             // 更新热度分数
             hotArticleService.updateArticleHotScore(id);
             return ApiResponse.success(Map.of("favorited", false));
