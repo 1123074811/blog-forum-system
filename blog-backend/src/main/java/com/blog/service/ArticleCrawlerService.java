@@ -194,21 +194,30 @@ public class ArticleCrawlerService {
         FlexmarkHtmlConverter converter = FlexmarkHtmlConverter.builder().build();
         String markdown = converter.convert(html);
 
-        // 清理Markdown中的锚点ID语法 {#xxx}
-        markdown = markdown.replaceAll("\\s*\\{#[^}]+\\}", "");
+        // 处理Markdown中的锚点ID语法 {#xxx}
+        // 1) 避免将它直接显示在标题文本中
+        // 2) 保留原始 id 以支持目录/站内锚点跳转（如 CSDN 目录的 #classification）
+        markdown = markdown.replaceAll(
+                "(?m)^(#{1,6})\\s+(.+?)\\s*\\{#([A-Za-z0-9_-]+)\\}\\s*$",
+                "$1 $2 <span id=\"$3\">\u200b</span>"
+        );
+        markdown = markdown.replaceAll("\\{#[^}]+\\}", "");
 
         // 清理标题中的多余星号和分隔符
         markdown = markdown.replaceAll("(#{1,6})\\s*\\*+\\s*\\*+\\s*\\*+\\s*\\*+\\s*\\*+", "$1");
         markdown = markdown.replaceAll("\\*\\*\\* \\*\\* \\* \\*\\* \\*\\*\\*", "---");
 
-        // 修复标题格式：确保#后有空格
-        markdown = markdown.replaceAll("(#{1,6})([^\\s#])", "$1 $2");
+        // 修复标题格式：确保#后有空格（仅修复行首标题，避免破坏链接中的 #anchor）
+        markdown = markdown.replaceAll("(?m)^(#{1,6})([^\\s#])", "$1 $2");
+
+        // 避免将类似“优点：”“问题：”这类提示性文本误当作目录标题
+        markdown = markdown.replaceAll("(?m)^(#{1,6})\\s+([^\\n]{1,12}[：:])\\s*$", "**$2**");
 
         // 清理多余的空行（超过2个连续空行）
         markdown = markdown.replaceAll("\\n{3,}", "\n\n");
 
         // 清理标题前后多余的空格
-        markdown = markdown.replaceAll("(#{1,6})\\s+([^\\n]+?)\\s*\\n", "$1 $2\n");
+        markdown = markdown.replaceAll("(?m)^(#{1,6})\\s+([^\\n]+?)\\s*$", "$1 $2");
 
         return markdown;
     }

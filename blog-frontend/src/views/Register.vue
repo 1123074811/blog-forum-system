@@ -4,16 +4,16 @@
       <h2 class="text-2xl font-bold text-center mb-6 text-gray-800 dark:text-white">注册</h2>
       <el-form :model="form" @submit.prevent="handleRegister">
         <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" size="large" />
+          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="User" size="large" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.email" placeholder="邮箱" prefix-icon="Message" size="large" />
+          <el-input v-model="form.email" placeholder="邮箱" :prefix-icon="Message" size="large" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" size="large" show-password />
+          <el-input v-model="form.password" type="password" placeholder="密码" :prefix-icon="Lock" size="large" show-password />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" size="large" show-password />
+          <el-input v-model="form.confirmPassword" type="password" placeholder="确认密码" :prefix-icon="Lock" size="large" show-password />
         </el-form-item>
         <el-form-item>
           <div class="flex gap-2 w-full">
@@ -38,6 +38,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { register, getCaptcha } from '@/api/blog'
+import { User, Message, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const loading = ref(false)

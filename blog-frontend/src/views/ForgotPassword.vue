@@ -7,10 +7,10 @@
       <template v-if="step === 1">
         <el-form @submit.prevent="validateAccount" :model="{ account: account }" label-position="top">
           <el-form-item label="账号" required>
-            <el-input v-model="account" placeholder="请输入您的账号" prefix-icon="User" size="large" />
+            <el-input v-model="account" placeholder="请输入您的账号" :prefix-icon="User" size="large" />
           </el-form-item>
           <el-form-item class="flex items-end gap-2">
-            <el-input v-model="verificationCode" placeholder="请输入验证码" prefix-icon="Key" size="large" maxlength="6" class="flex-1" />
+            <el-input v-model="verificationCode" placeholder="请输入验证码" :prefix-icon="Key" size="large" maxlength="6" class="flex-1" />
             <el-button 
               type="primary" 
               native-type="button" 
@@ -33,10 +33,10 @@
       <template v-if="step === 2">
         <el-form @submit.prevent="handleReset" :model="{ password: password, confirmPassword: confirmPassword }" label-position="top">
           <el-form-item label="新密码" required>
-            <el-input v-model="password" type="password" placeholder="请输入新密码，至少6位" prefix-icon="Lock" size="large" show-password />
+            <el-input v-model="password" type="password" placeholder="请输入新密码，至少6位" :prefix-icon="Lock" size="large" show-password />
           </el-form-item>
           <el-form-item label="确认新密码" required>
-            <el-input v-model="confirmPassword" type="password" placeholder="请再次输入新密码" prefix-icon="Lock" size="large" show-password />
+            <el-input v-model="confirmPassword" type="password" placeholder="请再次输入新密码" :prefix-icon="Lock" size="large" show-password />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" native-type="submit" :loading="loading" class="w-full" size="large">重置密码</el-button>
@@ -57,7 +57,7 @@
 import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, User, Key, Lock } from '@element-plus/icons-vue'
 import { forgotPassword, verifyCode, resetPassword } from '@/api/blog'
 
 const router = useRouter()
