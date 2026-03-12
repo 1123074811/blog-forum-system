@@ -57,12 +57,28 @@ mybatis-plus:
 jwt:
   secret: dev-secret-key-for-testing-only-12345678
 
+# ============================================
+# 文件存储配置
+# ============================================
+# 存储类型：minio 或 oss（开发环境默认使用minio）
+storage:
+  type: minio
+
 # MinIO 配置（本地）
 minio:
   endpoint: http://localhost:9000
   access-key: minioadmin
   secret-key: minioadmin
   bucket: blog
+
+# 阿里云OSS配置（开发环境，切换时使用）
+aliyun:
+  oss:
+    endpoint: oss-cn-beijing.aliyuncs.com
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    bucket-name: iblog-forum
+    custom-domain:
 
 # 高德地图 API
 amap:
@@ -82,3 +98,6 @@ oauth:
     client-id: 30b750e1afef9df1e371d33d92d40b5dd7af791c74f9ca05dddc81cdf861c4c6
     client-secret: 5a4d8e35892b218736cb260f796cfb715bc0f640d2147ee6e0f286b73723759e
     redirect-uri: http://localhost:8080/api/auth/gitee/callback
+
+captcha:
+  expire-seconds: ${CAPTCHA_EXPIRE_SECONDS:300}

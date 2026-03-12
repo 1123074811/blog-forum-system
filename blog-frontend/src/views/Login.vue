@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -90,6 +90,21 @@ const userStore = useUserStore()
 const loading = ref(false)
 const captchaUrl = ref('')
 const form = ref({ username: '', password: '', captchaId: '', captchaCode: '' })
+let captchaRefreshTimer = null
+
+const scheduleCaptchaRefresh = (expiresInSeconds) => {
+  const seconds = Number(expiresInSeconds)
+  if (!Number.isFinite(seconds) || seconds <= 0) return
+  const refreshInMs = Math.max(5000, seconds * 1000 - 5000)
+  if (captchaRefreshTimer) clearTimeout(captchaRefreshTimer)
+  captchaRefreshTimer = setTimeout(() => {
+    if (form.value.captchaCode) {
+      ElMessage.warning('验证码已过期，已自动刷新')
+      form.value.captchaCode = ''
+    }
+    refreshCaptcha()
+  }, refreshInMs)
+}
 
 const refreshCaptcha = async () => {
   try {
@@ -97,6 +112,7 @@ const refreshCaptcha = async () => {
     if (res.data) {
       captchaUrl.value = res.data.image
       form.value.captchaId = res.data.key
+      scheduleCaptchaRefresh(res.data.expiresIn)
     }
   } catch (e) { console.error(e) }
 }
@@ -106,6 +122,10 @@ onMounted(() => {
   if (route.query.msg) {
     ElMessage.warning(route.query.msg)
   }
+})
+
+onUnmounted(() => {
+  if (captchaRefreshTimer) clearTimeout(captchaRefreshTimer)
 })
 
 const handleLogin = async () => {

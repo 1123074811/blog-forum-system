@@ -98,7 +98,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 version: '3.8'
 services:
   backend:
-    build: .
+    build: ..
     ports:
       - "8080:8080"
     environment:
@@ -111,7 +111,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       # ... 其他环境变量
     env_file:
-      - .env
+      - ../.env
 ```
 
 ## 📊 配置差异对比

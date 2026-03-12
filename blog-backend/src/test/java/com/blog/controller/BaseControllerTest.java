@@ -86,7 +86,7 @@ class BaseControllerTest {
         PageResponse<String> response = controller.toPageResponse(page);
 
         // Then
-        assertEquals(records, response.getRecords());
+        assertEquals(records, response.getData());
         assertEquals(3, response.getTotal());
         assertEquals(1, response.getPage());
         assertEquals(10, response.getLimit());

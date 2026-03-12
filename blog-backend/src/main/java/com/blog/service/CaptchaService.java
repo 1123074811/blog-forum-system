@@ -2,6 +2,7 @@ package com.blog.service;
 
 import com.google.code.kaptcha.Producer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,8 +21,10 @@ public class CaptchaService {
     private final Producer captchaProducer;
     private final StringRedisTemplate redisTemplate;
 
+    @Value("${captcha.expire-seconds:300}")
+    private long captchaExpireSeconds;
+
     private static final String CAPTCHA_PREFIX = "captcha:";
-    private static final long CAPTCHA_EXPIRE_MINUTES = 5;
 
     public CaptchaResult generateCaptcha() throws IOException {
         String captchaId = UUID.randomUUID().toString();
@@ -31,15 +34,15 @@ public class CaptchaService {
         redisTemplate.opsForValue().set(
             CAPTCHA_PREFIX + captchaId,
             captchaText.toLowerCase(),
-            CAPTCHA_EXPIRE_MINUTES,
-            TimeUnit.MINUTES
+            captchaExpireSeconds,
+            TimeUnit.SECONDS
         );
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageIO.write(image, "png", baos);
         String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
 
-        return new CaptchaResult(captchaId, "data:image/png;base64," + base64);
+        return new CaptchaResult(captchaId, "data:image/png;base64," + base64, captchaExpireSeconds);
     }
 
     public boolean validateCaptcha(String captchaId, String captchaCode) {
@@ -54,5 +57,5 @@ public class CaptchaService {
         return false;
     }
 
-    public record CaptchaResult(String captchaId, String imageBase64) {}
+    public record CaptchaResult(String captchaId, String imageBase64, long expiresInSeconds) {}
 }

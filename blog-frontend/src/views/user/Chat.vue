@@ -109,6 +109,7 @@ import { Loading, Picture, Paperclip, Document, ArrowLeft } from '@element-plus/
 import { getConversations, getMessages, sendMessage, uploadMessageFile, getFriends, checkMutualFollow, getUser } from '@/api/blog'
 import { ElMessage } from 'element-plus'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import config from '@/config'
 
 const route = useRoute()
 const userId = ref(JSON.parse(localStorage.getItem('user') || '{}').id)
@@ -297,7 +298,7 @@ let ws = null
 const connectWs = () => {
   const token = localStorage.getItem('token')
   if (!token) return
-  ws = new WebSocket(`ws://${location.hostname}:8080/ws/chat?token=${token}`)
+  ws = new WebSocket(`${config.wsBaseUrl}/ws/chat?token=${encodeURIComponent(token)}`)
   ws.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data)

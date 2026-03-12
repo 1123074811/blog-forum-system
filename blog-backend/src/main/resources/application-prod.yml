@@ -65,6 +65,22 @@ minio:
   secret-key: ${MINIO_SECRET_KEY}
   bucket: ${MINIO_BUCKET:blog}
 
+# ============================================
+# 文件存储配置
+# ============================================
+# 存储类型：minio 或 oss
+storage:
+  type: ${STORAGE_TYPE:oss}
+
+# 阿里云OSS配置（当 storage.type=oss 时使用）
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    bucket: ${ALIYUN_OSS_BUCKET:iblog-forum}
+    custom-domain: ${ALIYUN_OSS_CUSTOM_DOMAIN:}
+
 # 高德地图 API
 amap:
   key: ${AMAP_KEY}
@@ -83,3 +99,6 @@ oauth:
     client-id: ${OAUTH_GITEE_CLIENT_ID}
     client-secret: ${OAUTH_GITEE_CLIENT_SECRET}
     redirect-uri: ${OAUTH_GITEE_REDIRECT_URI:https://yourdomain.com/api/auth/gitee/callback}
+
+captcha:
+  expire-seconds: ${CAPTCHA_EXPIRE_SECONDS:300}

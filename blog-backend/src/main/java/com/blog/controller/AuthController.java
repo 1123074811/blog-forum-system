@@ -47,9 +47,13 @@ public class AuthController {
 
     @GetMapping("/captcha")
     @RateLimit(key = "captcha", count = 10, time = 60, limitType = RateLimit.LimitType.IP)
-    public ApiResponse<Map<String, String>> getCaptcha() throws IOException {
+    public ApiResponse<Map<String, Object>> getCaptcha() throws IOException {
         CaptchaService.CaptchaResult result = captchaService.generateCaptcha();
-        return ApiResponse.success(Map.of("key", result.captchaId(), "image", result.imageBase64()));
+        return ApiResponse.success(Map.of(
+                "key", result.captchaId(),
+                "image", result.imageBase64(),
+                "expiresIn", result.expiresInSeconds()
+        ));
     }
 
     @PostMapping("/forgot-password")

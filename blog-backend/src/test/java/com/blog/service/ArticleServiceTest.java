@@ -49,6 +49,7 @@ class ArticleServiceTest {
     @Test
     void createArticle_WithValidData_ShouldSuccess() {
         // Given
+        when(articleService.getBaseMapper()).thenReturn(articleMapper);
         when(articleMapper.insert(any(Article.class))).thenReturn(1);
 
         // When
@@ -101,13 +102,12 @@ class ArticleServiceTest {
         existingArticle.setId(articleId);
         existingArticle.setUserId(ownerId);
         
-        when(articleMapper.selectById(articleId)).thenReturn(existingArticle);
+        when(articleService.getBaseMapper()).thenReturn(articleMapper);
+        lenient().when(articleMapper.selectById(articleId)).thenReturn(existingArticle);
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            if (!existingArticle.getUserId().equals(otherUserId)) {
-                throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
-            }
+            articleService.updateArticle(articleId, validRequest, otherUserId);
         });
         
         assertEquals(ErrorCode.ARTICLE_PERMISSION_DENIED, exception.getErrorCode());

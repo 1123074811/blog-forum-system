@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { register, getCaptcha } from '@/api/blog'
@@ -43,6 +43,21 @@ const router = useRouter()
 const loading = ref(false)
 const captchaUrl = ref('')
 const form = ref({ username: '', email: '', password: '', confirmPassword: '', captchaId: '', captchaCode: '' })
+let captchaRefreshTimer = null
+
+const scheduleCaptchaRefresh = (expiresInSeconds) => {
+  const seconds = Number(expiresInSeconds)
+  if (!Number.isFinite(seconds) || seconds <= 0) return
+  const refreshInMs = Math.max(5000, seconds * 1000 - 5000)
+  if (captchaRefreshTimer) clearTimeout(captchaRefreshTimer)
+  captchaRefreshTimer = setTimeout(() => {
+    if (form.value.captchaCode) {
+      ElMessage.warning('验证码已过期，已自动刷新')
+      form.value.captchaCode = ''
+    }
+    refreshCaptcha()
+  }, refreshInMs)
+}
 
 const refreshCaptcha = async () => {
   try {
@@ -50,10 +65,15 @@ const refreshCaptcha = async () => {
     if (res.data) {
       captchaUrl.value = res.data.image
       form.value.captchaId = res.data.key
+      scheduleCaptchaRefresh(res.data.expiresIn)
     }
   } catch (e) { console.error(e) }
 }
 onMounted(refreshCaptcha)
+
+onUnmounted(() => {
+  if (captchaRefreshTimer) clearTimeout(captchaRefreshTimer)
+})
 
 const handleRegister = async () => {
   if (!form.value.username || !form.value.email || !form.value.password) {

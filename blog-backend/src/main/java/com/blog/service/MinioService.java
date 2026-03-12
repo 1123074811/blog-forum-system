@@ -1,78 +1,35 @@
 package com.blog.service;
 
-import com.blog.config.MinioConfig;
-import io.minio.*;
-import jakarta.annotation.PostConstruct;
+import com.blog.service.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.UUID;
-
+/**
+ * 文件存储服务（兼容层）
+ * 保持原有API不变，内部委托给StorageService实现
+ * 
+ * @deprecated 建议直接使用 StorageService 接口
+ */
 @Service
 @RequiredArgsConstructor
 public class MinioService {
-    private final MinioClient minioClient;
-    private final MinioConfig config;
-
-    @PostConstruct
-    public void init() throws Exception {
-        boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(config.getBucket()).build());
-        if (!exists) {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(config.getBucket()).build());
-        }
-        // 设置 bucket 为公开读取
-        String policy = """
-            {
-                "Version": "2012-10-17",
-                "Statement": [{
-                    "Effect": "Allow",
-                    "Principal": {"AWS": ["*"]},
-                    "Action": ["s3:GetObject"],
-                    "Resource": ["arn:aws:s3:::%s/*"]
-                }]
-            }
-            """.formatted(config.getBucket());
-        minioClient.setBucketPolicy(SetBucketPolicyArgs.builder()
-            .bucket(config.getBucket())
-            .config(policy)
-            .build());
-    }
+    
+    private final StorageService storageService;
 
     public String upload(MultipartFile file) throws Exception {
-        return upload(file, "");
+        return storageService.upload(file);
     }
 
     public String upload(MultipartFile file, String folder) throws Exception {
-        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        String objectName = folder.isEmpty() ? filename : folder + "/" + filename;
-        minioClient.putObject(PutObjectArgs.builder()
-            .bucket(config.getBucket())
-            .object(objectName)
-            .stream(file.getInputStream(), file.getSize(), -1)
-            .contentType(file.getContentType())
-            .build());
-        return config.getEndpoint() + "/" + config.getBucket() + "/" + objectName;
+        return storageService.upload(file, folder);
     }
 
     public String uploadFromUrl(String imageUrl, String filename) throws Exception {
-        java.net.URL url = new java.net.URL(imageUrl);
-        try (java.io.InputStream is = url.openStream()) {
-            byte[] data = is.readAllBytes();
-            minioClient.putObject(PutObjectArgs.builder()
-                .bucket(config.getBucket())
-                .object(filename)
-                .stream(new java.io.ByteArrayInputStream(data), data.length, -1)
-                .contentType("image/jpeg")
-                .build());
-            return config.getEndpoint() + "/" + config.getBucket() + "/" + filename;
-        }
+        return storageService.uploadFromUrl(imageUrl, filename);
     }
 
     public void delete(String filename) throws Exception {
-        minioClient.removeObject(RemoveObjectArgs.builder()
-            .bucket(config.getBucket())
-            .object(filename)
-            .build());
+        storageService.delete(filename);
     }
 }
