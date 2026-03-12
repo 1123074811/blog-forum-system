@@ -185,8 +185,8 @@ public class AuthController {
         if (Boolean.TRUE.equals(user.getBanned())) {
             return ApiResponse.error("该账号已被封禁，无法登录");
         }
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername(), user.getRole());
         // 将 token 存储到 Redis
         tokenService.saveToken(token, user.getId(), tokenExpiration);
         user.setPassword(null);
@@ -204,7 +204,8 @@ public class AuthController {
         }
         Long userId = jwtUtil.getUserIdFromToken(refreshToken);
         String username = jwtUtil.getUsernameFromToken(refreshToken);
-        String newToken = jwtUtil.generateToken(userId, username);
+        String role = jwtUtil.getRoleFromToken(refreshToken);
+        String newToken = jwtUtil.generateToken(userId, username, role != null ? role : "user");
         // 将新 token 存储到 Redis
         tokenService.saveToken(newToken, userId, tokenExpiration);
         return ApiResponse.success(newToken);

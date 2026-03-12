@@ -302,14 +302,14 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             }
         }
 
-        clearArticleCache(id);
-
         // 如果从草稿变为发布，发布事件通知粉丝
         if (!"published".equals(oldStatus) && "published".equals(article.getStatus())) {
             eventPublisher.publishEvent(new ArticlePublishedEvent(
                 this, article.getId(), userId, article.getTitle()
             ));
         }
+
+        clearArticleCache(id);
 
         return article;
     }

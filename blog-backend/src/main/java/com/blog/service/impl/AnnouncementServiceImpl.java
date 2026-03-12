@@ -9,6 +9,7 @@ import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -17,7 +18,7 @@ public class AnnouncementServiceImpl extends ServiceImpl<AnnouncementMapper, Ann
 
     @Override
     public List<Announcement> getActiveAnnouncements() {
-        String now = DateUtil.getCurrentDateTime();
+        LocalDateTime now = LocalDateTime.now();
         return this.list(new LambdaQueryWrapper<Announcement>()
                 .eq(Announcement::getIsActive, true)
                 .and(w -> w.isNull(Announcement::getStartTime).or().le(Announcement::getStartTime, now))

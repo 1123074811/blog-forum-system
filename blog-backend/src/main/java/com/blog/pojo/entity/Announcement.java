@@ -3,6 +3,8 @@ package com.blog.pojo.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 @TableName("announcements")
 public class Announcement {
@@ -15,8 +17,8 @@ public class Announcement {
     private Boolean isActive;
     private Integer sortOrder;
     private Long createdBy;
-    private String startTime;
-    private String endTime;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private String createdAt;
     private String updatedAt;
 }

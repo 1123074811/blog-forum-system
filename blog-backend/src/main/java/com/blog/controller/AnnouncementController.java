@@ -33,8 +33,10 @@ public class AnnouncementController {
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Announcement> createAnnouncement(@RequestBody Announcement announcement) {
         Long userId = SecurityUtil.getCurrentUserId();
-        // 如果无法获取当前用户ID，默认设置为1（管理员）
-        announcement.setCreatedBy(userId != null ? userId : 1L);
+        if (userId == null) {
+            return ApiResponse.error("未认证，无法创建公告");
+        }
+        announcement.setCreatedBy(userId);
         announcement.setCreatedAt(DateUtil.getCurrentDateTime());
         announcement.setUpdatedAt(DateUtil.getCurrentDateTime());
         if (announcement.getIsActive() == null) {

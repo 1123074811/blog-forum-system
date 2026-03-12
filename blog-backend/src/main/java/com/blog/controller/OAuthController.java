@@ -93,8 +93,8 @@ public class OAuthController {
                 user = userService.getOne(new LambdaQueryWrapper<User>().eq(User::getGithubId, githubId));
             }
 
-            String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-            String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+            String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+            String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername(), user.getRole());
             return "redirect:http://localhost:5173/oauth-callback?token=" + token + "&refreshToken=" + refreshToken + "&userId=" + user.getId();
         } catch (Exception e) {
             e.printStackTrace();
@@ -246,8 +246,8 @@ public class OAuthController {
                 }
             }
 
-            String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-            String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+            String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+            String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername(), user.getRole());
             
             log.info("Gitee 登录成功，userId: {}", user.getId());
             

@@ -364,7 +364,14 @@ const handleDelete = async () => {
         type: 'warning',
       }
     )
-    
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('确认框错误:', error)
+    }
+    return
+  }
+  
+  try {
     const res = await deleteArticle(article.value.id)
     if (res.success) {
       toast('删除成功')
@@ -373,9 +380,8 @@ const handleDelete = async () => {
       toast(res.message || '删除失败', 'error')
     }
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error(error)
-    }
+    console.error('删除文章失败:', error)
+    toast('删除失败，请重试', 'error')
   }
 }
 

@@ -40,8 +40,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Long userId = jwtUtil.getUserIdFromToken(token);
                 String username = jwtUtil.getUsernameFromToken(token);
 
+                String role = jwtUtil.getRoleFromToken(token);
+                String authority = "ROLE_USER";
+                if ("admin".equals(role)) {
+                    authority = "ROLE_ADMIN";
+                }
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userId, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+                        userId, null, Collections.singletonList(new SimpleGrantedAuthority(authority)));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
                 // 同时设置到 ThreadLocal，方便 AOP 和 Service 使用

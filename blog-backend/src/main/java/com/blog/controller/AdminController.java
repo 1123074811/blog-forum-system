@@ -1,6 +1,7 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.blog.constant.AppConstants;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.*;
@@ -149,11 +150,14 @@ public class AdminController {
 
     // Favorite Management
     @GetMapping("/favorites")
-    public ApiResponse<List<ArticleFavorite>> getFavorites() {
-        List<ArticleFavorite> favorites = articleFavoriteMapper.selectList(null);
-        if (favorites != null && !favorites.isEmpty()) {
-            List<Long> userIds = favorites.stream().map(ArticleFavorite::getUserId).distinct().toList();
-            List<Long> articleIds = favorites.stream().map(ArticleFavorite::getArticleId).distinct().toList();
+    public ApiResponse<List<ArticleFavorite>> getFavorites(@RequestParam(defaultValue = "1") int page,
+                                                           @RequestParam(defaultValue = "20") int limit) {
+        Page<ArticleFavorite> pageParam = new Page<>(page, limit);
+        Page<ArticleFavorite> result = articleFavoriteMapper.selectPage(pageParam, null);
+        
+        if (!result.getRecords().isEmpty()) {
+            List<Long> userIds = result.getRecords().stream().map(ArticleFavorite::getUserId).distinct().toList();
+            List<Long> articleIds = result.getRecords().stream().map(ArticleFavorite::getArticleId).distinct().toList();
 
             Map<Long, User> userMap = new HashMap<>();
             if (!userIds.isEmpty()) {
@@ -165,7 +169,7 @@ public class AdminController {
                 articleService.listByIds(articleIds).forEach(a -> articleMap.put(a.getId(), a));
             }
 
-            for (ArticleFavorite fav : favorites) {
+            for (ArticleFavorite fav : result.getRecords()) {
                 User user = userMap.get(fav.getUserId());
                 if (user != null) {
                     fav.setUsername(user.getUsername());
@@ -176,7 +180,7 @@ public class AdminController {
                 }
             }
         }
-        return ApiResponse.success(favorites);
+        return ApiResponse.success(result.getRecords());
     }
 
     @DeleteMapping("/favorites/{id}")
