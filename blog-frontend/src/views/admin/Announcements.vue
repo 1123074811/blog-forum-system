@@ -76,6 +76,18 @@
         <el-form-item label="置顶">
           <el-switch v-model="form.isPinned" />
         </el-form-item>
+        <el-form-item label="展示时间">
+          <el-date-picker
+            v-model="dateRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            @change="handleDateRangeChange"
+            style="width: 100%"
+          />
+        </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.isActive" />
         </el-form-item>
@@ -101,6 +113,7 @@ const announcements = ref([])
 const showAddDialog = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
+const dateRange = ref([])
 
 const form = ref({
   title: '',
@@ -108,7 +121,9 @@ const form = ref({
   type: 'info',
   isPinned: false,
   isActive: true,
-  sortOrder: 0
+  sortOrder: 0,
+  startTime: '',
+  endTime: ''
 })
 
 const loadData = async () => {
@@ -125,9 +140,30 @@ const loadData = async () => {
 const editAnnouncement = (announcement) => {
   editingId.value = announcement.id
   Object.keys(form.value).forEach(key => {
-    form.value[key] = announcement[key]
+    if (key !== 'startTime' && key !== 'endTime') {
+      form.value[key] = announcement[key]
+    }
   })
+  if (announcement.startTime && announcement.endTime) {
+    dateRange.value = [announcement.startTime, announcement.endTime]
+    form.value.startTime = announcement.startTime
+    form.value.endTime = announcement.endTime
+  } else {
+    dateRange.value = []
+    form.value.startTime = ''
+    form.value.endTime = ''
+  }
   showAddDialog.value = true
+}
+
+const handleDateRangeChange = (val) => {
+  if (val) {
+    form.value.startTime = val[0]
+    form.value.endTime = val[1]
+  } else {
+    form.value.startTime = ''
+    form.value.endTime = ''
+  }
 }
 
 const saveAnnouncement = async () => {
@@ -138,14 +174,19 @@ const saveAnnouncement = async () => {
 
   saving.value = true
   try {
+    // 处理空字符串为null
+    const submitData = { ...form.value }
+    if (!submitData.startTime) submitData.startTime = null
+    if (!submitData.endTime) submitData.endTime = null
+
     let res
     if (editingId.value) {
-      res = await updateAnnouncement(editingId.value, form.value)
+      res = await updateAnnouncement(editingId.value, submitData)
       if (res.success) {
         ElMessage.success('更新成功')
       }
     } else {
-      res = await createAnnouncement(form.value)
+      res = await createAnnouncement(submitData)
       if (res.success) {
         ElMessage.success('添加成功')
       }
@@ -185,8 +226,11 @@ const resetForm = () => {
     type: 'info',
     isPinned: false,
     isActive: true,
-    sortOrder: 0
+    sortOrder: 0,
+    startTime: '',
+    endTime: ''
   }
+  dateRange.value = []
 }
 
 const getTagType = (type) => {

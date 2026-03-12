@@ -15,6 +15,8 @@ public class Announcement {
     private Boolean isActive;
     private Integer sortOrder;
     private Long createdBy;
+    private String startTime;
+    private String endTime;
     private String createdAt;
     private String updatedAt;
 }

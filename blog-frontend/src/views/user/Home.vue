@@ -216,13 +216,35 @@
 
   <!-- 返回顶部按钮 -->
   <el-button v-show="showBackTop" :icon="Top" circle class="!fixed !right-6 !bottom-6 !w-10 !h-10 z-50" @click="scrollToTop" title="返回顶部" />
+
+  <!-- 公告弹窗 -->
+  <el-dialog
+    v-model="showAnnouncement"
+    :title="currentAnnouncement?.title"
+    width="500px"
+    align-center
+    destroy-on-close
+    class="announcement-dialog rounded-xl overflow-hidden bg-white dark:bg-gray-800"
+  >
+    <div class="announcement-content py-4">
+      <div class="whitespace-pre-wrap text-base leading-relaxed text-gray-700 dark:text-gray-300">{{ currentAnnouncement?.content }}</div>
+    </div>
+    <template #footer>
+      <div class="flex justify-end items-center gap-4">
+        <el-checkbox v-model="dontShowToday" label="今日不再提示" />
+        <el-button type="primary" @click="closeAnnouncement">
+          我已知晓
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getArticles, getCategories, getTags } from '@/api/blog'
+import { getArticles, getCategories, getTags, getAnnouncements } from '@/api/blog'
 import api from '@/api'
 import { View, Loading, Location, Top, Edit, Star } from '@element-plus/icons-vue'
 
@@ -250,6 +272,9 @@ const page = ref(1)
 const hasMore = ref(true)
 const loadMoreRef = ref(null)
 const showBackTop = ref(false)
+const showAnnouncement = ref(false)
+const currentAnnouncement = ref(null)
+const dontShowToday = ref(false)
 let observer = null
 
 const setupObserver = () => {
@@ -337,11 +362,42 @@ const handleScroll = () => {
   showBackTop.value = window.scrollY > 300
 }
 
+const closeAnnouncement = () => {
+  if (dontShowToday.value && currentAnnouncement.value) {
+    const today = new Date().toISOString().split('T')[0]
+    const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
+    localStorage.setItem(`hide_announcement_${userId}_${currentAnnouncement.value.id}_${today}`, 'true')
+  }
+  showAnnouncement.value = false
+}
+
 onMounted(async () => {
   window.addEventListener('scroll', handleScroll)
-  const [catRes, tagRes] = await Promise.all([getCategories(), getTags()])
+  const [catRes, tagRes, annRes] = await Promise.all([
+    getCategories(), 
+    getTags(),
+    getAnnouncements()
+  ])
   if (catRes.success) categories.value = catRes.data
   if (tagRes.success) tags.value = tagRes.data
+  
+  // 处理公告弹窗
+  try {
+    if (annRes.success && annRes.data && annRes.data.length > 0) {
+      const announcement = annRes.data[0]
+      const today = new Date().toISOString().split('T')[0]
+      const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
+      const storageKey = `hide_announcement_${userId}_${announcement.id}_${today}`
+      
+      if (!localStorage.getItem(storageKey)) {
+        currentAnnouncement.value = announcement
+        showAnnouncement.value = true
+      }
+    }
+  } catch (error) {
+    console.error('Failed to process announcement:', error)
+  }
+
   fetchArticles()
   fetchHotArticles()
   // 获取必应壁纸

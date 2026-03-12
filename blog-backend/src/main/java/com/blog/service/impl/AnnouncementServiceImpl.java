@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.blog.pojo.entity.Announcement;
 import com.blog.mapper.AnnouncementMapper;
 import com.blog.service.AnnouncementService;
+import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +17,11 @@ public class AnnouncementServiceImpl extends ServiceImpl<AnnouncementMapper, Ann
 
     @Override
     public List<Announcement> getActiveAnnouncements() {
+        String now = DateUtil.getCurrentDateTime();
         return this.list(new LambdaQueryWrapper<Announcement>()
                 .eq(Announcement::getIsActive, true)
+                .and(w -> w.isNull(Announcement::getStartTime).or().le(Announcement::getStartTime, now))
+                .and(w -> w.isNull(Announcement::getEndTime).or().ge(Announcement::getEndTime, now))
                 .orderByDesc(Announcement::getIsPinned)
                 .orderByAsc(Announcement::getSortOrder)
                 .orderByDesc(Announcement::getCreatedAt));

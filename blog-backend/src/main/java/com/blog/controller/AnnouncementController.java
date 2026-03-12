@@ -32,7 +32,9 @@ public class AnnouncementController {
     @PostMapping("/admin/announcements")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Announcement> createAnnouncement(@RequestBody Announcement announcement) {
-        announcement.setCreatedBy(SecurityUtil.getCurrentUserId());
+        Long userId = SecurityUtil.getCurrentUserId();
+        // 如果无法获取当前用户ID，默认设置为1（管理员）
+        announcement.setCreatedBy(userId != null ? userId : 1L);
         announcement.setCreatedAt(DateUtil.getCurrentDateTime());
         announcement.setUpdatedAt(DateUtil.getCurrentDateTime());
         if (announcement.getIsActive() == null) {
