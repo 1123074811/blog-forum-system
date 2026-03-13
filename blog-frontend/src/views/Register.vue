@@ -4,7 +4,7 @@
       <h2 class="text-2xl font-bold text-center mb-6 text-gray-800 dark:text-white">注册</h2>
       <el-form :model="form" @submit.prevent="handleRegister">
         <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="User" size="large" />
+          <el-input v-model="form.username" placeholder="账号" :prefix-icon="User" size="large" />
         </el-form-item>
         <el-form-item>
           <el-input v-model="form.email" placeholder="邮箱" :prefix-icon="Message" size="large" />

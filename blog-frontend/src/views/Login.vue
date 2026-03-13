@@ -22,7 +22,7 @@
 
       <el-form :model="form" @submit.prevent="handleLogin">
         <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="User" size="large" />
+          <el-input v-model="form.username" placeholder="账号或邮箱" :prefix-icon="User" size="large" />
         </el-form-item>
         <el-form-item>
           <el-input v-model="form.password" type="password" placeholder="密码" :prefix-icon="Lock" size="large" show-password />

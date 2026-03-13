@@ -178,9 +178,14 @@ public class AuthController {
         if (!captchaService.validateCaptcha(request.getCaptchaId(), request.getCaptchaCode())) {
             return ApiResponse.error("验证码错误或已过期");
         }
+        // 先尝试通过用户名查找用户
         User user = userService.findByUsername(request.getUsername());
+        // 如果找不到，尝试通过邮箱查找用户
+        if (user == null) {
+            user = userService.findByEmail(request.getUsername());
+        }
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ApiResponse.error("用户名或密码错误");
+            return ApiResponse.error("账号或密码错误");
         }
         if (Boolean.TRUE.equals(user.getBanned())) {
             return ApiResponse.error("该账号已被封禁，无法登录");

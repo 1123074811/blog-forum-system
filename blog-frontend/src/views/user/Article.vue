@@ -241,7 +241,7 @@ import api from '@/api'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import { View, ChatLineRound, ArrowLeft, Edit, Delete } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import toast from '@/utils/toast'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
@@ -389,19 +389,29 @@ const topLevelComments = computed(() => comments.value.filter(c => !c.parentId))
 const getReplies = (parentId) => comments.value.filter(c => c.parentId === parentId)
 
 const fetchData = async () => {
-  const [articleRes, commentsRes, interactionRes] = await Promise.all([
-    getArticle(route.params.id),
-    getComments(route.params.id),
-    api.get(`/articles/${route.params.id}/interaction`)
-  ])
-  if (articleRes.success) {
-    article.value = articleRes.data
-    fetchSummary()
-    // 设置平滑滚动
-    setupSmoothScroll()
+  try {
+    const [articleRes, commentsRes, interactionRes] = await Promise.all([
+      getArticle(route.params.id),
+      getComments(route.params.id),
+      api.get(`/articles/${route.params.id}/interaction`)
+    ])
+    if (articleRes.success) {
+      article.value = articleRes.data
+      fetchSummary()
+      // 设置平滑滚动
+      setupSmoothScroll()
+    } else {
+      // 文章不存在或获取失败
+      ElMessage.warning('该文章可能已被删除或不存在')
+      router.push('/')
+    }
+    if (commentsRes.success) comments.value = commentsRes.data
+    if (interactionRes.success) interaction.value = interactionRes.data
+  } catch (error) {
+    // 捕获网络错误或其他异常
+    ElMessage.warning('该文章可能已被删除或不存在')
+    router.push('/')
   }
-  if (commentsRes.success) comments.value = commentsRes.data
-  if (interactionRes.success) interaction.value = interactionRes.data
 }
 
 const fetchSummary = async () => {

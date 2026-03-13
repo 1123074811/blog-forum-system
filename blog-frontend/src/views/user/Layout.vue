@@ -217,7 +217,7 @@ const connectWebSocket = () => {
 
 const getNotificationText = (n) => {
   const types = { like: '赞了你的文章', favorite: '收藏了你的文章', follow: '关注了你' }
-  return (n.fromUsername || '有人') + (types[n.type] || n.content)
+  return (n.fromUsername || '用户') + (types[n.type] || n.content)
 }
 
 const handleNotificationClick = async (n) => {
@@ -226,8 +226,14 @@ const handleNotificationClick = async (n) => {
     n.isRead = true
     unreadCount.value = Math.max(0, unreadCount.value - 1)
   }
-  if (n.type === 'follow') router.push(`/user/${n.targetId}`)
-  else router.push(`/article/${n.targetId}`)
+  if (n.type === 'follow') {
+    router.push(`/user/${n.targetId}`)
+  } else {
+    // 跳转到文章详情页，处理文章可能已被删除的情况
+    router.push(`/article/${n.targetId}`).catch(() => {
+      ElMessage.warning('该文章可能已被删除')
+    })
+  }
 }
 
 const handleMarkAllRead = async () => {

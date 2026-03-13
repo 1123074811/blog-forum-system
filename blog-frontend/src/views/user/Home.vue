@@ -455,6 +455,18 @@ onUnmounted(() => {
   padding-left: 8px;
 }
 
+/* 公告内容区域样式 */
+.announcement-content {
+  max-height: 600px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.announcement-content::-webkit-scrollbar {
+  display: none;
+}
+
 /* 隐藏滚动条 */
 .left-sidebar,
 .main-content,
