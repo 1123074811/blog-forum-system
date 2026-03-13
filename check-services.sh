@@ -11,7 +11,15 @@ echo "  博客论坛系统 - 服务检查"
 echo "=========================================="
 
 # 获取服务器 IP 地址
-SERVER_IP=$(hostname -I | awk '{print $1}')
+# 尝试获取公网 IP（添加超时设置）
+SERVER_IP=$(timeout 3 curl -s ifconfig.me || timeout 3 curl -s icanhazip.com || timeout 3 curl -s ipinfo.io/ip)
+if [ -z "$SERVER_IP" ]; then
+    # 尝试获取内网 IP
+    SERVER_IP=$(ip -o -4 addr show | grep -v lo | awk '{print $4}' | cut -d'/' -f1 | head -n 1)
+fi
+if [ -z "$SERVER_IP" ]; then
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+fi
 if [ -z "$SERVER_IP" ]; then
     SERVER_IP="127.0.0.1"
 fi
@@ -54,6 +62,43 @@ fi
 echo ""
 echo "===== 存储类型 ====="
 log_info "当前存储类型：$STORAGE_TYPE"
+echo ""
+
+echo ""
+echo "===== 域名检测 ====="
+# 检查 Nginx 配置中的域名
+DOMAIN_NAME=""
+# 尝试多种 Nginx 配置文件路径
+NGINX_CONFIG_PATHS=(
+    "/etc/nginx/sites-available/blog"
+    "/etc/nginx/conf.d/blog.conf"
+    "/etc/nginx/nginx.conf"
+)
+
+for config_path in "${NGINX_CONFIG_PATHS[@]}"; do
+    if [ -f "$config_path" ]; then
+        # 提取所有 server_name 配置
+        DOMAINS=$(grep -E "^\s*server_name" "$config_path" | awk '{print $2}' | cut -d';' -f1 | tr ' ' '\n')
+        # 过滤掉默认服务器配置
+        DOMAINS=$(echo "$DOMAINS" | grep -v "_" | grep -v "localhost")
+        if [ -n "$DOMAINS" ]; then
+            DOMAIN_NAME=$(echo "$DOMAINS" | head -n 1)
+            break
+        fi
+    fi
+done
+
+if [ -n "$DOMAIN_NAME" ]; then
+    log_info "检测到域名配置：$DOMAIN_NAME"
+    # 验证域名解析（使用 DNS 解析而非 ping）
+    if nslookup "$DOMAIN_NAME" >/dev/null 2>&1; then
+        log_info "域名 $DOMAIN_NAME 解析正常"
+    else
+        log_warn "域名 $DOMAIN_NAME 解析失败"
+    fi
+else
+    log_warn "未检测到域名配置，使用 IP 访问"
+fi
 echo ""
 
 echo ""
@@ -163,7 +208,13 @@ echo "=========================================="
 echo "  访问信息"
 echo "=========================================="
 echo ""
-echo "网站地址：http://$SERVER_IP"
+if [ -n "$DOMAIN_NAME" ]; then
+    echo "网站地址："
+    echo "  HTTP: http://$DOMAIN_NAME"
+    echo "  HTTPS: https://$DOMAIN_NAME"
+else
+    echo "网站地址：http://$SERVER_IP"
+fi
 
 # 仅在使用 MinIO 时显示 MinIO 控制台信息
 if [ "$STORAGE_TYPE" = "minio" ]; then

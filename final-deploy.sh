@@ -3,30 +3,10 @@
 # ============================================
 # 博客论坛系统 - 一键部署脚本（最终版）
 # 适用于 Ubuntu 24.04
+# 支持全新部署和升级更新
 # ============================================
 
 set -e
-
-echo "=========================================="
-echo "  博客论坛系统 - 一键部署"
-echo "=========================================="
-
-# 询问服务器 IP 地址
-echo ""
-echo "请输入服务器的公网 IP 地址："
-read -p "IP地址: " SERVER_IP
-
-# 验证 IP 地址格式
-if [[ ! "$SERVER_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    log_error "无效的 IP 地址格式"
-    exit 1
-fi
-
-echo ""
-echo "=========================================="
-echo "  服务器 IP: $SERVER_IP"
-echo "=========================================="
-echo ""
 
 # 颜色定义
 RED='\033[0;31m'
@@ -50,6 +30,52 @@ log_error() {
 log_step() {
     echo -e "${BLUE}[STEP]${NC} $1"
 }
+
+echo "=========================================="
+echo "  博客论坛系统 - 一键部署/升级"
+echo "=========================================="
+
+# 检测是否为升级模式
+IS_UPGRADE=false
+if [ -f "/opt/blog/blog-backend.jar" ] || [ -d "/var/www/blog" ]; then
+    echo ""
+    echo "检测到现有部署，是否进行升级？"
+    echo "  - 选择 'y'：升级现有部署（保留数据库）"
+    echo "  - 选择 'n'：全新部署（会重新初始化数据库）"
+    read -p "是否升级 (y/n) [y]: " UPGRADE_OPT
+    UPGRADE_OPT=${UPGRADE_OPT:-y}
+    if [[ "$UPGRADE_OPT" =~ ^[Yy]$ ]]; then
+        IS_UPGRADE=true
+        echo ""
+        echo "=========================================="
+        echo "  模式：升级现有部署"
+        echo "  说明：将保留数据库，仅更新前后端代码"
+        echo "=========================================="
+    else
+        echo ""
+        echo "=========================================="
+        echo "  模式：全新部署"
+        echo "  说明：将重新初始化数据库"
+        echo "=========================================="
+    fi
+fi
+
+# 询问服务器 IP 地址
+echo ""
+echo "请输入服务器的公网 IP 地址："
+read -p "IP地址: " SERVER_IP
+
+# 验证 IP 地址格式
+if [[ ! "$SERVER_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log_error "无效的 IP 地址格式"
+    exit 1
+fi
+
+echo ""
+echo "=========================================="
+echo "  服务器 IP: $SERVER_IP"
+echo "=========================================="
+echo ""
 
 # 检查是否以 root 身份运行
 if [ "$EUID" -ne 0 ]; then 
@@ -188,105 +214,159 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 log_info "系统依赖安装完成"
 
-log_step "2. 配置 MySQL 数据库..."
-systemctl start mysql
-systemctl enable mysql
+if [ "$IS_UPGRADE" = "false" ]; then
+    log_step "2. 配置 MySQL 数据库..."
+    systemctl start mysql
+    systemctl enable mysql
 
-${MYSQL_ADMIN_ARGS[@]} << SQLEOF
-CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_PASSWORD';
-ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_PASSWORD';
-CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED WITH mysql_native_password BY '$DB_PASSWORD';
-ALTER USER '$DB_USERNAME'@'%' IDENTIFIED WITH mysql_native_password BY '$DB_PASSWORD';
+    # 检查并加载 mysql_native_password 插件
+    ${MYSQL_ADMIN_ARGS[@]} -e "INSTALL PLUGIN mysql_native_password SONAME 'mysql_native_password.so';" 2>/dev/null || true
+
+    ${MYSQL_ADMIN_ARGS[@]} << SQLEOF
+CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';
 GRANT ALL PRIVILEGES ON *.* TO '$DB_USERNAME'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 SQLEOF
 
-# 修改 MySQL 绑定地址允许远程连接
-sed -i 's/bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf 2>/dev/null || true
-systemctl restart mysql
-log_info "MySQL 配置完成"
-
-log_step "3. 导入数据库数据..."
-COUNT=$(mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME'" 2>/dev/null || echo 0)
-if [ "$COUNT" -gt 0 ]; then
-    log_info "检测到数据库已有表，跳过数据导入"
+    # 修改 MySQL 绑定地址允许远程连接
+    sed -i 's/bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf 2>/dev/null || true
+    systemctl restart mysql
+    log_info "MySQL 配置完成"
 else
-    if [ -f "/opt/blog/blog-backend/sql/blog_forum.sql" ]; then
-        mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" < /opt/blog/blog-backend/sql/blog_forum.sql
-        log_info "数据导入完成"
+    log_step "2. 跳过数据库配置（升级模式）..."
+    log_info "数据库将保持不变"
+fi
+
+if [ "$IS_UPGRADE" = "false" ]; then
+    log_step "3. 导入数据库数据..."
+    COUNT=$(mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME'" 2>/dev/null || echo 0)
+    if [ "$COUNT" -gt 0 ]; then
+        log_info "检测到数据库已有表，跳过数据导入"
     else
-        log_warn "SQL 文件不存在，跳过数据导入"
+        if [ -f "/opt/blog/blog-backend/sql/blog_forum.sql" ]; then
+            mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" < /opt/blog/blog-backend/sql/blog_forum.sql
+            log_info "数据导入完成"
+        else
+            log_warn "SQL 文件不存在，跳过数据导入"
+        fi
     fi
+else
+    log_step "3. 跳过数据库数据导入（升级模式）..."
+    log_info "数据库数据将保持不变"
 fi
 
-log_step "4. 配置 Redis..."
-# 启动 Redis
-systemctl start redis-server || systemctl start redis || true
-systemctl enable redis-server || systemctl enable redis || true
+if [ "$IS_UPGRADE" = "false" ]; then
+    log_step "4. 配置 Redis..."
+    # 启动 Redis
+    systemctl start redis-server || systemctl start redis || true
+    systemctl enable redis-server || systemctl enable redis || true
 
-# 配置 Redis 密码和绑定地址
-REDIS_CONF="/etc/redis/redis.conf"
-if [ -f "$REDIS_CONF" ]; then
-    # 移除旧的 bind 配置
-    sed -i '/^bind /d' "$REDIS_CONF" 2>/dev/null || true
-    # 添加新的 bind 配置（允许所有地址）
-    echo "bind 0.0.0.0" >> "$REDIS_CONF"
-    # 添加密码
-    if ! grep -Fq "requirepass $REDIS_PASSWORD" "$REDIS_CONF"; then
-        echo "requirepass $REDIS_PASSWORD" >> "$REDIS_CONF"
+    # 配置 Redis 密码和绑定地址
+    REDIS_CONF="/etc/redis/redis.conf"
+    if [ -f "$REDIS_CONF" ]; then
+        # 移除旧的 bind 配置
+        sed -i '/^bind /d' "$REDIS_CONF" 2>/dev/null || true
+        # 添加新的 bind 配置（允许所有地址）
+        echo "bind 0.0.0.0" >> "$REDIS_CONF"
+        # 添加密码
+        if ! grep -Fq "requirepass $REDIS_PASSWORD" "$REDIS_CONF"; then
+            echo "requirepass $REDIS_PASSWORD" >> "$REDIS_CONF"
+        fi
+        # 重启 Redis
+        systemctl restart redis-server || systemctl restart redis || true
     fi
-    # 重启 Redis
-    systemctl restart redis-server || systemctl restart redis || true
+    log_info "Redis 配置完成"
+else
+    log_step "4. 跳过 Redis 配置（升级模式）..."
+    log_info "Redis 配置将保持不变"
 fi
-log_info "Redis 配置完成"
 
 log_step "5. 配置 OSS 存储参数..."
 log_info "OSS 参数已设置：Endpoint=$OSS_ENDPOINT, Bucket=$OSS_BUCKET"
 
 log_step "6. 打包后端项目..."
-if [ -f "/opt/blog/blog-backend.jar" ]; then
-    log_info "检测到后端 JAR 已存在，跳过打包"
+if [ "$IS_UPGRADE" = "true" ]; then
+    log_info "升级模式：重新打包后端项目"
+fi
+cd /opt/blog/blog-backend
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+mvn clean package -DskipTests -Dmaven.test.skip=true
+JAR_FILE=$(find target -maxdepth 1 -type f -name "*.jar" | head -n 1)
+if [ -n "$JAR_FILE" ] && [ -f "$JAR_FILE" ]; then
+    cp "$JAR_FILE" /opt/blog/blog-backend.jar
+    log_info "后端打包完成：$JAR_FILE"
 else
-    cd /opt/blog/blog-backend
-    export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-    mvn clean package -DskipTests -Dmaven.test.skip=true
-    JAR_FILE=$(find target -maxdepth 1 -type f -name "*.jar" | head -n 1)
-    if [ -n "$JAR_FILE" ] && [ -f "$JAR_FILE" ]; then
-        cp "$JAR_FILE" /opt/blog/blog-backend.jar
-        log_info "后端打包完成：$JAR_FILE"
-    else
-        log_error "后端打包失败，未找到 JAR 文件（请检查 target 目录及 Maven 打包）"
-        exit 1
-    fi
+    log_error "后端打包失败，未找到 JAR 文件（请检查 target 目录及 Maven 打包）"
+    exit 1
 fi
 
 log_step "7. 打包前端项目..."
-if [ -f "/var/www/blog/index.html" ]; then
-    log_info "检测到前端已部署，跳过构建"
-else
-    cd /opt/blog/blog-frontend
-    npm install --registry=https://registry.npmmirror.com
-    cat > .env.production << ENVEOF
+if [ "$IS_UPGRADE" = "true" ]; then
+    log_info "升级模式：重新打包前端项目"
+fi
+cd /opt/blog/blog-frontend
+npm install --registry=https://registry.npmmirror.com
+cat > .env.production << ENVEOF
 VITE_API_BASE_URL=/api
 VITE_UPLOAD_BASE_URL=/
 ENVEOF
-    npm run build
-    mkdir -p /var/www/blog
-    if [ -d "dist" ]; then
-        cp -r dist/* /var/www/blog/
-        log_info "前端打包完成"
-    else
-        log_error "前端构建失败，未找到 dist 目录"
-        exit 1
-    fi
+npm run build
+mkdir -p /var/www/blog
+if [ -d "dist" ]; then
+    cp -r dist/* /var/www/blog/
+    log_info "前端打包完成"
+else
+    log_error "前端构建失败，未找到 dist 目录"
+    exit 1
 fi
 
-log_step "8. 创建后端服务..."
+log_step "8. 配置音乐API服务..."
 cd /opt/blog
 
-if [ ! -f "/etc/systemd/system/blog-backend.service" ]; then
-cat > /etc/systemd/system/blog-backend.service << 'SYSTEMDEOF'
+# 无论是否升级模式，都确保服务文件存在
+if [ ! -f "/etc/systemd/system/blog-music-api.service" ]; then
+    cat > /etc/systemd/system/blog-music-api.service << 'SYSTEMDEOF'
+[Unit]
+Description=Blog Music API Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/blog/blog-frontend
+ExecStart=/usr/bin/node meting-server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blog-music-api
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMDEOF
+    log_info "创建音乐API服务文件"
+fi
+
+systemctl daemon-reload
+systemctl start blog-music-api
+systemctl enable blog-music-api
+
+if [ "$IS_UPGRADE" = "true" ]; then
+    log_info "升级模式：音乐API服务重启完成"
+else
+    log_info "音乐API服务创建完成"
+fi
+
+log_step "9. 配置后端服务..."
+cd /opt/blog
+
+if [ "$IS_UPGRADE" = "false" ]; then
+    if [ ! -f "/etc/systemd/system/blog-backend.service" ]; then
+    cat > /etc/systemd/system/blog-backend.service << 'SYSTEMDEOF'
 [Unit]
 Description=Blog Backend Service
 After=network.target mysql.service redis.service
@@ -305,10 +385,10 @@ SyslogIdentifier=blog-backend
 [Install]
 WantedBy=multi-user.target
 SYSTEMDEOF
-fi
-
-if [ ! -f "/opt/blog/application-prod.yml" ]; then
-cat > /opt/blog/application-prod.yml << PRODYML
+    fi
+    
+    if [ ! -f "/opt/blog/application-prod.yml" ]; then
+    cat > /opt/blog/application-prod.yml << PRODYML
 server:
   port: $SERVER_PORT
 
@@ -382,86 +462,93 @@ oauth:
     client-secret: $OAUTH_GITEE_CLIENT_SECRET
     redirect-uri: http://$SERVER_IP/api/auth/gitee/callback
 PRODYML
-fi
-
-systemctl daemon-reload
-systemctl start blog-backend
-systemctl enable blog-backend
-log_info "后端服务创建完成"
-
-log_step "9. 配置 Nginx 和 SSL 证书..."
-
-# 询问是否配置域名和 HTTPS
-echo ""
-log_info "是否配置域名并启用 HTTPS？"
-echo "  - 选择 'y'：需要输入域名，自动申请 SSL 证书，启用 HTTPS 访问"
-echo "  - 选择 'n'：使用服务器 IP 直接访问，不启用 HTTPS"
-read -p "是否配置域名 (y/n) [y]: " ENABLE_DOMAIN
-ENABLE_DOMAIN=${ENABLE_DOMAIN:-y}
-
-DOMAIN_NAME=""
-if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]]; then
-    echo ""
-    echo "=========================================="
-    echo "  域名配置说明"
-    echo "=========================================="
-    echo ""
-    echo "请确保已完成以下域名配置："
-    echo "1. 域名已备案（如使用中国大陆服务器）"
-    echo "2. DNS 解析已设置："
-    echo "   - A 记录：@ -> $SERVER_IP"
-    echo "   - A 记录：www -> $SERVER_IP"
-    echo "3. 服务器安全组已开放 80 和 443 端口"
-    echo ""
-    echo "常见 DNS 服务商解析设置："
-    echo "  - 阿里云：域名控制台 -> 解析设置 -> 添加记录"
-    echo "  - 腾讯云：DNS 控制台 -> 域名解析 -> 添加记录"
-    echo "  - Cloudflare：DNS -> Add record"
-    echo ""
-    echo "验证 DNS 解析命令："
-    echo "  ping yourdomain.com"
-    echo "  ping www.yourdomain.com"
-    echo ""
-    
-    read -p "请输入主域名（例如：example.com）: " DOMAIN_NAME
-    
-    if [[ -z "$DOMAIN_NAME" ]]; then
-        log_error "域名不能为空"
-        exit 1
     fi
     
-    echo ""
-    log_info "正在验证域名解析..."
-    if ping -c 1 -W 1 "$DOMAIN_NAME" >/dev/null 2>&1; then
-        log_info "域名 $DOMAIN_NAME 可以正常解析"
-    else
-        log_warn "域名 $DOMAIN_NAME 解析失败或超时"
-        log_warn "请检查 DNS 解析配置是否正确"
-        read -p "是否继续申请证书？（可能失败）(y/n): " CONTINUE_SSL
-        if [[ ! "$CONTINUE_SSL" =~ ^[Yy]$ ]]; then
-            log_info "已取消域名配置，将使用 IP 访问"
-            DOMAIN_NAME=""
-        fi
-    fi
-    
-    if [[ -n "$DOMAIN_NAME" ]]; then
-        log_info "正在安装 Certbot..."
-        apt-get install -y certbot python3-certbot-nginx
-        
-        log_info "正在申请 SSL 证书..."
-        certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
-        
-        log_info "SSL 证书申请完成！"
-        log_info "证书有效期 90 天，Certbot 会自动续期"
-    fi
+    systemctl daemon-reload
+    systemctl start blog-backend
+    systemctl enable blog-backend
+    log_info "后端服务创建完成"
 else
-    log_warn "跳过域名配置，使用 HTTP + IP 访问"
+    log_info "升级模式：重启后端服务"
+    systemctl daemon-reload
+    systemctl restart blog-backend
+    log_info "后端服务重启完成"
 fi
 
-log_info "配置 Nginx..."
-if [ ! -f "/etc/nginx/sites-available/blog" ]; then
-if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]] && [ -n "$DOMAIN_NAME" ]; then
-cat > /etc/nginx/sites-available/blog << NGINXEOF
+if [ "$IS_UPGRADE" = "false" ]; then
+    log_step "10. 配置 Nginx 和 SSL 证书..."
+
+    # 询问是否配置域名和 HTTPS
+    echo ""
+    log_info "是否配置域名并启用 HTTPS？"
+    echo "  - 选择 'y'：需要输入域名，自动申请 SSL 证书，启用 HTTPS 访问"
+    echo "  - 选择 'n'：使用服务器 IP 直接访问，不启用 HTTPS"
+    read -p "是否配置域名 (y/n) [y]: " ENABLE_DOMAIN
+    ENABLE_DOMAIN=${ENABLE_DOMAIN:-y}
+
+    DOMAIN_NAME=""
+    if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "=========================================="
+        echo "  域名配置说明"
+        echo "=========================================="
+        echo ""
+        echo "请确保已完成以下域名配置："
+        echo "1. 域名已备案（如使用中国大陆服务器）"
+        echo "2. DNS 解析已设置："
+        echo "   - A 记录：@ -> $SERVER_IP"
+        echo "   - A 记录：www -> $SERVER_IP"
+        echo "3. 服务器安全组已开放 80 和 443 端口"
+        echo ""
+        echo "常见 DNS 服务商解析设置："
+        echo "  - 阿里云：域名控制台 -> 解析设置 -> 添加记录"
+        echo "  - 腾讯云：DNS 控制台 -> 域名解析 -> 添加记录"
+        echo "  - Cloudflare：DNS -> Add record"
+        echo ""
+        echo "验证 DNS 解析命令："
+        echo "  ping yourdomain.com"
+        echo "  ping www.yourdomain.com"
+        echo ""
+        
+        read -p "请输入主域名（例如：example.com）: " DOMAIN_NAME
+        
+        if [[ -z "$DOMAIN_NAME" ]]; then
+            log_error "域名不能为空"
+            exit 1
+        fi
+        
+        echo ""
+        log_info "正在验证域名解析..."
+        if ping -c 1 -W 1 "$DOMAIN_NAME" >/dev/null 2>&1; then
+            log_info "域名 $DOMAIN_NAME 可以正常解析"
+        else
+            log_warn "域名 $DOMAIN_NAME 解析失败或超时"
+            log_warn "请检查 DNS 解析配置是否正确"
+            read -p "是否继续申请证书？（可能失败）(y/n): " CONTINUE_SSL
+            if [[ ! "$CONTINUE_SSL" =~ ^[Yy]$ ]]; then
+                log_info "已取消域名配置，将使用 IP 访问"
+                DOMAIN_NAME=""
+            fi
+        fi
+        
+        if [[ -n "$DOMAIN_NAME" ]]; then
+            log_info "正在安装 Certbot..."
+            apt-get install -y certbot python3-certbot-nginx
+            
+            log_info "正在申请 SSL 证书..."
+            certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
+            
+            log_info "SSL 证书申请完成！"
+            log_info "证书有效期 90 天，Certbot 会自动续期"
+        fi
+    else
+        log_warn "跳过域名配置，使用 HTTP + IP 访问"
+    fi
+
+    log_info "配置 Nginx..."
+    if [ ! -f "/etc/nginx/sites-available/blog" ]; then
+    if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]] && [ -n "$DOMAIN_NAME" ]; then
+    cat > /etc/nginx/sites-available/blog << NGINXEOF
 server {
     listen 80;
     server_name $DOMAIN_NAME www.$DOMAIN_NAME;
@@ -525,10 +612,55 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
     }
+    
+    # 音乐API代理
+    location /music-api/ {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    # 酷狗搜索API代理
+    location /kugou-api/ {
+        proxy_pass http://mobilecdn.kugou.com;
+        proxy_set_header Host mobilecdn.kugou.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer http://m.kugou.com/;
+        proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15";
+    }
+    
+    # 酷狗播放URL获取接口
+    location /kugou-play/ {
+        proxy_pass http://m.kugou.com;
+        proxy_set_header Host m.kugou.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer http://m.kugou.com/;
+        proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+    }
+    
+    # QQ音乐API代理
+    location /qq-api/ {
+        proxy_pass https://c.y.qq.com;
+        proxy_set_header Host c.y.qq.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer https://y.qq.com/;
+        proxy_set_header Origin https://y.qq.com;
+    }
+    
+    # QQ音乐播放URL代理
+    location /qq-play/ {
+        proxy_pass https://u.y.qq.com;
+        proxy_set_header Host u.y.qq.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer https://y.qq.com/;
+        proxy_set_header Origin https://y.qq.com;
+    }
 }
 NGINXEOF
-else
-cat > /etc/nginx/sites-available/blog << NGINXEOF
+    else
+    cat > /etc/nginx/sites-available/blog << NGINXEOF
 # HTTP server - redirect to HTTPS
 server {
     listen 80;
@@ -591,38 +723,89 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
     }
+    
+    # 音乐API代理
+    location /music-api/ {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    # 酷狗搜索API代理
+    location /kugou-api/ {
+        proxy_pass http://mobilecdn.kugou.com;
+        proxy_set_header Host mobilecdn.kugou.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer http://m.kugou.com/;
+        proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15";
+    }
+    
+    # 酷狗播放URL获取接口
+    location /kugou-play/ {
+        proxy_pass http://m.kugou.com;
+        proxy_set_header Host m.kugou.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer http://m.kugou.com/;
+        proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+    }
+    
+    # QQ音乐API代理
+    location /qq-api/ {
+        proxy_pass https://c.y.qq.com;
+        proxy_set_header Host c.y.qq.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer https://y.qq.com/;
+        proxy_set_header Origin https://y.qq.com;
+    }
+    
+    # QQ音乐播放URL代理
+    location /qq-play/ {
+        proxy_pass https://u.y.qq.com;
+        proxy_set_header Host u.y.qq.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Referer https://y.qq.com/;
+        proxy_set_header Origin https://y.qq.com;
+    }
 }
 NGINXEOF
 
-# 创建自签名 SSL 证书目录和证书
-mkdir -p /etc/nginx/ssl
-if [ ! -f "/etc/nginx/ssl/server.crt" ]; then
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout /etc/nginx/ssl/server.key \
-        -out /etc/nginx/ssl/server.crt \
-        -subj "/C=CN/ST=State/L=City/O=Organization/CN=$SERVER_IP"
-    log_info "自签名 SSL 证书已生成"
-fi
-fi
+    # 创建自签名 SSL 证书目录和证书
+    mkdir -p /etc/nginx/ssl
+    if [ ! -f "/etc/nginx/ssl/server.crt" ]; then
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/server.key \
+            -out /etc/nginx/ssl/server.crt \
+            -subj "/C=CN/ST=State/L=City/O=Organization/CN=$SERVER_IP"
+        log_info "自签名 SSL 证书已生成"
+    fi
+    fi
+    fi
+
+    # 移除默认配置，启用博客配置
+    rm -f /etc/nginx/sites-enabled/default
+    ln -sf /etc/nginx/sites-available/blog /etc/nginx/sites-enabled/blog
+
+    # 测试并重启 Nginx
+    nginx -t
+    systemctl restart nginx
+    systemctl enable nginx
+    log_info "Nginx 配置完成"
+else
+    log_step "10. 重启 Nginx（升级模式）..."
+    nginx -t
+    systemctl restart nginx
+    log_info "Nginx 重启完成"
 fi
 
-# 移除默认配置，启用博客配置
-rm -f /etc/nginx/sites-enabled/default
-ln -sf /etc/nginx/sites-available/blog /etc/nginx/sites-enabled/blog
-
-# 测试并重启 Nginx
-nginx -t
-systemctl restart nginx
-systemctl enable nginx
-log_info "Nginx 配置完成"
-
-log_step "10. 检查服务状态..."
+log_step "11. 检查服务状态..."
 echo ""
 echo "=========================================="
 echo "  服务状态检查"
 echo "=========================================="
 
-services=("mysql" "redis-server" "blog-backend" "nginx")
+services=("mysql" "redis-server" "blog-music-api" "blog-backend" "nginx")
 for service in "${services[@]}"; do
     if systemctl is-active --quiet "$service" 2>/dev/null || systemctl is-active --quiet "${service}.service" 2>/dev/null; then
         log_info "✓ $service 运行正常"
