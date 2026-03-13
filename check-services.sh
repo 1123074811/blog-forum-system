@@ -40,6 +40,22 @@ log_warn() {
     echo -e "${YELLOW}[!]${NC} $1"
 }
 
+# 检测存储类型
+BACKEND_CONFIG_DIR="blog-backend/src/main/resources"
+STORAGE_TYPE="minio"
+
+if [ -f "$BACKEND_CONFIG_DIR/application-prod.yml" ]; then
+    DETECTED_STORAGE=$(grep -A 2 "^storage:" "$BACKEND_CONFIG_DIR/application-prod.yml" | grep "type:" | awk -F': ' '{print $2}' | tr -d ' ')
+    if [ -n "$DETECTED_STORAGE" ]; then
+        STORAGE_TYPE=$DETECTED_STORAGE
+    fi
+fi
+
+echo ""
+echo "===== 存储类型 ====="
+log_info "当前存储类型：$STORAGE_TYPE"
+echo ""
+
 echo ""
 echo "===== 服务状态 ====="
 
@@ -59,12 +75,16 @@ else
     systemctl start redis-server || systemctl start redis
 fi
 
-# 检查 MinIO
-if systemctl is-active --quiet minio; then
-    log_info "MinIO 运行正常"
+# 检查 MinIO（仅当使用 MinIO 存储时）
+if [ "$STORAGE_TYPE" = "minio" ]; then
+    if systemctl is-active --quiet minio; then
+        log_info "MinIO 运行正常"
+    else
+        log_error "MinIO 未运行"
+        systemctl start minio
+    fi
 else
-    log_error "MinIO 未运行"
-    systemctl start minio
+    log_warn "使用阿里云 OSS 存储，跳过 MinIO 检查"
 fi
 
 # 检查后端
@@ -86,7 +106,13 @@ fi
 echo ""
 echo "===== 端口监听 ====="
 
-ports=("3306:MySQL" "6379:Redis" "9000:MinIO" "9001:MinIO Console" "8080:Backend" "80:Nginx")
+# 根据存储类型动态配置端口检查
+if [ "$STORAGE_TYPE" = "minio" ]; then
+    ports=("3306:MySQL" "6379:Redis" "9000:MinIO" "9001:MinIO Console" "8080:Backend" "80:Nginx")
+else
+    ports=("3306:MySQL" "6379:Redis" "8080:Backend" "80:Nginx")
+fi
+
 for port_info in "${ports[@]}"; do
     port="${port_info%%:*}"
     name="${port_info##*:}"
@@ -114,11 +140,15 @@ else
     log_error "Redis 连接失败"
 fi
 
-# 测试 MinIO
-if curl -s http://localhost:9000/minio/health/live &>/dev/null; then
-    log_info "MinIO 连接成功"
+# 测试 MinIO（仅当使用 MinIO 存储时）
+if [ "$STORAGE_TYPE" = "minio" ]; then
+    if curl -s http://localhost:9000/minio/health/live &>/dev/null; then
+        log_info "MinIO 连接成功"
+    else
+        log_error "MinIO 连接失败"
+    fi
 else
-    log_error "MinIO 连接失败"
+    log_warn "使用阿里云 OSS 存储，跳过 MinIO 连接测试"
 fi
 
 # 测试后端
@@ -134,10 +164,15 @@ echo "  访问信息"
 echo "=========================================="
 echo ""
 echo "网站地址：http://$SERVER_IP"
-echo "MinIO 控制台：http://$SERVER_IP:9001"
-echo "  用户：minioadmin"
-echo "  密码：minioadmin"
-echo ""
+
+# 仅在使用 MinIO 时显示 MinIO 控制台信息
+if [ "$STORAGE_TYPE" = "minio" ]; then
+    echo "MinIO 控制台：http://$SERVER_IP:9001"
+    echo "  用户：minioadmin"
+    echo "  密码：minioadmin"
+    echo ""
+fi
+
 echo "数据库连接："
 echo "  主机：$SERVER_IP"
 echo "  端口：3306"

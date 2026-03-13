@@ -268,8 +268,8 @@ else
     cd /opt/blog/blog-frontend
     npm install --registry=https://registry.npmmirror.com
     cat > .env.production << ENVEOF
-VITE_API_BASE_URL=http://$SERVER_IP/api
-VITE_UPLOAD_BASE_URL=http://$SERVER_IP
+VITE_API_BASE_URL=/api
+VITE_UPLOAD_BASE_URL=/
 ENVEOF
     npm run build
     mkdir -p /var/www/blog
@@ -389,12 +389,104 @@ systemctl start blog-backend
 systemctl enable blog-backend
 log_info "后端服务创建完成"
 
-log_step "9. 配置 Nginx..."
+log_step "9. 配置 Nginx 和 SSL 证书..."
+
+# 询问是否配置域名和 HTTPS
+echo ""
+log_info "是否配置域名并启用 HTTPS？"
+echo "  - 选择 'y'：需要输入域名，自动申请 SSL 证书，启用 HTTPS 访问"
+echo "  - 选择 'n'：使用服务器 IP 直接访问，不启用 HTTPS"
+read -p "是否配置域名 (y/n) [y]: " ENABLE_DOMAIN
+ENABLE_DOMAIN=${ENABLE_DOMAIN:-y}
+
+DOMAIN_NAME=""
+if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "=========================================="
+    echo "  域名配置说明"
+    echo "=========================================="
+    echo ""
+    echo "请确保已完成以下域名配置："
+    echo "1. 域名已备案（如使用中国大陆服务器）"
+    echo "2. DNS 解析已设置："
+    echo "   - A 记录：@ -> $SERVER_IP"
+    echo "   - A 记录：www -> $SERVER_IP"
+    echo "3. 服务器安全组已开放 80 和 443 端口"
+    echo ""
+    echo "常见 DNS 服务商解析设置："
+    echo "  - 阿里云：域名控制台 -> 解析设置 -> 添加记录"
+    echo "  - 腾讯云：DNS 控制台 -> 域名解析 -> 添加记录"
+    echo "  - Cloudflare：DNS -> Add record"
+    echo ""
+    echo "验证 DNS 解析命令："
+    echo "  ping yourdomain.com"
+    echo "  ping www.yourdomain.com"
+    echo ""
+    
+    read -p "请输入主域名（例如：example.com）: " DOMAIN_NAME
+    
+    if [[ -z "$DOMAIN_NAME" ]]; then
+        log_error "域名不能为空"
+        exit 1
+    fi
+    
+    echo ""
+    log_info "正在验证域名解析..."
+    if ping -c 1 -W 1 "$DOMAIN_NAME" >/dev/null 2>&1; then
+        log_info "域名 $DOMAIN_NAME 可以正常解析"
+    else
+        log_warn "域名 $DOMAIN_NAME 解析失败或超时"
+        log_warn "请检查 DNS 解析配置是否正确"
+        read -p "是否继续申请证书？（可能失败）(y/n): " CONTINUE_SSL
+        if [[ ! "$CONTINUE_SSL" =~ ^[Yy]$ ]]; then
+            log_info "已取消域名配置，将使用 IP 访问"
+            DOMAIN_NAME=""
+        fi
+    fi
+    
+    if [[ -n "$DOMAIN_NAME" ]]; then
+        log_info "正在安装 Certbot..."
+        apt-get install -y certbot python3-certbot-nginx
+        
+        log_info "正在申请 SSL 证书..."
+        certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
+        
+        log_info "SSL 证书申请完成！"
+        log_info "证书有效期 90 天，Certbot 会自动续期"
+    fi
+else
+    log_warn "跳过域名配置，使用 HTTP + IP 访问"
+fi
+
+log_info "配置 Nginx..."
 if [ ! -f "/etc/nginx/sites-available/blog" ]; then
+if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]] && [ -n "$DOMAIN_NAME" ]; then
 cat > /etc/nginx/sites-available/blog << NGINXEOF
 server {
     listen 80;
-    server_name _;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
+    
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    
+    location / {
+        return 301 https://\$server_name\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
+    
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
     
     # 前端静态文件
     location / {
@@ -435,6 +527,83 @@ server {
     }
 }
 NGINXEOF
+else
+cat > /etc/nginx/sites-available/blog << NGINXEOF
+# HTTP server - redirect to HTTPS
+server {
+    listen 80;
+    server_name _;
+    
+    location / {
+        return 301 https://\$server_ip\$request_uri;
+    }
+}
+
+# HTTPS server
+server {
+    listen 443 ssl http2;
+    server_name _;
+    
+    # 自签名 SSL 证书（用于 IP 访问）
+    ssl_certificate /etc/nginx/ssl/server.crt;
+    ssl_certificate_key /etc/nginx/ssl/server.key;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    
+    # 前端静态文件
+    location / {
+        root /var/www/blog;
+        index index.html;
+        try_files \$uri \$uri/ /index.html;
+    }
+    
+    # 后端 API 代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:$SERVER_PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # WebSocket 代理
+    location /ws/ {
+        proxy_pass http://127.0.0.1:$SERVER_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 3600s;
+    }
+    
+    # 文件上传代理
+    location /uploads/ {
+        alias /opt/blog/uploads/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+}
+NGINXEOF
+
+# 创建自签名 SSL 证书目录和证书
+mkdir -p /etc/nginx/ssl
+if [ ! -f "/etc/nginx/ssl/server.crt" ]; then
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/server.key \
+        -out /etc/nginx/ssl/server.crt \
+        -subj "/C=CN/ST=State/L=City/O=Organization/CN=$SERVER_IP"
+    log_info "自签名 SSL 证书已生成"
+fi
+fi
 fi
 
 # 移除默认配置，启用博客配置
@@ -467,7 +636,50 @@ echo "=========================================="
 echo "  部署完成！"
 echo "=========================================="
 echo ""
-echo "访问地址：http://$SERVER_IP"
+if [[ -n "$DOMAIN_NAME" ]]; then
+    echo "访问地址："
+    echo "  HTTPS: https://$DOMAIN_NAME"
+    echo "         https://www.$DOMAIN_NAME"
+    echo ""
+    echo "SSL 证书信息："
+    echo "  证书类型：Let's Encrypt（免费）"
+    echo "  证书有效期：90 天"
+    echo "  自动续期：已配置"
+    echo ""
+    echo "管理证书命令："
+    echo "  查看证书：certbot certificates"
+    echo "  续期证书：certbot renew"
+else
+    echo "访问地址：http://$SERVER_IP"
+    echo ""
+    echo "提示：如需启用 HTTPS，请配置域名后重新运行部署脚本"
+fi
+echo ""
+echo "=========================================="
+echo "  域名配置指南（如需配置域名）"
+echo "=========================================="
+echo ""
+echo "1. 购买域名（阿里云、腾讯云、Namecheap 等）"
+echo ""
+echo "2. 添加 DNS 解析记录："
+echo "   记录类型：A"
+echo "   主机记录：@"
+echo "   记录值：$SERVER_IP"
+echo ""
+echo "   记录类型：A"
+echo "   主机记录：www"
+echo "   记录值：$SERVER_IP"
+echo ""
+echo "3. 等待 DNS 生效（通常 5-10 分钟）"
+echo ""
+echo "4. 验证解析是否生效："
+echo "   ping $DOMAIN_NAME"
+echo ""
+echo "5. 确保服务器安全组开放端口："
+echo "   - 80 端口（HTTP，证书验证用）"
+echo "   - 443 端口（HTTPS）"
+echo ""
+echo "=========================================="
 echo ""
 echo "数据库连接信息："
 echo "  主机：$SERVER_IP"
