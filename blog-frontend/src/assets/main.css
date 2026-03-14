@@ -348,3 +348,84 @@ textarea {
   transform: translateY(-2px) scale(1.05);
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
+
+/* ===== 手机端全局适配 ===== */
+@media (max-width: 768px) {
+  /* 禁用卡片悬浮动画（触屏设备不需要） */
+  .glass-card:hover {
+    transform: none;
+    box-shadow: var(--glass-shadow);
+    border-color: var(--glass-border);
+  }
+  .dark .glass-card:hover {
+    box-shadow: var(--glass-shadow);
+    border-color: var(--glass-border);
+  }
+
+  /* 按钮禁用悬浮动画 */
+  .el-button--primary:hover {
+    transform: none;
+    box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+  }
+
+  .el-tag:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* 对话框适配手机端 */
+  .el-dialog {
+    width: 92vw !important;
+    max-width: 92vw !important;
+    margin: 0 auto !important;
+    border-radius: 16px !important;
+  }
+  .el-dialog__body {
+    padding: 12px 16px !important;
+  }
+
+  /* 公告弹窗特殊适配 */
+  .announcement-dialog.el-dialog {
+    max-height: 80vh !important;
+    height: auto !important;
+  }
+
+  @media (max-width: 768px) {
+    .announcement-dialog.el-dialog {
+      max-height: 70vh !important;
+      height: auto !important;
+      min-height: unset !important;
+      margin: 8vh auto !important;
+    }
+
+    .announcement-dialog .el-dialog__body {
+      max-height: calc(70vh - 100px) !important;
+      overflow-y: auto !important;
+      flex: 0 0 auto !important;
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+
+    .announcement-dialog .el-dialog__body::-webkit-scrollbar {
+      display: none !important;
+    }
+
+    .announcement-dialog .el-dialog__header {
+      flex-shrink: 0 !important;
+    }
+
+    .announcement-dialog .el-dialog__footer {
+      flex-shrink: 0 !important;
+    }
+  }
+
+  /* 弹出层适配 */
+  .el-popover.el-popper {
+    max-width: 90vw !important;
+  }
+
+  /* 全局减少内边距 */
+  .el-form-item {
+    margin-bottom: 12px !important;
+  }
+}

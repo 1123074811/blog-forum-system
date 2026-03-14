@@ -7,8 +7,8 @@
     <div class="flex gap-2.5">
       <!-- 主内容区 -->
       <div class="flex-1 min-w-0">
-        <div class="glass rounded-xl p-6 mb-6">
-          <h1 class="text-2xl font-bold mb-4 dark:text-white">{{ article.title }}</h1>
+        <div class="glass rounded-xl p-4 sm:p-6 mb-6">
+          <h1 class="text-xl sm:text-2xl font-bold mb-4 dark:text-white">{{ article.title }}</h1>
 
           <!-- AI 总结 -->
           <div class="ai-summary mb-4" v-if="aiSummary || summaryLoading">
@@ -20,16 +20,16 @@
             <div v-else class="text-gray-700 dark:text-gray-300 text-sm bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">{{ aiSummary }}</div>
           </div>
 
-          <div class="flex items-center gap-4 mb-6 text-gray-500">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-4 mb-6 text-sm text-gray-500">
             <div class="flex items-center gap-2 cursor-pointer" @click="router.push(`/user/${article.userId}`)">
               <el-avatar :src="article.authorAvatar" :size="32">{{ article.authorName?.[0] || 'U' }}</el-avatar>
               <span>{{ article.authorName || '匿名用户' }}</span>
             </div>
-            <span>{{ article.createdAt }}</span>
+            <span class="text-xs sm:text-sm">{{ article.createdAt }}</span>
             <span><el-icon><View /></el-icon> {{ article.viewCount }}</span>
-            
+
             <!-- 编辑/删除按钮 -->
-            <div v-if="userStore.user?.id === article.userId" class="flex items-center gap-2 ml-auto">
+            <div v-if="userStore.user?.id === article.userId" class="flex items-center gap-2 sm:ml-auto">
               <el-button link @click="handleEdit">
                 <el-icon class="mr-1"><Edit /></el-icon>编辑
               </el-button>
@@ -72,7 +72,7 @@
         </div>
 
         <!-- 评论区 -->
-        <div class="glass rounded-xl p-6">
+        <div class="glass rounded-xl p-4 sm:p-6">
           <h3 class="text-lg font-semibold mb-4 dark:text-white">评论 ({{ comments.length }})</h3>
 
           <!-- 未登录提示 -->
@@ -221,7 +221,7 @@
       <div
         v-show="showBackToTop"
         @click="scrollToTop"
-        class="fixed bottom-8 right-8 w-12 h-12 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg cursor-pointer flex items-center justify-center transition-all duration-300 hover:scale-110 z-50"
+        class="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-10 h-10 sm:w-12 sm:h-12 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg cursor-pointer flex items-center justify-center transition-all duration-300 hover:scale-110 z-50"
         title="返回顶部"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

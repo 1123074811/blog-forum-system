@@ -93,11 +93,11 @@ function goToPomodoro() {
 
 <style scoped>
 .discover-page {
-  height: calc(100vh - 112px);
+  min-height: calc(100vh - 112px);
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 40px 20px;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .page-header {
@@ -259,6 +259,10 @@ function goToPomodoro() {
 @media (max-width: 768px) {
   .discover-page {
     padding: 20px 15px;
+  }
+
+  .page-header {
+    margin-bottom: 24px;
   }
 
   .page-title {

@@ -1,16 +1,16 @@
 <template>
   <div class="space-y-6">
-    <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-bold">我的相册</h1>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+      <h1 class="text-xl sm:text-2xl font-bold">我的相册</h1>
       <div class="flex gap-2">
-        <el-button type="primary" @click="showCreateDialog = true">创建相册</el-button>
-        <el-button @click="showUploadDialog = true">上传媒体</el-button>
+        <el-button type="primary" size="small" @click="showCreateDialog = true">创建相册</el-button>
+        <el-button size="small" @click="showUploadDialog = true">上传媒体</el-button>
       </div>
     </div>
 
     <el-tabs v-model="activeTab">
       <el-tab-pane label="相册" name="albums">
-        <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 pt-4 pr-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6 pt-4 pr-4">
           <div v-for="album in albums" :key="album.id" class="cursor-pointer group hover:-translate-y-1 transition-all duration-300 relative" @click="viewAlbum(album)">
             <!-- 堆叠效果：完整卡片 -->
             <div v-if="album.coverUrls?.length > 2" class="absolute -top-3 -right-3 w-full h-full -z-20 rotate-6">
@@ -59,7 +59,7 @@
             <el-radio-button value="video">视频</el-radio-button>
           </el-radio-group>
         </div>
-        <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           <div v-for="item in mediaList" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden" @click="previewMedia(item)">
             <div class="aspect-video bg-gray-100 overflow-hidden">
               <img v-if="item.type === 'image'" :src="item.url" class="w-full h-full object-cover" />
@@ -88,7 +88,7 @@
     </el-tabs>
 
     <!-- 创建/编辑相册对话框 -->
-    <el-dialog v-model="showCreateDialog" :title="isEditMode ? '编辑相册' : '创建相册'" width="400px" @close="resetAlbumForm">
+    <el-dialog v-model="showCreateDialog" :title="isEditMode ? '编辑相册' : '创建相册'" :width="isMobile ? '92%' : '400px'" @close="resetAlbumForm">
       <el-form :model="albumForm" label-width="60px">
         <el-form-item label="标题"><el-input v-model="albumForm.title" /></el-form-item>
         <el-form-item label="简介"><el-input v-model="albumForm.description" type="textarea" rows="3" /></el-form-item>
@@ -100,8 +100,8 @@
     </el-dialog>
 
     <!-- 相册详情对话框 -->
-    <el-dialog v-model="showAlbumDetail" :title="currentAlbum?.title" width="900px">
-      <div v-if="albumMedia.length" class="grid grid-cols-3 md:grid-cols-4 gap-3">
+    <el-dialog v-model="showAlbumDetail" :title="currentAlbum?.title" :width="isMobile ? '95%' : '900px'">
+      <div v-if="albumMedia.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <div v-for="item in albumMedia" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer overflow-hidden" @click="previewMedia(item)">
           <div class="aspect-square bg-gray-100 overflow-hidden">
             <img v-if="item.type === 'image'" :src="item.url" class="w-full h-full object-cover" />
@@ -120,7 +120,7 @@
     </el-dialog>
 
     <!-- 上传媒体对话框 -->
-    <el-dialog v-model="showUploadDialog" title="上传媒体" width="500px">
+    <el-dialog v-model="showUploadDialog" title="上传媒体" :width="isMobile ? '92%' : '500px'">
       <el-form :model="uploadForm" label-width="60px">
         <el-form-item label="相册">
           <el-select v-model="uploadForm.albumId" placeholder="选择相册（可选）" clearable style="width: 100%">
@@ -143,7 +143,7 @@
     </el-dialog>
 
     <!-- 媒体预览 -->
-    <el-dialog v-model="showPreview" width="600px" top="5vh">
+    <el-dialog v-model="showPreview" :width="isMobile ? '95%' : '600px'" top="5vh">
       <div class="max-h-[60vh] overflow-hidden flex items-center justify-center bg-gray-100">
         <img v-if="previewItem?.type === 'image'" :src="previewItem?.url" class="max-w-full max-h-[60vh] object-contain" />
         <video v-else :src="previewItem?.url" controls class="max-w-full max-h-[60vh]" />
@@ -168,6 +168,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import * as api from '@/api/blog'
 
 const activeTab = ref('albums')
+const isMobile = ref(window.innerWidth < 768)
 const albums = ref([])
 const mediaList = ref([])
 const mediaType = ref(null)

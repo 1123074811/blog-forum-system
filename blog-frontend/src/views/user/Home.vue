@@ -85,7 +85,7 @@
       <!-- 文章列表 -->
       <div class="space-y-4">
         <div v-for="(article, index) in articles" :key="article.id"
-             class="glass-card p-5 cursor-pointer card-enter group"
+             class="glass-card p-3 sm:p-5 cursor-pointer card-enter group"
              :style="`animation-delay: ${index * 0.05}s`"
              @click="router.push(`/article/${article.id}`)">
           <div class="flex items-center gap-2 mb-3">
@@ -215,24 +215,25 @@
   </div>
 
   <!-- 返回顶部按钮 -->
-  <el-button v-show="showBackTop" :icon="Top" circle class="!fixed !right-6 !bottom-6 !w-10 !h-10 z-50" @click="scrollToTop" title="返回顶部" />
+  <el-button v-show="showBackTop" :icon="Top" circle class="!fixed !right-4 !bottom-4 sm:!right-6 sm:!bottom-6 !w-10 !h-10 z-50" @click="scrollToTop" title="返回顶部" />
 
   <!-- 公告弹窗 -->
   <el-dialog
     v-model="showAnnouncement"
     :title="currentAnnouncement?.title"
-    width="500px"
-    align-center
+    :width="isMobile ? '90%' : '600px'"
+    :top="isMobile ? '15vh' : '15vh'"
     destroy-on-close
     class="announcement-dialog rounded-xl overflow-hidden bg-white dark:bg-gray-800"
+    :class="{ 'mobile-dialog': isMobile }"
   >
-    <div class="announcement-content py-4">
-      <div class="whitespace-pre-wrap text-base leading-relaxed text-gray-700 dark:text-gray-300">{{ currentAnnouncement?.content }}</div>
+    <div class="announcement-content py-3 sm:py-6">
+      <div class="whitespace-pre-wrap text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300">{{ currentAnnouncement?.content }}</div>
     </div>
     <template #footer>
-      <div class="flex justify-end items-center gap-4">
+      <div class="flex justify-end items-center gap-3 sm:gap-4">
         <el-checkbox v-model="dontShowToday" label="今日不再提示" />
-        <el-button type="primary" @click="closeAnnouncement">
+        <el-button type="primary" size="small" @click="closeAnnouncement">
           我已知晓
         </el-button>
       </div>
@@ -275,6 +276,7 @@ const showBackTop = ref(false)
 const showAnnouncement = ref(false)
 const currentAnnouncement = ref(null)
 const dontShowToday = ref(false)
+const isMobile = ref(window.innerWidth < 768)
 let observer = null
 
 const setupObserver = () => {
@@ -435,6 +437,13 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+@media (max-width: 1023px) {
+  .home-container {
+    height: auto;
+    overflow: visible;
+  }
+}
+
 .left-sidebar {
   width: 280px;
   flex-shrink: 0;
@@ -448,6 +457,12 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+@media (max-width: 1023px) {
+  .main-content {
+    overflow-y: visible;
+  }
+}
+
 .right-sidebar {
   width: 300px;
   flex-shrink: 0;
@@ -457,10 +472,16 @@ onUnmounted(() => {
 
 /* 公告内容区域样式 */
 .announcement-content {
-  max-height: 600px;
+  max-height: 500px;
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+@media (max-width: 768px) {
+  .announcement-content {
+    max-height: none;
+  }
 }
 
 .announcement-content::-webkit-scrollbar {

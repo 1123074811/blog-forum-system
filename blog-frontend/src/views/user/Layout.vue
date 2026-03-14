@@ -129,7 +129,7 @@
     </el-dialog>
 
     <!-- 主内容区 -->
-    <main class="main-content pb-8 px-4 max-w-7xl mx-auto">
+    <main class="main-content pb-8 px-2 sm:px-4 max-w-7xl mx-auto">
       <router-view />
     </main>
 
@@ -273,6 +273,11 @@ const handleLogout = () => {
 
 <style scoped>
 .main-content {
-  padding-top: calc(var(--app-header-height) + 1.5rem);
+  padding-top: calc(var(--app-header-height) + 1rem);
+}
+@media (min-width: 640px) {
+  .main-content {
+    padding-top: calc(var(--app-header-height) + 1.5rem);
+  }
 }
 </style>

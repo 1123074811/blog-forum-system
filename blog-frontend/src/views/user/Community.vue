@@ -4,7 +4,7 @@
 
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
       <el-tab-pane label="公开相册" name="albums">
-        <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 pt-4 pr-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6 pt-4 pr-4">
           <div v-for="album in albums" :key="album.id" class="cursor-pointer group hover:-translate-y-1 transition-all duration-300 relative" @click="viewAlbum(album)">
             <!-- 堆叠效果 -->
             <div v-if="album.coverUrls?.length > 2" class="absolute -top-3 -right-3 w-full h-full -z-20 rotate-6">
@@ -78,9 +78,9 @@
     </el-tabs>
 
     <!-- 相册详情 -->
-    <el-dialog v-model="showAlbumDetail" :title="currentAlbum?.title" width="900px">
+    <el-dialog v-model="showAlbumDetail" :title="currentAlbum?.title" :width="isMobile ? '95%' : '900px'">
       <p class="text-gray-500 mb-4">{{ currentAlbum?.description }}</p>
-      <div v-if="albumMedia.length" class="grid grid-cols-3 md:grid-cols-4 gap-3">
+      <div v-if="albumMedia.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <div v-for="item in albumMedia" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer overflow-hidden" @click="previewMedia(item)">
           <div class="aspect-square bg-gray-100 overflow-hidden">
             <img v-if="item.type === 'image'" :src="item.url" class="w-full h-full object-cover" />
@@ -99,7 +99,7 @@
     </el-dialog>
 
     <!-- 媒体预览 -->
-    <el-dialog v-model="showPreview" width="600px" top="5vh">
+    <el-dialog v-model="showPreview" :width="isMobile ? '95%' : '600px'" top="5vh">
       <div class="max-h-[60vh] overflow-hidden flex items-center justify-center bg-gray-100">
         <img v-if="previewItem?.type === 'image'" :src="previewItem?.url" class="max-w-full max-h-[60vh] object-contain" />
         <video v-else :src="previewItem?.url" controls class="max-w-full max-h-[60vh]" />
@@ -124,6 +124,7 @@ import { Picture, VideoPlay, Loading } from '@element-plus/icons-vue'
 import * as api from '@/api/blog'
 
 const activeTab = ref('albums')
+const isMobile = ref(window.innerWidth < 768)
 const albums = ref([])
 const mediaList = ref([])
 const albumMedia = ref([])

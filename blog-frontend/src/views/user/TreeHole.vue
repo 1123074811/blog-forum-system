@@ -185,6 +185,8 @@ onUnmounted(() => {
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(10px);
   z-index: 2;
+  width: auto;
+  max-width: 90vw;
 }
 .input-box {
   position: relative;
@@ -208,5 +210,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .input-area {
+    bottom: 16px;
+    padding: 10px 14px;
+    border-radius: 24px;
+  }
+  .input-area :deep(.el-input) {
+    width: 60vw;
+  }
+  .danmaku {
+    font-size: 14px;
+  }
 }
 </style>

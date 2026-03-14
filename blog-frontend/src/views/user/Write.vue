@@ -4,7 +4,7 @@
       <el-button @click="handleBack" :icon="ArrowLeft" text>返回</el-button>
     </div>
 
-    <div class="glass rounded-xl p-6">
+    <div class="glass rounded-xl p-4 sm:p-6">
       <h2 class="text-xl font-bold mb-6 dark:text-white">{{ isEdit ? '编辑文章' : '写文章' }}</h2>
 
       <el-form :model="form" label-position="top">
@@ -26,7 +26,7 @@
 
         <el-form-item label="内容">
           <!-- 导入 MD 文件 -->
-          <div class="flex items-center gap-3 mb-4">
+          <div class="flex flex-wrap items-center gap-3 mb-4">
             <el-upload
               :show-file-list="false"
               accept=".md,.markdown"
@@ -37,17 +37,17 @@
                 导入 MD 文件
               </el-button>
             </el-upload>
-            <span class="text-gray-500 dark:text-gray-400">支持 .md / .markdown 格式</span>
+            <span class="text-gray-500 dark:text-gray-400 text-sm">支持 .md / .markdown 格式</span>
           </div>
 
           <!-- 从链接导入 -->
           <div class="mb-6">
-            <div class="flex items-center gap-3">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <el-input
                 v-model="crawlUrl"
                 placeholder="请输入文章链接"
                 size="default"
-                style="min-width: 300px;"
+                class="w-full sm:min-w-[300px]"
                 clearable
               />
               <el-button
@@ -56,21 +56,22 @@
                 :loading="crawling"
                 :disabled="!crawlUrl"
                 @click="handleCrawl"
+                class="flex-shrink-0"
               >
                 <el-icon class="mr-1"><Link /></el-icon>
                 {{ crawling ? '导入中...' : '导入' }}
               </el-button>
-              <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">粘贴文章链接（支持 CSDN、掘金、博客园、知乎）</span>
             </div>
+            <p class="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-2">粘贴文章链接（支持 CSDN、掘金、博客园、知乎）</p>
           </div>
 
-          <MdEditor v-model="form.content" :theme="userStore.isDark ? 'dark' : 'light'" style="height: 500px" @onUploadImg="handleUploadImg" />
+          <MdEditor v-model="form.content" :theme="userStore.isDark ? 'dark' : 'light'" class="md-editor-mobile" @onUploadImg="handleUploadImg" />
         </el-form-item>
 
         <el-form-item>
-          <div class="flex gap-4">
-            <el-button type="primary" size="large" @click="handleSubmit('published')">发布文章</el-button>
-            <el-button size="large" @click="handleSubmit('draft')">保存草稿</el-button>
+          <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+            <el-button type="primary" size="large" class="w-full sm:w-auto" @click="handleSubmit('published')">发布文章</el-button>
+            <el-button size="large" class="w-full sm:w-auto" @click="handleSubmit('draft')">保存草稿</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -200,3 +201,14 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.md-editor-mobile {
+  height: 500px;
+}
+@media (max-width: 768px) {
+  .md-editor-mobile {
+    height: 350px;
+  }
+}
+</style>

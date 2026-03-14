@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-4xl mx-auto p-6 space-y-8">
+  <div class="max-w-4xl mx-auto p-3 sm:p-6 space-y-6 sm:space-y-8">
     <!-- 网站信息卡片 -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
       <div class="flex items-center justify-between mb-6">
@@ -129,7 +129,7 @@
     </div>
 
     <!-- 编辑网站信息对话框 -->
-    <el-dialog v-model="showEditSiteInfo" title="编辑网站信息" width="600px">
+    <el-dialog v-model="showEditSiteInfo" title="编辑网站信息" :width="isMobile ? '95%' : '600px'">
       <el-form :model="siteInfoForm" label-width="100px" class="space-y-4">
         <el-form-item label="网站名称">
           <el-input v-model="siteInfoForm.siteName" />
@@ -175,7 +175,7 @@
     </el-dialog>
 
     <!-- 添加/编辑公告对话框 -->
-    <el-dialog v-model="showAddAnnouncement" :title="editingAnnouncement ? '编辑公告' : '添加公告'" width="600px">
+    <el-dialog v-model="showAddAnnouncement" :title="editingAnnouncement ? '编辑公告' : '添加公告'" :width="isMobile ? '95%' : '600px'">
       <el-form :model="announcementForm" label-width="80px" class="space-y-4">
         <el-form-item label="标题" required>
           <el-input v-model="announcementForm.title" />
@@ -217,6 +217,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Plus, Delete, Message, Phone, ChatDotRound, Location, Link } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
+const isMobile = ref(window.innerWidth < 768)
 
 const siteInfo = ref(null)
 const announcements = ref([])
