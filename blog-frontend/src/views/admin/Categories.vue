@@ -27,7 +27,7 @@
     </div>
 
     <div v-if="!isMobile" class="glass rounded-xl p-6">
-      <el-table :data="filteredCategories" stripe @selection-change="handleSelectionChange">
+      <el-table :data="pagedCategories" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" />
@@ -46,8 +46,8 @@
       </el-table>
     </div>
 
-    <MobileAdminListShell v-else :items="filteredCategories" :loading="false" empty-text="暂无分类">
-      <div v-for="category in filteredCategories" :key="category.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedCategories" :loading="false" empty-text="暂无分类">
+      <div v-for="category in pagedCategories" :key="category.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox :model-value="selectedIds.includes(category.id)" @change="(val) => toggleSelect(category.id, val)" />
           <div class="card-title">{{ category.name || '未命名分类' }}</div>
@@ -77,6 +77,17 @@
       </el-form>
     </MobileActionSheet>
 
+    <div class="mt-4 flex justify-center" v-if="filteredCategories.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredCategories.length"
+      />
+    </div>
+
     <el-dialog v-model="showDialog" :title="editingId ? '编辑分类' : '新增分类'" :width="isMobile ? '92%' : '400px'">
       <el-form :model="form">
         <el-form-item label="名称">
@@ -95,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminCategories, createCategory, updateCategory, deleteCategory } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -110,6 +121,8 @@ const editingId = ref(null)
 const form = ref({ name: '', description: '' })
 const searchQuery = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredCategories = computed(() => {
@@ -119,6 +132,20 @@ const filteredCategories = computed(() => {
       category.description?.toLowerCase().includes(searchQuery.value.toLowerCase())
   })
 })
+
+const pagedCategories = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredCategories.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredCategories.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const fetchCategories = async () => {
   const res = await getAdminCategories()
@@ -172,10 +199,13 @@ const handleBatchDelete = async () => {
   fetchCategories()
 }
 
-const handleSearch = () => {}
+const handleSearch = () => {
+  currentPage.value = 1
+}
 
 const handleReset = () => {
   searchQuery.value = ''
+  currentPage.value = 1
 }
 
 onMounted(fetchCategories)

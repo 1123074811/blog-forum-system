@@ -23,7 +23,7 @@
       <el-button class="!h-10" type="danger" plain :disabled="!selectedIds.length" @click="handleBatchDelete">批量删 ({{ selectedIds.length }})</el-button>
     </div>
 
-    <el-table v-if="!isMobile" :data="filteredAlbums" v-loading="loading" @selection-change="handleSelectionChange">
+    <el-table v-if="!isMobile" :data="pagedAlbums" v-loading="loading" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="封面" width="80"><template #default="{ row }"><el-avatar :src="row.coverUrls?.[0]" shape="square" /></template></el-table-column>
@@ -36,8 +36,8 @@
       <el-table-column label="操作" width="150"><template #default="{ row }"><el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button><el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button></template></el-table-column>
     </el-table>
 
-    <MobileAdminListShell v-else :items="filteredAlbums" :loading="loading" empty-text="暂无相册">
-      <div v-for="album in filteredAlbums" :key="album.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedAlbums" :loading="loading" empty-text="暂无相册">
+      <div v-for="album in pagedAlbums" :key="album.id" class="admin-mobile-card">
         <div class="card-head"><el-checkbox :model-value="selectedIds.includes(album.id)" @change="(val) => toggleSelect(album.id, val)" /><div class="card-title">{{ album.title || '未命名相册' }}</div><el-tag size="small" :type="album.isPublic ? 'success' : 'info'">{{ album.isPublic ? '公开' : '私密' }}</el-tag></div>
         <div class="card-meta">用户 {{ album.userId }} · 媒体 {{ album.mediaCount || 0 }}</div>
         <div class="card-content">{{ album.description || '无描述' }}</div>
@@ -55,6 +55,17 @@
       </el-form>
     </MobileActionSheet>
 
+    <div class="mt-4 flex justify-center" v-if="filteredAlbums.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredAlbums.length"
+      />
+    </div>
+
     <el-dialog v-model="showEditDialog" title="编辑相册" :width="isMobile ? '92%' : '400px'">
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="标题"><el-input v-model="editForm.title" /></el-form-item>
@@ -67,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { useIsMobile } from '@/composables/useIsMobile'
@@ -84,6 +95,8 @@ const searchQuery = ref('')
 const userIdFilter = ref('')
 const statusFilter = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredAlbums = computed(() => albums.value.filter(album => {
@@ -93,6 +106,20 @@ const filteredAlbums = computed(() => albums.value.filter(album => {
   return matchSearch && matchUserId && matchStatus
 }))
 
+const pagedAlbums = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredAlbums.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredAlbums.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
+
 const loadAlbums = async () => { loading.value = true; const res = await api.get('/albums/admin/all'); albums.value = res.data || []; loading.value = false }
 const handleSelectionChange = (rows) => { selectedIds.value = rows.map(r => r.id) }
 const toggleSelect = (id, checked) => { if (checked) { if (!selectedIds.value.includes(id)) selectedIds.value.push(id) } else { selectedIds.value = selectedIds.value.filter(v => v !== id) } }
@@ -100,8 +127,8 @@ const handleBatchDelete = async () => { await ElMessageBox.confirm(`确定删除
 const handleEdit = (row) => { editingId.value = row.id; editForm.value = { title: row.title, description: row.description, isPublic: row.isPublic }; showEditDialog.value = true }
 const saveEdit = async () => { await api.put(`/albums/admin/${editingId.value}`, editForm.value); ElMessage.success('保存成功'); showEditDialog.value = false; loadAlbums() }
 const handleDelete = async (row) => { await ElMessageBox.confirm('确定删除该相册？', '提示'); await api.delete(`/albums/admin/${row.id}`); ElMessage.success('删除成功'); selectedIds.value = selectedIds.value.filter(v => v !== row.id); loadAlbums() }
-const handleSearch = () => {}
-const handleReset = () => { searchQuery.value = ''; userIdFilter.value = ''; statusFilter.value = '' }
+const handleSearch = () => { currentPage.value = 1 }
+const handleReset = () => { searchQuery.value = ''; userIdFilter.value = ''; statusFilter.value = ''; currentPage.value = 1 }
 
 onMounted(loadAlbums)
 </script>

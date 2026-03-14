@@ -17,8 +17,10 @@
               <div class="friend-dropdown-title">好友列表</div>
               <div class="friend-list">
                 <div v-for="f in friends" :key="f.id" class="friend-item" @click="startChatWith(f)">
-                  <el-avatar :src="f.avatar" :size="40">{{ (f.nickname || f.username || '?')[0] }}</el-avatar>
-                  <span class="friend-name">{{ f.nickname || f.username }}</span>
+                  <div class="avatar-status-wrap" :class="{ online: !!f.isOnline }">
+                    <el-avatar :src="f.avatar" :size="40" class="clickable-avatar" @click.stop="goToUserProfile(f.id)">{{ (f.nickname || f.username || '?')[0] }}</el-avatar>
+                  </div>
+                  <span class="friend-name clickable-name" @click.stop="goToUserProfile(f.id)">{{ f.nickname || f.username }}</span>
                 </div>
                 <el-empty v-if="!friends.length" description="暂无互关好友" :image-size="60" />
               </div>
@@ -33,11 +35,13 @@
             <div v-for="conv in conversations" :key="conv.id"
                  :class="['conv-item', { active: currentConv?.id === conv.id }]"
                  @click="selectConversation(conv)">
-              <el-avatar :src="conv.otherUser?.avatar" :size="48">
-                {{ (conv.otherUser?.nickname || conv.otherUser?.username || '?')[0] }}
-              </el-avatar>
+              <div class="avatar-status-wrap" :class="{ online: !!conv.otherUser?.isOnline }">
+                <el-avatar :src="conv.otherUser?.avatar" :size="48" class="clickable-avatar" @click.stop="goToUserProfile(conv.otherUser?.id)">
+                  {{ (conv.otherUser?.nickname || conv.otherUser?.username || '?')[0] }}
+                </el-avatar>
+              </div>
               <div class="conv-detail">
-                <div class="conv-name">{{ conv.otherUser?.nickname || conv.otherUser?.username }}</div>
+                <div class="conv-name clickable-name" @click.stop="goToUserProfile(conv.otherUser?.id)">{{ conv.otherUser?.nickname || conv.otherUser?.username }}</div>
                 <div class="conv-msg">{{ conv.lastMessage?.content || '开始聊天吧' }}</div>
               </div>
               <el-badge v-if="getUnread(conv) > 0" :value="getUnread(conv)" :max="99" class="unread" />
@@ -54,19 +58,23 @@
             <el-button v-if="isMobile" text @click="backToList" class="back-btn">
               <el-icon :size="20"><ArrowLeft /></el-icon>
             </el-button>
-            <el-avatar :src="currentConv.otherUser?.avatar" :size="40">
-              {{ (currentConv.otherUser?.nickname || currentConv.otherUser?.username || '?')[0] }}
-            </el-avatar>
+            <div class="avatar-status-wrap" :class="{ online: !!currentConv.otherUser?.isOnline }">
+              <el-avatar :src="currentConv.otherUser?.avatar" :size="40" class="clickable-avatar" @click.stop="goToUserProfile(currentConv.otherUser?.id)">
+                {{ (currentConv.otherUser?.nickname || currentConv.otherUser?.username || '?')[0] }}
+              </el-avatar>
+            </div>
             <div class="header-info">
-              <span class="name">{{ currentConv.otherUser?.nickname || currentConv.otherUser?.username }}</span>
+              <span class="name clickable-name" @click.stop="goToUserProfile(currentConv.otherUser?.id)">{{ currentConv.otherUser?.nickname || currentConv.otherUser?.username }}</span>
               <el-tag v-if="!isMutual" type="warning" size="small">非互关，仅能发1条</el-tag>
             </div>
           </div>
           <div class="msg-list" ref="msgListRef">
             <div v-for="msg in messages" :key="msg.id" :class="['msg-item', { mine: msg.senderId === userId }]">
-              <el-avatar :src="msg.sender?.avatar" :size="36">
-                {{ (msg.sender?.nickname || msg.sender?.username || '?')[0] }}
-              </el-avatar>
+              <div class="avatar-status-wrap" :class="{ online: !!msg.sender?.isOnline }">
+                <el-avatar :src="msg.sender?.avatar" :size="36" class="clickable-avatar" @click.stop="goToUserProfile(msg.sender?.id || msg.senderId)">
+                  {{ (msg.sender?.nickname || msg.sender?.username || '?')[0] }}
+                </el-avatar>
+              </div>
               <div class="msg-bubble">
                 <template v-if="msg.type === 'text'">{{ msg.content }}</template>
                 <el-image v-else-if="msg.type === 'image'" :src="msg.fileUrl" fit="cover" style="max-width: 200px; border-radius: 8px;" :preview-src-list="[msg.fileUrl]" />
@@ -104,7 +112,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Loading, Picture, Paperclip, Document, ArrowLeft } from '@element-plus/icons-vue'
 import { getConversations, getMessages, sendMessage, uploadMessageFile, getFriends, checkMutualFollow, getUser } from '@/api/blog'
 import { ElMessage } from 'element-plus'
@@ -112,6 +120,7 @@ import EmojiPicker from '@/components/EmojiPicker.vue'
 import config from '@/config'
 
 const route = useRoute()
+const router = useRouter()
 const userId = ref(JSON.parse(localStorage.getItem('user') || '{}').id)
 const loading = ref(false)
 const conversations = ref([])
@@ -137,6 +146,14 @@ const handleResize = () => {
 const backToList = () => {
   currentConv.value = null
   messages.value = []
+}
+
+const goToUserProfile = (targetId) => {
+  if (!targetId) {
+    ElMessage.warning('用户信息不存在')
+    return
+  }
+  router.push(`/user/${targetId}`)
 }
 
 const handleMouseLeave = () => {
@@ -255,6 +272,29 @@ const loadFriends = async () => {
   friends.value = res.data || []
 }
 
+const applyPresenceStatus = (targetId, online) => {
+  if (!targetId) return
+  const onlineVal = !!online
+
+  conversations.value.forEach((conv) => {
+    if (conv?.otherUser?.id === targetId) conv.otherUser.isOnline = onlineVal
+  })
+
+  friends.value.forEach((friend) => {
+    if (friend?.id === targetId) friend.isOnline = onlineVal
+  })
+
+  messages.value.forEach((msg) => {
+    if ((msg?.sender?.id || msg?.senderId) === targetId && msg.sender) {
+      msg.sender.isOnline = onlineVal
+    }
+  })
+
+  if (currentConv.value?.otherUser?.id === targetId) {
+    currentConv.value.otherUser.isOnline = onlineVal
+  }
+}
+
 const startChatWith = async (user) => {
   showFriendsDialog.value = false
   let conv = conversations.value.find(c => c.user1Id === user.id || c.user2Id === user.id)
@@ -306,7 +346,11 @@ const connectWs = () => {
         messages.value.push(data.message)
         nextTick(() => scrollToBottom())
       }
-      loadConversations()
+      if (data.type === 'presence_update') {
+        applyPresenceStatus(data.userId, data.online)
+      } else {
+        loadConversations()
+      }
     } catch {}
   }
   ws.onclose = () => setTimeout(connectWs, 3000)
@@ -430,6 +474,40 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.avatar-status-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.avatar-status-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: #94a3b8;
+  box-sizing: border-box;
+}
+.avatar-status-wrap.online::after {
+  background: #22c55e;
+}
+.clickable-avatar {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.clickable-avatar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.28);
+}
+.clickable-name {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.clickable-name:hover {
+  color: #4a9eff;
+}
 .conv-list {
   flex: 1;
   overflow-y: auto;
@@ -459,6 +537,9 @@ onUnmounted(() => {
 .conv-item.active .conv-name,
 .conv-item.active .conv-msg {
   color: #fff;
+}
+.conv-item.active .clickable-name:hover {
+  color: #eaf3ff;
 }
 .conv-detail {
   flex: 1;

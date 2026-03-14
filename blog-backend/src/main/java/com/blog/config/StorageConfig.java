@@ -20,9 +20,21 @@ public class StorageConfig {
     
     @Value("${storage.type:minio}")
     private String storageType;
+    
+    @Value("${storage.init-fail-fast:true}")
+    private boolean initFailFast;
 
     @PostConstruct
     public void init() {
+        if (!initFailFast) {
+            try {
+                log.info("Storage type: {}", storageType);
+                storageService.init();
+            } catch (Exception e) {
+                log.warn("Storage init failed, continue startup because storage.init-fail-fast=false", e);
+            }
+            return;
+        }
         try {
             log.info("当前使用的存储类型: {}", storageType);
             storageService.init();

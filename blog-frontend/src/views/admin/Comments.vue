@@ -29,7 +29,7 @@
     </div>
 
     <div v-if="!isMobile" class="glass rounded-xl p-6">
-      <el-table :data="filteredComments" stripe @selection-change="handleSelectionChange">
+      <el-table :data="pagedComments" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="content" label="内容" show-overflow-tooltip />
@@ -49,8 +49,8 @@
       </el-table>
     </div>
 
-    <MobileAdminListShell v-else :items="filteredComments" :loading="false" empty-text="暂无评论">
-      <div v-for="comment in filteredComments" :key="comment.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedComments" :loading="false" empty-text="暂无评论">
+      <div v-for="comment in pagedComments" :key="comment.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox :model-value="selectedIds.includes(comment.id)" @change="(val) => toggleSelect(comment.id, val)" />
           <div class="card-title">#{{ comment.id }} · 用户 {{ comment.userId }}</div>
@@ -85,11 +85,22 @@
         </div>
       </el-form>
     </MobileActionSheet>
+
+    <div class="mt-4 flex justify-center" v-if="filteredComments.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredComments.length"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminComments, adminDeleteComment } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -103,6 +114,8 @@ const searchQuery = ref('')
 const userIdFilter = ref('')
 const articleIdFilter = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredComments = computed(() => {
@@ -119,6 +132,20 @@ const filteredComments = computed(() => {
     return matchSearch && matchUserId && matchArticleId
   })
 })
+
+const pagedComments = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredComments.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredComments.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const fetchComments = async () => {
   const res = await getAdminComments()
@@ -152,12 +179,15 @@ const handleBatchDelete = async () => {
   fetchComments()
 }
 
-const handleSearch = () => {}
+const handleSearch = () => {
+  currentPage.value = 1
+}
 
 const handleReset = () => {
   searchQuery.value = ''
   userIdFilter.value = ''
   articleIdFilter.value = ''
+  currentPage.value = 1
 }
 
 onMounted(fetchComments)

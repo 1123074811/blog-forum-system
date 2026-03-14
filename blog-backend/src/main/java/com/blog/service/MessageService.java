@@ -104,7 +104,11 @@ public class MessageService {
         conversationMapper.update(null, update);
 
         // WebSocket 推送消息给接收者
-        msg.setSender(userService.getById(senderId));
+        User sender = userService.getById(senderId);
+        if (sender != null) {
+            sender.setIsOnline(chatWebSocketHandler.isOnline(senderId));
+        }
+        msg.setSender(sender);
         Map<String, Object> wsMsg = new HashMap<>();
         wsMsg.put("type", "new_message");
         wsMsg.put("message", msg);
@@ -126,7 +130,11 @@ public class MessageService {
 
         for (Conversation conv : list) {
             Long otherId = conv.getUser1Id().equals(userId) ? conv.getUser2Id() : conv.getUser1Id();
-            conv.setOtherUser(userService.getById(otherId));
+            User otherUser = userService.getById(otherId);
+            if (otherUser != null) {
+                otherUser.setIsOnline(chatWebSocketHandler.isOnline(otherId));
+            }
+            conv.setOtherUser(otherUser);
             if (conv.getLastMessageId() != null) {
                 conv.setLastMessage(messageMapper.selectById(conv.getLastMessageId()));
             }
@@ -162,7 +170,11 @@ public class MessageService {
         );
 
         for (Message msg : messages) {
-            msg.setSender(userService.getById(msg.getSenderId()));
+            User sender = userService.getById(msg.getSenderId());
+            if (sender != null) {
+                sender.setIsOnline(chatWebSocketHandler.isOnline(msg.getSenderId()));
+            }
+            msg.setSender(sender);
         }
         return messages;
     }
@@ -189,6 +201,12 @@ public class MessageService {
 
     // 获取好友列表（互相关注）
     public List<User> getFriends(Long userId) {
-        return followService.getMutualFollows(userId);
+        List<User> users = followService.getMutualFollows(userId);
+        for (User user : users) {
+            if (user != null && user.getId() != null) {
+                user.setIsOnline(chatWebSocketHandler.isOnline(user.getId()));
+            }
+        }
+        return users;
     }
 }

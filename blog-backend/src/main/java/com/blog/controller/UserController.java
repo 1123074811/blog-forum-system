@@ -13,6 +13,7 @@ import com.blog.pojo.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.blog.websocket.ChatWebSocketHandler;
 
 import jakarta.validation.Valid;
 
@@ -25,6 +26,7 @@ public class UserController extends BaseController {
     private final FollowService followService;
     private final NotificationService notificationService;
     private final UserConverter userConverter;
+    private final ChatWebSocketHandler chatWebSocketHandler;
 
     @GetMapping("/{id}")
     public ApiResponse<UserVO> getUser(@PathVariable Long id, Authentication auth) {
@@ -36,6 +38,7 @@ public class UserController extends BaseController {
         UserVO userVO = userConverter.toVO(user);
         userVO.setFollowerCount(followService.getFollowerCount(id));
         userVO.setFollowingCount(followService.getFollowingCount(id));
+        userVO.setIsOnline(chatWebSocketHandler.isOnline(id));
         Long currentUserId = getCurrentUserIdOptional(auth);
         if (currentUserId != null && !currentUserId.equals(id)) {
             userVO.setIsFollowing(followService.isFollowing(currentUserId, id));

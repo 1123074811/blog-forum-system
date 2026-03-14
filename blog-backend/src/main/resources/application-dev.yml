@@ -63,6 +63,7 @@ jwt:
 # 存储类型：minio 或 oss（开发环境默认使用minio）
 storage:
   type: minio
+  init-fail-fast: false
 
 # MinIO 配置（本地）
 minio:

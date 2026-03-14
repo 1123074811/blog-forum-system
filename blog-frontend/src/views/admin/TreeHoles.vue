@@ -22,7 +22,7 @@
       <el-button class="!h-10" type="danger" plain :disabled="!selectedIds.length" @click="handleBatchDelete">批量删 ({{ selectedIds.length }})</el-button>
     </div>
 
-    <el-table v-if="!isMobile" :data="filteredTreeHoles" v-loading="loading" @selection-change="handleSelectionChange">
+    <el-table v-if="!isMobile" :data="pagedTreeHoles" v-loading="loading" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="content" label="内容" show-overflow-tooltip />
@@ -39,8 +39,8 @@
       </el-table-column>
     </el-table>
 
-    <MobileAdminListShell v-else :items="filteredTreeHoles" :loading="loading" empty-text="暂无树洞消息">
-      <div v-for="hole in filteredTreeHoles" :key="hole.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedTreeHoles" :loading="loading" empty-text="暂无树洞消息">
+      <div v-for="hole in pagedTreeHoles" :key="hole.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox :model-value="selectedIds.includes(hole.id)" @change="(val) => toggleSelect(hole.id, val)" />
           <div class="card-title">#{{ hole.id }}</div>
@@ -65,11 +65,22 @@
         </div>
       </el-form>
     </MobileActionSheet>
+
+    <div class="mt-4 flex justify-center" v-if="filteredTreeHoles.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredTreeHoles.length"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { useIsMobile } from '@/composables/useIsMobile'
@@ -81,11 +92,27 @@ const selectedIds = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredTreeHoles = computed(() => {
   return treeHoles.value.filter(hole => !searchQuery.value || hole.content?.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
+
+const pagedTreeHoles = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredTreeHoles.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredTreeHoles.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const loadTreeHoles = async () => {
   loading.value = true
@@ -122,8 +149,8 @@ const handleBatchDelete = async () => {
   loadTreeHoles()
 }
 
-const handleSearch = () => {}
-const handleReset = () => { searchQuery.value = '' }
+const handleSearch = () => { currentPage.value = 1 }
+const handleReset = () => { searchQuery.value = ''; currentPage.value = 1 }
 
 onMounted(loadTreeHoles)
 </script>

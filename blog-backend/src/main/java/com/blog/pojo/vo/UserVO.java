@@ -20,4 +20,5 @@ public class UserVO {
     private Long followerCount;
     private Long followingCount;
     private Boolean isFollowing;
+    private Boolean isOnline;
 }

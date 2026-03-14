@@ -9,7 +9,7 @@
         </el-button>
       </div>
 
-      <el-table v-if="!isMobile" :data="announcements" stripe>
+      <el-table v-if="!isMobile" :data="pagedAnnouncements" stripe>
         <el-table-column prop="title" label="标题" min-width="200" />
         <el-table-column prop="type" label="类型" width="100">
           <template #default="{ row }">
@@ -38,8 +38,8 @@
         </el-table-column>
       </el-table>
 
-      <MobileAdminListShell v-else :items="announcements" :loading="false" empty-text="暂无公告">
-        <div v-for="item in announcements" :key="item.id" class="admin-mobile-card">
+      <MobileAdminListShell v-else :items="pagedAnnouncements" :loading="false" empty-text="暂无公告">
+        <div v-for="item in pagedAnnouncements" :key="item.id" class="admin-mobile-card">
           <div class="card-head">
             <div class="card-title">{{ item.title }}</div>
             <el-tag size="small" :type="getTagType(item.type)">{{ getTypeText(item.type) }}</el-tag>
@@ -56,6 +56,17 @@
           </div>
         </div>
       </MobileAdminListShell>
+
+      <div class="mt-4 flex justify-center" v-if="announcements.length">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          background
+          :page-sizes="[5, 10, 20]"
+          layout="sizes, prev, pager, next, total"
+          :total="announcements.length"
+        />
+      </div>
     </div>
 
     <el-dialog v-model="showAddDialog" :title="editingId ? '编辑公告' : '添加公告'" :width="isMobile ? '94%' : '600px'">
@@ -95,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { getAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
@@ -107,7 +118,23 @@ const showAddDialog = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
 const dateRange = ref([])
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
+
+const pagedAnnouncements = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return announcements.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => announcements.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const form = ref({ title: '', content: '', type: 'info', isPinned: false, isActive: true, sortOrder: 0, startTime: '', endTime: '' })
 

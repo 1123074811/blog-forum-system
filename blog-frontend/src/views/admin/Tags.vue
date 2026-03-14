@@ -27,7 +27,7 @@
     </div>
 
     <div v-if="!isMobile" class="glass rounded-xl p-6">
-      <el-table :data="filteredTags" stripe @selection-change="handleSelectionChange">
+      <el-table :data="pagedTags" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" />
@@ -45,8 +45,8 @@
       </el-table>
     </div>
 
-    <MobileAdminListShell v-else :items="filteredTags" :loading="false" empty-text="暂无标签">
-      <div v-for="tag in filteredTags" :key="tag.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedTags" :loading="false" empty-text="暂无标签">
+      <div v-for="tag in pagedTags" :key="tag.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox :model-value="selectedIds.includes(tag.id)" @change="(val) => toggleSelect(tag.id, val)" />
           <div class="card-title">{{ tag.name || '未命名标签' }}</div>
@@ -75,6 +75,17 @@
       </el-form>
     </MobileActionSheet>
 
+    <div class="mt-4 flex justify-center" v-if="filteredTags.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredTags.length"
+      />
+    </div>
+
     <el-dialog v-model="showDialog" :title="editingId ? '编辑标签' : '新增标签'" :width="isMobile ? '92%' : '400px'">
       <el-form :model="form">
         <el-form-item label="名称">
@@ -90,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminTags, createTag, updateTag, deleteTag } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -105,11 +116,27 @@ const editingId = ref(null)
 const form = ref({ name: '' })
 const searchQuery = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredTags = computed(() => {
   return tags.value.filter(tag => !searchQuery.value || tag.name?.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
+
+const pagedTags = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredTags.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredTags.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const fetchTags = async () => {
   const res = await getAdminTags()
@@ -163,8 +190,8 @@ const handleBatchDelete = async () => {
   fetchTags()
 }
 
-const handleSearch = () => {}
-const handleReset = () => { searchQuery.value = '' }
+const handleSearch = () => { currentPage.value = 1 }
+const handleReset = () => { searchQuery.value = ''; currentPage.value = 1 }
 
 onMounted(fetchTags)
 </script>

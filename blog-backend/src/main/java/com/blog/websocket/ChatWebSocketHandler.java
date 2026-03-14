@@ -10,6 +10,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 @Slf4j
 @Component
@@ -29,6 +30,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             Long userId = jwtUtil.getUserIdFromToken(token);
             sessions.put(userId, session);
             log.info("WebSocket connected: userId={}", userId);
+            broadcastPresence(userId, true);
         }
     }
 
@@ -47,6 +49,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             Long userId = jwtUtil.getUserIdFromToken(token);
             sessions.remove(userId);
             log.info("WebSocket disconnected: userId={}", userId);
+            broadcastPresence(userId, false);
         }
     }
 
@@ -64,6 +67,22 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public boolean isOnline(Long userId) {
         WebSocketSession session = sessions.get(userId);
         return session != null && session.isOpen();
+    }
+
+    private void broadcastPresence(Long userId, boolean online) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "presence_update");
+        payload.put("userId", userId);
+        payload.put("online", online);
+        sessions.values().forEach(session -> {
+            if (session != null && session.isOpen()) {
+                try {
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(payload)));
+                } catch (Exception e) {
+                    log.error("Failed to broadcast presence for user {}", userId, e);
+                }
+            }
+        });
     }
 
     private String getTokenFromSession(WebSocketSession session) {

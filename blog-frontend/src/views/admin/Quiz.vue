@@ -20,7 +20,7 @@
       <el-button class="!h-10" type="danger" plain :disabled="!selectedIds.length" @click="handleBatchDelete">批量删 ({{ selectedIds.length }})</el-button>
     </div>
 
-    <el-table v-if="!isMobile" :data="filteredQuizBanks" v-loading="loading" @selection-change="handleSelectionChange">
+    <el-table v-if="!isMobile" :data="pagedQuizBanks" v-loading="loading" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="title" label="题库名称" />
@@ -33,8 +33,8 @@
       <el-table-column label="操作" width="220"><template #default="{ row }"><el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button><el-button type="success" size="small" @click="handleManageQuestions(row)" v-if="row.type === 'quiz'">题目</el-button><el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button></template></el-table-column>
     </el-table>
 
-    <MobileAdminListShell v-else :items="filteredQuizBanks" :loading="loading" empty-text="暂无题库">
-      <div v-for="quiz in filteredQuizBanks" :key="quiz.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedQuizBanks" :loading="loading" empty-text="暂无题库">
+      <div v-for="quiz in pagedQuizBanks" :key="quiz.id" class="admin-mobile-card">
         <div class="card-head"><el-checkbox :model-value="selectedIds.includes(quiz.id)" @change="(val) => toggleSelect(quiz.id, val)" /><div class="card-title">{{ quiz.title || '未命名题库' }}</div><el-tag size="small" :type="quiz.isPublic ? 'success' : 'info'">{{ quiz.isPublic ? '公开' : '私有' }}</el-tag></div>
         <div class="card-meta">类型 {{ quiz.type === 'quiz' ? '题库' : '文件' }} · 题目 {{ quiz.questionCount || 0 }}</div>
         <div class="card-content">{{ quiz.description || '无描述' }}</div>
@@ -52,6 +52,17 @@
         <div class="grid grid-cols-2 gap-2"><el-button @click="handleReset">重置</el-button><el-button type="primary" @click="showFilters = false">完成</el-button></div>
       </el-form>
     </MobileActionSheet>
+
+    <div class="mt-4 flex justify-center" v-if="filteredQuizBanks.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredQuizBanks.length"
+      />
+    </div>
 
     <el-dialog v-model="showEditDialog" title="编辑题库" :width="isMobile ? '92%' : '450px'">
       <el-form :model="editForm" label-width="80px">
@@ -100,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { useIsMobile } from '@/composables/useIsMobile'
@@ -118,6 +129,8 @@ const typeFilter = ref('')
 const statusFilter = ref('')
 const userIdFilter = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const showQuestionsDialog = ref(false)
@@ -137,6 +150,20 @@ const filteredQuizBanks = computed(() => quizBanks.value.filter(quiz => {
   return matchSearch && matchType && matchStatus && matchUserId
 }))
 
+const pagedQuizBanks = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredQuizBanks.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredQuizBanks.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
+
 const loadQuizBanks = async () => { loading.value = true; const res = await api.get('/quiz/admin/all'); quizBanks.value = res.data || []; loading.value = false }
 const handleSelectionChange = (rows) => { selectedIds.value = rows.map(r => r.id) }
 const toggleSelect = (id, checked) => { if (checked) { if (!selectedIds.value.includes(id)) selectedIds.value.push(id) } else { selectedIds.value = selectedIds.value.filter(v => v !== id) } }
@@ -144,8 +171,8 @@ const handleBatchDelete = async () => { await ElMessageBox.confirm(`确定删除
 const handleEdit = (row) => { editingId.value = row.id; editForm.value = { title: row.title, description: row.description, isPublic: row.isPublic }; showEditDialog.value = true }
 const saveEdit = async () => { await api.put(`/quiz/admin/${editingId.value}`, editForm.value); ElMessage.success('保存成功'); showEditDialog.value = false; loadQuizBanks() }
 const handleDelete = async (row) => { await ElMessageBox.confirm('确定删除该题库？所有题目也会被删除', '提示'); await api.delete(`/quiz/admin/${row.id}`); ElMessage.success('删除成功'); selectedIds.value = selectedIds.value.filter(v => v !== row.id); loadQuizBanks() }
-const handleSearch = () => {}
-const handleReset = () => { searchQuery.value = ''; typeFilter.value = ''; statusFilter.value = ''; userIdFilter.value = '' }
+const handleSearch = () => { currentPage.value = 1 }
+const handleReset = () => { searchQuery.value = ''; typeFilter.value = ''; statusFilter.value = ''; userIdFilter.value = ''; currentPage.value = 1 }
 
 const handleManageQuestions = async (row) => { currentQuizBank.value = row; showQuestionsDialog.value = true; await loadQuestions(row.id) }
 const loadQuestions = async (quizBankId) => { questionsLoading.value = true; try { const res = await api.get(`/quiz/${quizBankId}`); questions.value = res.data?.questions || [] } catch { ElMessage.error('加载题目失败') } questionsLoading.value = false }

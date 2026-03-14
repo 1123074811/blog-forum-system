@@ -20,7 +20,7 @@
       <el-button class="!h-10" type="danger" plain :disabled="!selectedIds.length" @click="handleBatchDelete">批量删 ({{ selectedIds.length }})</el-button>
     </div>
 
-    <el-table v-if="!isMobile" :data="filteredMedia" v-loading="loading" @selection-change="handleSelectionChange">
+    <el-table v-if="!isMobile" :data="pagedMedia" v-loading="loading" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="预览" width="100"><template #default="{ row }"><img v-if="row.type === 'image'" :src="row.url" class="w-16 h-16 object-cover rounded" /><video v-else :src="row.url" class="w-16 h-16 object-cover rounded" /></template></el-table-column>
@@ -34,8 +34,8 @@
       <el-table-column label="操作" width="150"><template #default="{ row }"><el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button><el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button></template></el-table-column>
     </el-table>
 
-    <MobileAdminListShell v-else :items="filteredMedia" :loading="loading" empty-text="暂无媒体">
-      <div v-for="media in filteredMedia" :key="media.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedMedia" :loading="loading" empty-text="暂无媒体">
+      <div v-for="media in pagedMedia" :key="media.id" class="admin-mobile-card">
         <div class="card-head"><el-checkbox :model-value="selectedIds.includes(media.id)" @change="(val) => toggleSelect(media.id, val)" /><div class="card-title">{{ media.title || '未命名媒体' }}</div><el-tag size="small" :type="!!media.isPublic ? 'success' : 'info'">{{ !!media.isPublic ? '公开' : '私密' }}</el-tag></div>
         <div class="card-preview"><img v-if="media.type === 'image'" :src="media.url" class="preview-el" /><video v-else :src="media.url" class="preview-el" /></div>
         <div class="card-meta">类型 {{ media.type }} · 用户 {{ media.userId }} · 相册 {{ media.albumId || '-' }}</div>
@@ -54,6 +54,17 @@
       </el-form>
     </MobileActionSheet>
 
+    <div class="mt-4 flex justify-center" v-if="filteredMedia.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredMedia.length"
+      />
+    </div>
+
     <el-dialog v-model="showEditDialog" title="编辑媒体" :width="isMobile ? '92%' : '400px'">
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="标题"><el-input v-model="editForm.title" /></el-form-item>
@@ -66,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { useIsMobile } from '@/composables/useIsMobile'
@@ -84,6 +95,8 @@ const typeFilter = ref('')
 const statusFilter = ref('')
 const userIdFilter = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredMedia = computed(() => mediaList.value.filter(media => {
@@ -94,6 +107,20 @@ const filteredMedia = computed(() => mediaList.value.filter(media => {
   return matchSearch && matchType && matchStatus && matchUserId
 }))
 
+const pagedMedia = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredMedia.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredMedia.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
+
 const loadMedia = async () => { loading.value = true; const res = await api.get('/media/admin/all'); mediaList.value = res.data || []; loading.value = false }
 const handleSelectionChange = (rows) => { selectedIds.value = rows.map(r => r.id) }
 const toggleSelect = (id, checked) => { if (checked) { if (!selectedIds.value.includes(id)) selectedIds.value.push(id) } else { selectedIds.value = selectedIds.value.filter(v => v !== id) } }
@@ -101,8 +128,8 @@ const handleBatchDelete = async () => { await ElMessageBox.confirm(`确定删除
 const handleEdit = (row) => { editingId.value = row.id; editForm.value = { title: row.title, description: row.description, isPublic: !!row.isPublic }; showEditDialog.value = true }
 const saveEdit = async () => { await api.put(`/media/admin/${editingId.value}`, editForm.value); ElMessage.success('保存成功'); showEditDialog.value = false; loadMedia() }
 const handleDelete = async (row) => { await ElMessageBox.confirm('确定删除该媒体？', '提示'); await api.delete(`/media/admin/${row.id}`); ElMessage.success('删除成功'); selectedIds.value = selectedIds.value.filter(v => v !== row.id); loadMedia() }
-const handleSearch = () => {}
-const handleReset = () => { searchQuery.value = ''; typeFilter.value = ''; statusFilter.value = ''; userIdFilter.value = '' }
+const handleSearch = () => { currentPage.value = 1 }
+const handleReset = () => { searchQuery.value = ''; typeFilter.value = ''; statusFilter.value = ''; userIdFilter.value = ''; currentPage.value = 1 }
 
 onMounted(loadMedia)
 </script>

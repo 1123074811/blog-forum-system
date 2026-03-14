@@ -30,7 +30,7 @@
     </div>
 
     <div v-if="!isMobile" class="glass rounded-xl p-6">
-      <el-table :data="filteredArticles" stripe @selection-change="handleSelectionChange">
+      <el-table :data="pagedArticles" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="title" label="标题" />
@@ -53,8 +53,8 @@
       </el-table>
     </div>
 
-    <MobileAdminListShell v-else :items="filteredArticles" :loading="false" empty-text="暂无文章">
-      <div v-for="article in filteredArticles" :key="article.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedArticles" :loading="false" empty-text="暂无文章">
+      <div v-for="article in pagedArticles" :key="article.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox :model-value="selectedIds.includes(article.id)" @change="(val) => toggleSelect(article.id, val)" />
           <div class="card-title">{{ article.title || '未命名文章' }}</div>
@@ -90,11 +90,22 @@
         </div>
       </el-form>
     </MobileActionSheet>
+
+    <div class="mt-4 flex justify-center" v-if="filteredArticles.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredArticles.length"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminArticles, adminDeleteArticle } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -107,6 +118,8 @@ const selectedIds = ref([])
 const searchQuery = ref('')
 const statusFilter = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredArticles = computed(() => {
@@ -119,6 +132,20 @@ const filteredArticles = computed(() => {
     return matchSearch && matchStatus
   })
 })
+
+const pagedArticles = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredArticles.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredArticles.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const fetchArticles = async () => {
   const res = await getAdminArticles()
@@ -152,11 +179,14 @@ const handleBatchDelete = async () => {
   fetchArticles()
 }
 
-const handleSearch = () => {}
+const handleSearch = () => {
+  currentPage.value = 1
+}
 
 const handleReset = () => {
   searchQuery.value = ''
   statusFilter.value = ''
+  currentPage.value = 1
 }
 
 onMounted(fetchArticles)

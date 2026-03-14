@@ -20,4 +20,7 @@ public class User {
     private Boolean banned;
     private String createdAt;
     private String updatedAt;
+
+    @TableField(exist = false)
+    private Boolean isOnline;
 }

@@ -3,7 +3,9 @@
     <!-- 用户信息卡片 -->
     <div class="glass rounded-xl p-4 sm:p-6 mb-6">
       <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4">
-        <el-avatar :src="profile.user?.avatar" :size="64" class="flex-shrink-0">{{ profile.user?.username?.[0] }}</el-avatar>
+        <div class="profile-avatar-wrap flex-shrink-0" :class="{ online: !!profile.user?.isOnline }">
+          <el-avatar :src="profile.user?.avatar" :size="64">{{ profile.user?.username?.[0] }}</el-avatar>
+        </div>
         <div class="flex-1 text-center sm:text-left">
           <h2 class="text-lg sm:text-xl font-bold dark:text-white">{{ profile.user?.nickname || profile.user?.username }}</h2>
           <div class="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-4 text-sm text-gray-400">
@@ -68,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getUser, getArticles, followUser, unfollowUser, updateUser, uploadFile } from '@/api/blog'
@@ -86,6 +88,7 @@ const isFollowing = ref(false)
 const showEditDialog = ref(false)
 const editForm = ref({ avatar: '', nickname: '', bio: '' })
 const formRef = ref(null)
+let onlineTimer = null
 
 const rules = {
   nickname: [
@@ -140,7 +143,7 @@ const handleAvatarUpload = async (file) => {
 }
 
 
-onMounted(async () => {
+const loadProfileAndArticles = async () => {
   const [userRes, articlesRes] = await Promise.all([
     getUser(route.params.id),
     getArticles({ userId: route.params.id })
@@ -156,5 +159,45 @@ onMounted(async () => {
     editForm.value = { avatar: user?.avatar || '', nickname: user?.nickname || '', bio: user?.bio || '' }
   }
   if (articlesRes.success) articles.value = articlesRes.data.data
+}
+
+const refreshOnlineStatus = async () => {
+  const userRes = await getUser(route.params.id)
+  if (userRes.success && profile.value.user) {
+    profile.value.user.isOnline = !!userRes.data?.isOnline
+  }
+}
+
+onMounted(async () => {
+  await loadProfileAndArticles()
+  onlineTimer = setInterval(refreshOnlineStatus, 15000)
+})
+
+onUnmounted(() => {
+  if (onlineTimer) clearInterval(onlineTimer)
 })
 </script>
+
+<style scoped>
+.profile-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.profile-avatar-wrap::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: #94a3b8;
+  box-sizing: border-box;
+}
+
+.profile-avatar-wrap.online::after {
+  background: #22c55e;
+}
+</style>

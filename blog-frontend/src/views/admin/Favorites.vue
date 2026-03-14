@@ -23,7 +23,7 @@
     </div>
 
     <div v-if="!isMobile" class="glass rounded-xl p-6">
-      <el-table :data="filteredFavorites" stripe @selection-change="handleSelectionChange">
+      <el-table :data="pagedFavorites" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户" />
@@ -41,8 +41,8 @@
       </el-table>
     </div>
 
-    <MobileAdminListShell v-else :items="filteredFavorites" :loading="false" empty-text="暂无收藏">
-      <div v-for="fav in filteredFavorites" :key="fav.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedFavorites" :loading="false" empty-text="暂无收藏">
+      <div v-for="fav in pagedFavorites" :key="fav.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox :model-value="selectedIds.includes(fav.id)" @change="(val) => toggleSelect(fav.id, val)" />
           <div class="card-title">{{ fav.articleTitle || '未命名文章' }}</div>
@@ -70,11 +70,22 @@
         </div>
       </el-form>
     </MobileActionSheet>
+
+    <div class="mt-4 flex justify-center" v-if="filteredFavorites.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredFavorites.length"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminFavorites, deleteAdminFavorite } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -86,6 +97,8 @@ const favorites = ref([])
 const selectedIds = ref([])
 const searchQuery = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredFavorites = computed(() => {
@@ -94,6 +107,20 @@ const filteredFavorites = computed(() => {
     return !query || fav.username?.toLowerCase().includes(query) || fav.articleTitle?.toLowerCase().includes(query)
   })
 })
+
+const pagedFavorites = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredFavorites.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredFavorites.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const fetchFavorites = async () => {
   const res = await getAdminFavorites()
@@ -127,8 +154,8 @@ const handleBatchDelete = async () => {
   fetchFavorites()
 }
 
-const handleSearch = () => {}
-const handleReset = () => { searchQuery.value = '' }
+const handleSearch = () => { currentPage.value = 1 }
+const handleReset = () => { searchQuery.value = ''; currentPage.value = 1 }
 
 onMounted(fetchFavorites)
 </script>

@@ -37,7 +37,7 @@
     </div>
 
     <div v-if="!isMobile" class="glass rounded-xl p-6">
-      <el-table :data="filteredUsers" stripe @selection-change="handleSelectionChange">
+      <el-table :data="pagedUsers" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" :selectable="row => row.role !== 'admin'" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" />
@@ -73,8 +73,8 @@
       </el-table>
     </div>
 
-    <MobileAdminListShell v-else :items="filteredUsers" :loading="false" empty-text="暂无用户">
-      <div v-for="user in filteredUsers" :key="user.id" class="admin-mobile-card">
+    <MobileAdminListShell v-else :items="pagedUsers" :loading="false" empty-text="暂无用户">
+      <div v-for="user in pagedUsers" :key="user.id" class="admin-mobile-card">
         <div class="card-head">
           <el-checkbox
             :disabled="user.role === 'admin'"
@@ -128,11 +128,22 @@
         </div>
       </el-form>
     </MobileActionSheet>
+
+    <div class="mt-4 flex justify-center" v-if="filteredUsers.length">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        :page-sizes="[5, 10, 20]"
+        layout="sizes, prev, pager, next, total"
+        :total="filteredUsers.length"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminUsers, deleteUser } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
@@ -146,6 +157,8 @@ const searchQuery = ref('')
 const roleFilter = ref('')
 const statusFilter = ref('')
 const showFilters = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
 const { isMobile } = useIsMobile()
 
 const filteredUsers = computed(() => {
@@ -163,6 +176,20 @@ const filteredUsers = computed(() => {
     return matchSearch && matchRole && matchStatus
   })
 })
+
+const pagedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredUsers.value.slice(start, start + pageSize.value)
+})
+
+watch(
+  () => filteredUsers.value.length,
+  (total) => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
+    if (currentPage.value > maxPage) currentPage.value = maxPage
+  },
+  { immediate: true }
+)
 
 const fetchUsers = async () => {
   const res = await getAdminUsers()
@@ -206,12 +233,15 @@ const handleBanChange = async (row) => {
   }
 }
 
-const handleSearch = () => {}
+const handleSearch = () => {
+  currentPage.value = 1
+}
 
 const handleReset = () => {
   searchQuery.value = ''
   roleFilter.value = ''
   statusFilter.value = ''
+  currentPage.value = 1
 }
 
 onMounted(fetchUsers)
