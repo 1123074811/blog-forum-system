@@ -425,13 +425,14 @@ onMounted(() => {
 
 <style scoped>
 .life-simulator {
-  height: calc(100vh - 112px);
+  height: calc(100vh - var(--app-header-height));
   background: #1a1a2e;
   color: #eee;
   font-family: 'Courier New', monospace;
-  padding: 20px;
+  padding: 16px;
   box-sizing: border-box;
   position: relative;
+  overflow: auto;
 }
 
 .back-btn {
@@ -455,7 +456,9 @@ onMounted(() => {
 }
 
 .restart-btn {
-  top: 70px;
+  top: 58px;
+  border-color: #ffcc00;
+  color: #ffcc00;
 }
 
 .pixel-title {
@@ -475,7 +478,7 @@ onMounted(() => {
 .start-screen, .end-screen {
   max-width: 500px;
   margin: 0 auto;
-  padding-top: 50px;
+  padding-top: 30px;
 }
 
 .attributes-panel {
@@ -573,7 +576,7 @@ onMounted(() => {
 .game-layout {
   display: flex;
   gap: 20px;
-  height: 100%;
+  height: calc(100% - 24px);
   max-width: 900px;
   margin: 0 auto;
 }
@@ -664,6 +667,7 @@ onMounted(() => {
 
 .events-container {
   flex: 1;
+  min-height: 280px;
   overflow-y: auto;
   background: #252540;
   border: 3px solid #555;
@@ -790,5 +794,141 @@ onMounted(() => {
   color: #aaa;
   font-size: 12px;
   margin-bottom: 5px;
+}
+
+@media (max-width: 768px) {
+  .life-simulator {
+    padding: 10px;
+  }
+
+  .back-btn {
+    top: 8px;
+    min-width: 0;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .restart-btn {
+    top: 8px;
+    left: auto;
+    right: 8px;
+  }
+
+  .pixel-title {
+    font-size: 26px;
+    line-height: 1.25;
+  }
+
+  .pixel-subtitle {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .start-screen,
+  .end-screen {
+    max-width: 100%;
+    padding-top: 48px;
+  }
+
+  .attributes-panel {
+    padding: 12px;
+  }
+
+  .attr-row {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .attr-name {
+    width: 40px;
+    font-size: 12px;
+  }
+
+  .attr-value {
+    width: 24px;
+    font-size: 14px;
+  }
+
+  .btn-group {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pixel-btn.large {
+    width: 100%;
+  }
+
+  .game-screen {
+    height: auto;
+  }
+
+  .game-layout {
+    flex-direction: column;
+    height: auto;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .side-panel {
+    width: 100%;
+    padding: 10px;
+    border-width: 2px;
+  }
+
+  .age-display {
+    font-size: 22px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
+  .main-area {
+    min-height: 420px;
+  }
+
+  .events-container {
+    min-height: 320px;
+    max-height: 48vh;
+    border-width: 2px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+
+  .event-item {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .event-age,
+  .event-text {
+    font-size: 13px;
+  }
+
+  .choice-panel {
+    border-width: 2px;
+    padding: 12px;
+  }
+
+  .choice-question {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .action-bar .pixel-btn.large.primary {
+    width: 100%;
+  }
+
+  .death-age {
+    font-size: 34px;
+  }
+
+  .death-reason {
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+
+  .summary {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
 }
 </style>

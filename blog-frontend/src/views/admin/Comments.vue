@@ -1,12 +1,11 @@
-<template>
+﻿<template>
   <div>
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold dark:text-white">评论管理</h2>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl sm:text-2xl font-bold dark:text-white">评论管理</h2>
       <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
     </div>
 
-    <!-- 搜索筛选区域 -->
-    <div class="glass rounded-xl p-4 mb-4">
+    <div v-if="!isMobile" class="glass rounded-xl p-4 mb-4">
       <el-form :inline="true">
         <el-form-item label="搜索">
           <el-input v-model="searchQuery" placeholder="评论内容" clearable @clear="handleSearch" style="width: 200px" />
@@ -24,7 +23,12 @@
       </el-form>
     </div>
 
-    <div class="glass rounded-xl p-6">
+    <div v-else class="mb-3 flex gap-2">
+      <el-button class="!h-10" @click="showFilters = true">筛选</el-button>
+      <el-button class="!h-10" type="danger" plain :disabled="!selectedIds.length" @click="handleBatchDelete">批量删 ({{ selectedIds.length }})</el-button>
+    </div>
+
+    <div v-if="!isMobile" class="glass rounded-xl p-6">
       <el-table :data="filteredComments" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="80" />
@@ -44,6 +48,43 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <MobileAdminListShell v-else :items="filteredComments" :loading="false" empty-text="暂无评论">
+      <div v-for="comment in filteredComments" :key="comment.id" class="admin-mobile-card">
+        <div class="card-head">
+          <el-checkbox :model-value="selectedIds.includes(comment.id)" @change="(val) => toggleSelect(comment.id, val)" />
+          <div class="card-title">#{{ comment.id }} · 用户 {{ comment.userId }}</div>
+        </div>
+        <div class="card-content">{{ comment.content || '-' }}</div>
+        <div class="card-meta">文章 {{ comment.articleId }} · 点赞 {{ comment.likeCount || 0 }}</div>
+        <div class="card-meta">{{ comment.createdAt || '-' }}</div>
+        <div class="card-actions">
+          <el-popconfirm title="确定删除该评论？" @confirm="handleDelete(comment.id)">
+            <template #reference>
+              <el-button type="danger" size="small">删除</el-button>
+            </template>
+          </el-popconfirm>
+        </div>
+      </div>
+    </MobileAdminListShell>
+
+    <MobileActionSheet v-model="showFilters" title="筛选与搜索">
+      <el-form label-position="top">
+        <el-form-item label="搜索">
+          <el-input v-model="searchQuery" placeholder="评论内容" clearable />
+        </el-form-item>
+        <el-form-item label="用户ID">
+          <el-input v-model="userIdFilter" placeholder="用户ID" clearable />
+        </el-form-item>
+        <el-form-item label="文章ID">
+          <el-input v-model="articleIdFilter" placeholder="文章ID" clearable />
+        </el-form-item>
+        <div class="grid grid-cols-2 gap-2">
+          <el-button @click="handleReset">重置</el-button>
+          <el-button type="primary" @click="showFilters = false">完成</el-button>
+        </div>
+      </el-form>
+    </MobileActionSheet>
   </div>
 </template>
 
@@ -52,12 +93,17 @@ import { ref, computed, onMounted } from 'vue'
 import { getAdminComments, adminDeleteComment } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
+import MobileAdminListShell from '@/components/admin/MobileAdminListShell.vue'
+import MobileActionSheet from '@/components/admin/MobileActionSheet.vue'
 
 const comments = ref([])
 const selectedIds = ref([])
 const searchQuery = ref('')
 const userIdFilter = ref('')
 const articleIdFilter = ref('')
+const showFilters = ref(false)
+const { isMobile } = useIsMobile()
 
 const filteredComments = computed(() => {
   return comments.value.filter(comment => {
@@ -83,9 +129,18 @@ const handleSelectionChange = (rows) => {
   selectedIds.value = rows.map(r => r.id)
 }
 
+const toggleSelect = (id, checked) => {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
+  } else {
+    selectedIds.value = selectedIds.value.filter(v => v !== id)
+  }
+}
+
 const handleDelete = async (id) => {
   await adminDeleteComment(id)
   ElMessage.success('删除成功')
+  selectedIds.value = selectedIds.value.filter(v => v !== id)
   fetchComments()
 }
 
@@ -93,12 +148,11 @@ const handleBatchDelete = async () => {
   await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 条评论？`, '批量删除')
   await api.post('/admin/comments/batch-delete', { ids: selectedIds.value })
   ElMessage.success('批量删除成功')
+  selectedIds.value = []
   fetchComments()
 }
 
-const handleSearch = () => {
-  // 触发计算属性重新计算
-}
+const handleSearch = () => {}
 
 const handleReset = () => {
   searchQuery.value = ''
@@ -108,3 +162,44 @@ const handleReset = () => {
 
 onMounted(fetchComments)
 </script>
+
+<style scoped>
+.admin-mobile-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.card-content {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.card-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.card-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

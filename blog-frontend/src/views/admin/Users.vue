@@ -1,12 +1,11 @@
-<template>
+﻿<template>
   <div>
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold dark:text-white">用户管理</h2>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl sm:text-2xl font-bold dark:text-white">用户管理</h2>
       <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">批量删除 ({{ selectedIds.length }})</el-button>
     </div>
 
-    <!-- 搜索筛选区域 -->
-    <div class="glass rounded-xl p-4 mb-4">
+    <div v-if="!isMobile" class="glass rounded-xl p-4 mb-4">
       <el-form :inline="true">
         <el-form-item label="搜索">
           <el-input v-model="searchQuery" placeholder="用户名/邮箱" clearable @clear="handleSearch" style="width: 200px" />
@@ -32,7 +31,12 @@
       </el-form>
     </div>
 
-    <div class="glass rounded-xl p-6">
+    <div v-else class="mb-3 flex gap-2">
+      <el-button class="!h-10" @click="showFilters = true">筛选</el-button>
+      <el-button class="!h-10" type="danger" plain :disabled="!selectedIds.length" @click="handleBatchDelete">批量删 ({{ selectedIds.length }})</el-button>
+    </div>
+
+    <div v-if="!isMobile" class="glass rounded-xl p-6">
       <el-table :data="filteredUsers" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" :selectable="row => row.role !== 'admin'" />
         <el-table-column prop="id" label="ID" width="80" />
@@ -68,6 +72,62 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <MobileAdminListShell v-else :items="filteredUsers" :loading="false" empty-text="暂无用户">
+      <div v-for="user in filteredUsers" :key="user.id" class="admin-mobile-card">
+        <div class="card-head">
+          <el-checkbox
+            :disabled="user.role === 'admin'"
+            :model-value="selectedIds.includes(user.id)"
+            @change="(val) => toggleSelect(user.id, val)"
+          />
+          <div class="card-title">{{ user.username || '未知用户' }}</div>
+          <el-tag size="small" :type="user.role === 'admin' ? 'danger' : 'info'">{{ user.role }}</el-tag>
+        </div>
+        <div class="card-meta">{{ user.email || '-' }}</div>
+        <div class="card-meta">状态: {{ user.banned ? '已封禁' : '正常' }}</div>
+        <div class="card-meta">注册: {{ user.createdAt || '-' }}</div>
+        <div class="card-actions">
+          <el-switch
+            v-model="user.banned"
+            :disabled="user.role === 'admin'"
+            @change="handleBanChange(user)"
+            style="margin-right: 8px;"
+          />
+          <el-popconfirm title="确定删除该用户？" @confirm="handleDelete(user.id)">
+            <template #reference>
+              <el-button type="danger" size="small" :disabled="user.role === 'admin'">删除</el-button>
+            </template>
+          </el-popconfirm>
+        </div>
+      </div>
+    </MobileAdminListShell>
+
+    <MobileActionSheet v-model="showFilters" title="筛选与搜索">
+      <el-form label-position="top">
+        <el-form-item label="搜索">
+          <el-input v-model="searchQuery" placeholder="用户名/邮箱" clearable />
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="roleFilter" clearable class="w-full">
+            <el-option label="全部" value="" />
+            <el-option label="管理员" value="admin" />
+            <el-option label="普通用户" value="user" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="statusFilter" clearable class="w-full">
+            <el-option label="全部" value="" />
+            <el-option label="正常" value="normal" />
+            <el-option label="已封禁" value="banned" />
+          </el-select>
+        </el-form-item>
+        <div class="grid grid-cols-2 gap-2">
+          <el-button @click="handleReset">重置</el-button>
+          <el-button type="primary" @click="showFilters = false">完成</el-button>
+        </div>
+      </el-form>
+    </MobileActionSheet>
   </div>
 </template>
 
@@ -76,12 +136,17 @@ import { ref, computed, onMounted } from 'vue'
 import { getAdminUsers, deleteUser } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
+import MobileAdminListShell from '@/components/admin/MobileAdminListShell.vue'
+import MobileActionSheet from '@/components/admin/MobileActionSheet.vue'
 
 const users = ref([])
 const selectedIds = ref([])
 const searchQuery = ref('')
 const roleFilter = ref('')
 const statusFilter = ref('')
+const showFilters = ref(false)
+const { isMobile } = useIsMobile()
 
 const filteredUsers = computed(() => {
   return users.value.filter(user => {
@@ -108,9 +173,18 @@ const handleSelectionChange = (rows) => {
   selectedIds.value = rows.map(r => r.id)
 }
 
+const toggleSelect = (id, checked) => {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
+  } else {
+    selectedIds.value = selectedIds.value.filter(v => v !== id)
+  }
+}
+
 const handleDelete = async (id) => {
   await deleteUser(id)
   ElMessage.success('删除成功')
+  selectedIds.value = selectedIds.value.filter(v => v !== id)
   fetchUsers()
 }
 
@@ -118,6 +192,7 @@ const handleBatchDelete = async () => {
   await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个用户？`, '批量删除')
   await api.post('/admin/users/batch-delete', { ids: selectedIds.value })
   ElMessage.success('批量删除成功')
+  selectedIds.value = []
   fetchUsers()
 }
 
@@ -131,9 +206,7 @@ const handleBanChange = async (row) => {
   }
 }
 
-const handleSearch = () => {
-  // 触发计算属性重新计算
-}
+const handleSearch = () => {}
 
 const handleReset = () => {
   searchQuery.value = ''
@@ -143,3 +216,39 @@ const handleReset = () => {
 
 onMounted(fetchUsers)
 </script>
+
+<style scoped>
+.admin-mobile-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.card-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.card-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+</style>

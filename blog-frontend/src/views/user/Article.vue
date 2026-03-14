@@ -4,7 +4,7 @@
       <el-button @click="handleBack" :icon="ArrowLeft" text>返回</el-button>
     </div>
 
-    <div class="flex gap-2.5">
+    <div class="flex flex-col lg:flex-row gap-2.5">
       <!-- 主内容区 -->
       <div class="flex-1 min-w-0">
         <div class="glass rounded-xl p-4 sm:p-6 mb-6">
@@ -375,7 +375,7 @@ const handleDelete = async () => {
     const res = await deleteArticle(article.value.id)
     if (res.success) {
       toast('删除成功')
-      router.push('/')
+      handleBack()
     } else {
       toast(res.message || '删除失败', 'error')
     }
@@ -611,5 +611,32 @@ html {
 /* 文章内容区域的平滑滚动 */
 .prose :deep(a[href^="#"]) {
   scroll-behavior: smooth;
+}
+
+@media (max-width: 768px) {
+  .comment-input-box {
+    padding: 10px;
+  }
+
+  .comment-input-box :deep(.el-textarea__inner) {
+    padding-right: 0;
+    padding-bottom: 8px;
+  }
+
+  .input-actions {
+    position: static;
+    justify-content: flex-end;
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .article-catalog {
+    max-height: 240px;
+  }
+
+  .article-catalog :deep(.md-editor-catalog-link) {
+    font-size: 13px;
+    padding: 5px 10px;
+  }
 }
 </style>

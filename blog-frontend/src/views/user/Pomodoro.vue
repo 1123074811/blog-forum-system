@@ -7,7 +7,7 @@
 
         <!-- 时钟显示 -->
         <div class="timer-display">
-          <svg class="progress-ring" width="400" height="400">
+          <svg class="progress-ring" viewBox="0 0 400 400" width="100%" height="100%">
             <!-- 灰白色背景圆环 -->
             <circle
               class="progress-ring-bg"
@@ -253,6 +253,7 @@ onUnmounted(() => {
 
 .mode-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 48px;
   background: #f5f7fa;
@@ -287,6 +288,7 @@ onUnmounted(() => {
 .timer-display {
   position: relative;
   width: 400px;
+  max-width: min(70vw, 400px);
   height: 400px;
   margin: 0 auto 48px;
 }
@@ -433,6 +435,7 @@ onUnmounted(() => {
   .timer-display {
     width: 320px;
     height: 320px;
+    max-width: min(70vw, 320px);
   }
 
   .time-text {
@@ -445,9 +448,16 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .pomodoro-container {
+    min-height: calc(100vh - 90px);
+    padding: 16px 10px 24px;
+  }
+
   .pomodoro-card {
-    padding: 32px 24px;
-    width: 95vw;
+    padding: 24px 14px;
+    width: 100%;
+    border-radius: 20px;
+    gap: 28px;
   }
 
   .title {
@@ -456,9 +466,9 @@ onUnmounted(() => {
   }
 
   .timer-display {
-    width: 240px;
-    height: 240px;
-    margin-bottom: 32px;
+    width: min(72vw, 260px);
+    height: min(72vw, 260px);
+    margin-bottom: 20px;
   }
 
   .time-text {
@@ -466,22 +476,26 @@ onUnmounted(() => {
   }
 
   .mode-tabs {
-    margin-bottom: 32px;
+    margin-bottom: 18px;
+    gap: 8px;
+    padding: 6px;
   }
 
   .mode-tab {
-    padding: 14px 20px;
-    font-size: 16px;
+    min-width: calc(50% - 4px);
+    padding: 10px 12px;
+    font-size: 14px;
   }
 
   .controls {
     flex-direction: column;
-    margin-bottom: 32px;
+    margin-bottom: 20px;
+    gap: 10px;
   }
 
   .btn {
-    padding: 18px 24px;
-    font-size: 18px;
+    padding: 14px 18px;
+    font-size: 16px;
   }
 
   .stats {
@@ -500,6 +514,7 @@ onUnmounted(() => {
 
   .tips {
     font-size: 14px;
+    line-height: 1.7;
   }
 }
 </style>

@@ -897,4 +897,76 @@ watch(showHistory, (val) => { if (val) loadHistory() })
 .complete-info p { 
   margin: 8px 0; 
 }
+
+@media (max-width: 768px) {
+  .recitation-page {
+    padding: 10px;
+  }
+
+  .input-section,
+  .practice-section {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .actions,
+  .practice-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .actions .el-button,
+  .practice-actions .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .practice-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .practice-header .title {
+    font-size: 16px;
+  }
+
+  .controls {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .text-display {
+    padding: 12px;
+    line-height: 1.8;
+    font-size: 16px;
+    min-height: 100px;
+  }
+
+  .input-area {
+    min-height: 120px;
+    font-size: 15px;
+  }
+
+  .progress-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .progress-bar .el-progress {
+    width: 100%;
+  }
+
+  .history-item {
+    padding: 10px;
+  }
+
+  .history-item .meta {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
 </style>
