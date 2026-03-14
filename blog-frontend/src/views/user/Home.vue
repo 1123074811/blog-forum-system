@@ -278,6 +278,8 @@ const currentAnnouncement = ref(null)
 const dontShowToday = ref(false)
 const isMobile = ref(window.innerWidth < 768)
 let observer = null
+const ENTRY_SOURCE_KEY = 'site_entry_source_v1'
+const HOME_ANNOUNCEMENT_CONSUMED_KEY = 'home_announcement_consumed_v1'
 
 const setupObserver = () => {
   if (observer) observer.disconnect()
@@ -391,13 +393,18 @@ onMounted(async () => {
       const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
       const storageKey = `hide_announcement_${userId}_${announcement.id}_${today}`
       
-      if (!localStorage.getItem(storageKey)) {
+      const entrySource = sessionStorage.getItem(ENTRY_SOURCE_KEY) || 'external'
+      const consumed = sessionStorage.getItem(HOME_ANNOUNCEMENT_CONSUMED_KEY) === 'true'
+
+      if (entrySource === 'external' && !consumed && !localStorage.getItem(storageKey)) {
         currentAnnouncement.value = announcement
         showAnnouncement.value = true
       }
     }
   } catch (error) {
     console.error('Failed to process announcement:', error)
+  } finally {
+    sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
   }
 
   fetchArticles()

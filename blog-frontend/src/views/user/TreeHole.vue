@@ -1,11 +1,10 @@
 <template>
   <div class="tree-hole">
-    <!-- 动态壁纸背景 -->
-    <video 
-      class="video-bg" 
-      autoplay 
-      loop 
-      muted 
+    <video
+      class="video-bg"
+      autoplay
+      loop
+      muted
       playsinline
       webkit-playsinline
       x5-playsinline
@@ -16,17 +15,27 @@
       <source src="/treehole_bg.mp4" type="video/mp4">
     </video>
 
-    <!-- 弹幕区域 -->
     <div class="danmaku-container">
-      <div v-for="msg in visibleMessages" :key="msg.uid" class="danmaku" :style="msg.style">
+      <div
+        v-for="msg in visibleMessages"
+        :key="msg.uid"
+        class="danmaku"
+        :style="msg.style"
+        @animationend="removeDanmaku(msg.uid)"
+      >
         {{ msg.content }}
       </div>
     </div>
 
-    <!-- 输入区域 -->
     <div class="input-area glass">
       <div class="input-box">
-        <el-input v-model="content" placeholder="说点什么吧..." maxlength="50" @keyup.enter="send" @input="checkLength" />
+        <el-input
+          v-model="content"
+          placeholder="说点什么吧..."
+          maxlength="50"
+          @keyup.enter="send"
+          @input="checkLength"
+        />
         <div class="input-actions">
           <EmojiPicker @select="e => content += e" />
           <el-button type="primary" size="small" @click="send">发送</el-button>
@@ -43,66 +52,126 @@ import { getTreeHoles, createTreeHole } from '@/api/blog'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const DANMAKU_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE']
+const MAX_VISIBLE_DANMAKU = 24
+const DANMAKU_INTERVAL_MIN = 650
+const DANMAKU_INTERVAL_RANGE = 400
+const SAFE_BOTTOM_SPACE = 190
 
 const content = ref('')
 const visibleMessages = ref([])
-const allMessages = ref([]) // 保存所有消息用于循环
+const allMessages = ref([])
 const headerHeight = ref(64)
+
 let loopTimer = null
+let uidCounter = 0
+let roundRobinLane = 0
+const lanes = ref([])
 
 const getHeaderHeight = () => {
   const header = document.querySelector('header')
   return header?.offsetHeight || 64
 }
 
-// 添加弹幕
-let uidCounter = 0
+const getDanmakuFontSize = () => (window.innerWidth <= 768 ? 14 : 18)
+const getLaneHeight = () => getDanmakuFontSize() + 12
+
+const estimateTextWidth = (text) => {
+  const charWidth = getDanmakuFontSize() * 0.62
+  return Math.max(80, text.length * charWidth + 28)
+}
+
+const rebuildLanes = () => {
+  const availableHeight = Math.max(80, window.innerHeight - headerHeight.value - SAFE_BOTTOM_SPACE)
+  const laneCount = Math.max(3, Math.floor(availableHeight / getLaneHeight()))
+  lanes.value = Array.from({ length: laneCount }, () => ({ last: null }))
+}
+
+const canUseLane = (lane, now, viewportWidth, msgSpeed) => {
+  if (!lane?.last) return true
+  const prev = lane.last
+  const elapsed = (now - prev.startAt) / 1000
+  if (elapsed <= 0) return false
+
+  const prevRightNow = viewportWidth + prev.width - prev.speed * elapsed
+  if (prevRightNow > viewportWidth) return false
+  if (msgSpeed <= prev.speed) return true
+
+  const gapNow = prevRightNow - viewportWidth
+  const catchUpWindow = prevRightNow / prev.speed
+  return gapNow + (msgSpeed - prev.speed) * catchUpWindow <= 0
+}
+
+const pickLane = (msgSpeed) => {
+  if (!lanes.value.length) rebuildLanes()
+  const now = performance.now()
+  const viewportWidth = window.innerWidth
+  const start = roundRobinLane % lanes.value.length
+
+  for (let i = 0; i < lanes.value.length; i += 1) {
+    const laneIndex = (start + i) % lanes.value.length
+    if (canUseLane(lanes.value[laneIndex], now, viewportWidth, msgSpeed)) {
+      roundRobinLane = laneIndex + 1
+      return laneIndex
+    }
+  }
+  return -1
+}
+
+const removeDanmaku = (uid) => {
+  const idx = visibleMessages.value.findIndex(m => m.uid === uid)
+  if (idx > -1) visibleMessages.value.splice(idx, 1)
+}
+
 const addDanmaku = (msg) => {
-  // 检查是否已经在屏幕上显示
-  const exists = visibleMessages.value.some(m => m.id === msg.id)
-  if (exists) return
-  
-  const h = Math.max(0, (window.innerHeight - headerHeight.value) - 200)
+  if (visibleMessages.value.length >= MAX_VISIBLE_DANMAKU) return
+  if (!msg?.content) return
+
+  const duration = 9 + Math.random() * 2.2
+  const width = estimateTextWidth(msg.content)
+  const speed = (window.innerWidth + width) / duration
+  const laneIndex = pickLane(speed)
+  if (laneIndex < 0) return
+
   const uid = `${msg.id || Date.now()}-${uidCounter++}`
-  const duration = 10 + Math.random() * 2 // 10-12秒
-  const item = {
+  const laneTop = laneIndex * getLaneHeight()
+  const jitter = Math.random() * 4
+  visibleMessages.value.push({
     ...msg,
     uid,
     style: {
-      top: Math.random() * h + 'px',
+      top: `${laneTop + jitter}px`,
       color: msg.color || '#fff',
-      animationDuration: duration + 's'
+      animationDuration: `${duration}s`
     }
-  }
-  visibleMessages.value.push(item)
-  setTimeout(() => {
-    const idx = visibleMessages.value.findIndex(m => m.uid === uid)
-    if (idx > -1) visibleMessages.value.splice(idx, 1)
-  }, duration * 1000 + 500) // 动画结束后再删除，加500ms缓冲
+  })
+
+  lanes.value[laneIndex].last = { width, speed, startAt: performance.now() }
 }
 
-// 加载历史消息并启动循环
 const loadMessages = async () => {
   const res = await getTreeHoles()
   if (res.success && res.data.length > 0) {
-    allMessages.value = res.data.slice(0, 20).reverse()
+    allMessages.value = res.data.slice(0, 80).reverse()
     startLoop()
   }
 }
 
-// 循环播放弹幕
 const startLoop = () => {
   let index = 0
   const playNext = () => {
-    if (allMessages.value.length === 0) return
+    if (!allMessages.value.length) return
     addDanmaku(allMessages.value[index])
     index = (index + 1) % allMessages.value.length
-    loopTimer = setTimeout(playNext, 2000 + Math.random() * 1000)
+    if (visibleMessages.value.length < 10 && allMessages.value.length > 1) {
+      addDanmaku(allMessages.value[index])
+      index = (index + 1) % allMessages.value.length
+    }
+    const nextDelay = DANMAKU_INTERVAL_MIN + Math.random() * DANMAKU_INTERVAL_RANGE
+    loopTimer = setTimeout(playNext, nextDelay)
   }
   playNext()
 }
 
-// 发送消息
 const send = async () => {
   if (!content.value.trim()) return
   const randomColor = DANMAKU_COLORS[Math.floor(Math.random() * DANMAKU_COLORS.length)]
@@ -125,13 +194,16 @@ const checkLength = () => {
 
 const handleResize = () => {
   headerHeight.value = getHeaderHeight()
+  rebuildLanes()
 }
 
 onMounted(() => {
   headerHeight.value = getHeaderHeight()
+  rebuildLanes()
   loadMessages()
   window.addEventListener('resize', handleResize)
 })
+
 onUnmounted(() => {
   clearTimeout(loopTimer)
   window.removeEventListener('resize', handleResize)
@@ -148,6 +220,7 @@ onUnmounted(() => {
   overflow: hidden;
   background: #0f172a;
 }
+
 .video-bg {
   position: absolute;
   inset: 0;
@@ -157,24 +230,29 @@ onUnmounted(() => {
   z-index: 0;
   pointer-events: none;
 }
+
 .danmaku-container {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
 }
+
 .danmaku {
   position: absolute;
   left: 100%;
   white-space: nowrap;
   font-size: 18px;
   text-shadow: 0 0 10px currentColor;
+  will-change: transform;
   animation: fly linear forwards;
 }
+
 @keyframes fly {
   from { transform: translateX(0); }
-  to { transform: translateX(calc(-100vw - 100%)); }
+  to { transform: translateX(calc(-100vw - 120%)); }
 }
+
 .input-area {
   position: fixed;
   bottom: 30px;
@@ -182,28 +260,33 @@ onUnmounted(() => {
   transform: translateX(-50%);
   padding: 12px 20px;
   border-radius: 30px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   z-index: 2;
   width: auto;
   max-width: 90vw;
 }
+
 .input-box {
   position: relative;
   display: flex;
   align-items: center;
 }
+
 .input-area :deep(.el-input) {
   width: 320px;
 }
+
 .input-area :deep(.el-input__wrapper) {
   background: transparent;
   box-shadow: none;
   padding-right: 100px;
 }
+
 .input-area :deep(.el-input__inner) {
   color: #fff;
 }
+
 .input-actions {
   position: absolute;
   right: 4px;
@@ -218,9 +301,11 @@ onUnmounted(() => {
     padding: 10px 14px;
     border-radius: 24px;
   }
+
   .input-area :deep(.el-input) {
     width: 60vw;
   }
+
   .danmaku {
     font-size: 14px;
   }

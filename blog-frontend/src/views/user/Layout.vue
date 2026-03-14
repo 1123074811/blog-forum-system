@@ -162,6 +162,7 @@ const msgUnreadCount = ref(0)
 const conversations = ref([])
 const isMobile = ref(window.innerWidth < 768)
 let ws = null
+const ENTRY_SOURCE_KEY = 'site_entry_source_v1'
 
 // 监听窗口大小变化
 const handleResize = () => {
@@ -243,6 +244,18 @@ const handleMarkAllRead = async () => {
 }
 
 onMounted(() => {
+  if (!sessionStorage.getItem(ENTRY_SOURCE_KEY)) {
+    let isExternalEntry = true
+    if (document.referrer) {
+      try {
+        isExternalEntry = new URL(document.referrer).origin !== window.location.origin
+      } catch {
+        isExternalEntry = true
+      }
+    }
+    sessionStorage.setItem(ENTRY_SOURCE_KEY, isExternalEntry ? 'external' : 'internal')
+  }
+
   if (userStore.isLoggedIn) {
     fetchNotifications()
     connectWebSocket()
