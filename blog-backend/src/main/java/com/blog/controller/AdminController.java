@@ -7,12 +7,21 @@ import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.*;
 import com.blog.service.*;
 import com.blog.util.DateUtil;
+import com.blog.websocket.ChatWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -25,19 +34,35 @@ public class AdminController {
     private final CategoryService categoryService;
     private final TagService tagService;
     private final com.blog.mapper.ArticleFavoriteMapper articleFavoriteMapper;
+    private final ChatWebSocketHandler chatWebSocketHandler;
 
     // Statistics
     @GetMapping("/statistics")
-    public ApiResponse<Map<String, Object>> getStatistics() {
+    public ApiResponse<Map<String, Object>> getStatistics(
+            @RequestParam(defaultValue = "30d") String range,
+            @RequestParam(defaultValue = "day") String granularity) {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalArticles", articleService.count());
         stats.put("totalCategories", categoryService.count());
         stats.put("totalUsers", userService.count());
         stats.put("totalComments", commentService.count());
+        stats.put("totalOnlineUsers", chatWebSocketHandler.getOnlineUserCount());
 
         List<Article> topArticles = articleService.list(new LambdaQueryWrapper<Article>()
                 .orderByDesc(Article::getViewCount).last("LIMIT 10"));
         stats.put("viewRanking", topArticles);
+
+        int days = parseRangeDays(range);
+        String normalizedGranularity = normalizeGranularity(granularity);
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(days - 1L);
+
+        List<Article> allArticles = articleService.list();
+        List<Comment> allComments = commentService.list();
+
+        stats.put("trend", buildTrend(allArticles, allComments, startDate, endDate, normalizedGranularity));
+        stats.put("articleStatusDistribution", buildArticleStatusDistribution(allArticles, startDate, endDate));
+        stats.put("activeAuthors", buildActiveAuthors(allArticles, startDate, endDate, 5));
 
         return ApiResponse.success(stats);
     }
@@ -242,5 +267,164 @@ public class AdminController {
             articleFavoriteMapper.deleteBatchIds(ids);
         }
         return ApiResponse.success(true);
+    }
+
+    private int parseRangeDays(String range) {
+        return switch (range == null ? "" : range.toLowerCase()) {
+            case "7d" -> 7;
+            case "90d" -> 90;
+            default -> 30;
+        };
+    }
+
+    private String normalizeGranularity(String granularity) {
+        String g = granularity == null ? "day" : granularity.toLowerCase();
+        if ("month".equals(g) || "year".equals(g)) {
+            return g;
+        }
+        return "day";
+    }
+
+    private LocalDate parseDateSafe(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toLocalDate();
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDate.parse(value.substring(0, 10), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private Map<String, Object> buildTrend(List<Article> allArticles, List<Comment> allComments,
+                                           LocalDate startDate, LocalDate endDate, String granularity) {
+        LinkedHashMap<String, Integer> articleCounts = new LinkedHashMap<>();
+        LinkedHashMap<String, Integer> commentCounts = new LinkedHashMap<>();
+
+        if ("month".equals(granularity)) {
+            YearMonth start = YearMonth.from(startDate);
+            YearMonth end = YearMonth.from(endDate);
+            YearMonth current = start;
+            while (!current.isAfter(end)) {
+                String key = current.toString();
+                articleCounts.put(key, 0);
+                commentCounts.put(key, 0);
+                current = current.plusMonths(1);
+            }
+            for (Article a : allArticles) {
+                LocalDate d = parseDateSafe(a.getCreatedAt());
+                if (d != null && !d.isBefore(startDate) && !d.isAfter(endDate)) {
+                    String key = YearMonth.from(d).toString();
+                    articleCounts.computeIfPresent(key, (k, v) -> v + 1);
+                }
+            }
+            for (Comment c : allComments) {
+                LocalDate d = parseDateSafe(c.getCreatedAt());
+                if (d != null && !d.isBefore(startDate) && !d.isAfter(endDate)) {
+                    String key = YearMonth.from(d).toString();
+                    commentCounts.computeIfPresent(key, (k, v) -> v + 1);
+                }
+            }
+        } else if ("year".equals(granularity)) {
+            int startYear = startDate.getYear();
+            int endYear = endDate.getYear();
+            for (int y = startYear; y <= endYear; y++) {
+                String key = String.valueOf(y);
+                articleCounts.put(key, 0);
+                commentCounts.put(key, 0);
+            }
+            for (Article a : allArticles) {
+                LocalDate d = parseDateSafe(a.getCreatedAt());
+                if (d != null && !d.isBefore(startDate) && !d.isAfter(endDate)) {
+                    String key = String.valueOf(d.getYear());
+                    articleCounts.computeIfPresent(key, (k, v) -> v + 1);
+                }
+            }
+            for (Comment c : allComments) {
+                LocalDate d = parseDateSafe(c.getCreatedAt());
+                if (d != null && !d.isBefore(startDate) && !d.isAfter(endDate)) {
+                    String key = String.valueOf(d.getYear());
+                    commentCounts.computeIfPresent(key, (k, v) -> v + 1);
+                }
+            }
+        } else {
+            LocalDate current = startDate;
+            while (!current.isAfter(endDate)) {
+                String key = current.toString();
+                articleCounts.put(key, 0);
+                commentCounts.put(key, 0);
+                current = current.plusDays(1);
+            }
+            for (Article a : allArticles) {
+                LocalDate d = parseDateSafe(a.getCreatedAt());
+                if (d != null && !d.isBefore(startDate) && !d.isAfter(endDate)) {
+                    String key = d.toString();
+                    articleCounts.computeIfPresent(key, (k, v) -> v + 1);
+                }
+            }
+            for (Comment c : allComments) {
+                LocalDate d = parseDateSafe(c.getCreatedAt());
+                if (d != null && !d.isBefore(startDate) && !d.isAfter(endDate)) {
+                    String key = d.toString();
+                    commentCounts.computeIfPresent(key, (k, v) -> v + 1);
+                }
+            }
+        }
+
+        Map<String, Object> trend = new HashMap<>();
+        trend.put("labels", new ArrayList<>(articleCounts.keySet()));
+        trend.put("articleCounts", new ArrayList<>(articleCounts.values()));
+        trend.put("commentCounts", new ArrayList<>(commentCounts.values()));
+        return trend;
+    }
+
+    private List<Map<String, Object>> buildArticleStatusDistribution(List<Article> allArticles,
+                                                                     LocalDate startDate, LocalDate endDate) {
+        int published = 0;
+        int draft = 0;
+        for (Article article : allArticles) {
+            LocalDate date = parseDateSafe(article.getCreatedAt());
+            if (date == null || date.isBefore(startDate) || date.isAfter(endDate)) continue;
+            if ("published".equalsIgnoreCase(article.getStatus())) {
+                published++;
+            } else if ("draft".equalsIgnoreCase(article.getStatus())) {
+                draft++;
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        result.add(Map.of("name", "已发布", "value", published));
+        result.add(Map.of("name", "草稿", "value", draft));
+        result.clear();
+        result.add(Map.of("name", "\u5df2\u53d1\u5e03", "value", published));
+        result.add(Map.of("name", "\u8349\u7a3f", "value", draft));
+        return result;
+    }
+
+    private List<Map<String, Object>> buildActiveAuthors(List<Article> allArticles, LocalDate startDate,
+                                                         LocalDate endDate, int topN) {
+        Map<Long, Long> userArticleCount = allArticles.stream()
+                .filter(a -> {
+                    LocalDate d = parseDateSafe(a.getCreatedAt());
+                    return d != null && !d.isBefore(startDate) && !d.isAfter(endDate);
+                })
+                .collect(Collectors.groupingBy(Article::getUserId, Collectors.counting()));
+
+        return userArticleCount.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(topN)
+                .map(entry -> {
+                    User user = userService.getById(entry.getKey());
+                    String name = user != null
+                            ? (user.getNickname() != null && !user.getNickname().isBlank() ? user.getNickname() : user.getUsername())
+                            : "用户#" + entry.getKey();
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("userId", entry.getKey());
+                    item.put("name", name);
+                    item.put("count", entry.getValue());
+                    return item;
+                })
+                .collect(Collectors.toList());
     }
 }

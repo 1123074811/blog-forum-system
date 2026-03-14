@@ -69,6 +69,16 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         return session != null && session.isOpen();
     }
 
+    public int getOnlineUserCount() {
+        int count = 0;
+        for (WebSocketSession session : sessions.values()) {
+            if (session != null && session.isOpen()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private void broadcastPresence(Long userId, boolean online) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("type", "presence_update");

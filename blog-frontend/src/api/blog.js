@@ -39,7 +39,7 @@ export const uploadFile = (file) => {
 }
 
 // Admin APIs
-export const getStatistics = () => api.get('/admin/statistics')
+export const getStatistics = (params) => api.get('/admin/statistics', { params })
 export const getAdminUsers = () => api.get('/admin/users')
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`)
 export const getAdminArticles = () => api.get('/admin/articles')
