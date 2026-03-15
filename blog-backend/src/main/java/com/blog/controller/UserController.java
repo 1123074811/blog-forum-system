@@ -45,9 +45,14 @@ public class UserController extends BaseController {
         } else {
             userVO.setIsFollowing(false);
         }
+        // hide email for non-owner
+        if (currentUserId == null || !currentUserId.equals(id)) {
+            userVO.setEmail(null);
+        }
 
         return ApiResponse.success(userVO);
     }
+
 
     @PutMapping("/{id}")
     public ApiResponse<UserVO> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest updateData, Authentication auth) {

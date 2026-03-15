@@ -52,6 +52,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         if (userId != null) {
             wrapper.eq(Article::getUserId, userId);
+            // 只有本人才能看到自己的草稿，其他人只能看已发布的
+            if (!userId.equals(currentUserId)) {
+                wrapper.eq(Article::getStatus, "published");
+            }
         } else {
             wrapper.eq(Article::getStatus, "published");
         }
@@ -67,7 +71,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (AppConstants.SORT_LATEST.equals(sort)) {
             wrapper.orderByDesc(Article::getCreatedAt);
         } else if (AppConstants.SORT_POPULAR.equals(sort)) {
-            // 热门文章使用 Redis ZSet 预计算结果，避免每次查询都计算权重
+            // 热门文章使用 Redis ZSet 预计算结果，避免每次查询都计算权�?
             return hotArticleService.getHotArticlesFromCache(page, limit, categoryId, search, currentUserId);
         } else {
             wrapper.orderByDesc(Article::getCreatedAt);
@@ -94,7 +98,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 id -> id,
                 id -> articleLikeMapper.selectCount(new LambdaQueryWrapper<ArticleLike>().eq(ArticleLike::getArticleId, id))
         ));
-        // 查询当前用户点赞的文章
+        // 查询当前用户点赞的文�?
         java.util.Set<Long> likedArticleIds = new java.util.HashSet<>();
         if (currentUserId != null) {
             likedArticleIds = articleLikeMapper.selectList(new LambdaQueryWrapper<ArticleLike>()
@@ -149,7 +153,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
         
         Long views = cacheUtil.increment(key, 30, TimeUnit.MINUTES);
-        // 每10次写入数据库
+        // �?0次写入数据库
         if (views != null && views % 10 == 0) {
             Article article = getById(articleId);
             if (article != null) {
@@ -222,7 +226,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                         .eq(Article::getStatus, "published")
                         .orderByDesc(Article::getCreatedAt));
 
-        // 填充作者信息
+        // 填充作者信�?
         fillAuthorInfo(result.getRecords(), currentUserId);
         fillViewCountFromCache(result.getRecords());
         return result;
@@ -274,7 +278,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
 
-        // 记录旧状态
+        // 记录旧状�?
         String oldStatus = article.getStatus();
 
         if (request.getTitle() != null) article.setTitle(request.getTitle());
@@ -295,7 +299,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                     at.setTagId(tagId);
                     articleTagMapper.insert(at);
                 }
-                // 设置返回对象的标签
+                // 设置返回对象的标�?
                 article.setTags(tagMapper.selectBatchIds(request.getTags()));
             } else {
                 article.setTags(List.of());

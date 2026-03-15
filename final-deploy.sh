@@ -196,10 +196,31 @@ if [ -f "/opt/blog/blog-backend.jar" ] || [ -d "/var/www/blog" ]; then
     fi
 fi
 
-# 询问服务器 IP 地址
+# 自动获取服务器公网 IP
 echo ""
-echo "请输入服务器的公网 IP 地址："
-read -p "IP地址: " SERVER_IP
+log_info "正在自动获取服务器公网 IP..."
+AUTO_IP=""
+for service in "https://api.ipify.org" "https://ifconfig.me/ip" "https://icanhazip.com"; do
+    AUTO_IP=$(curl -s --max-time 5 "$service" 2>/dev/null | tr -d '[:space:]')
+    if [[ "$AUTO_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        break
+    fi
+    AUTO_IP=""
+done
+
+if [[ -n "$AUTO_IP" ]]; then
+    echo "检测到公网 IP：$AUTO_IP"
+    read -p "是否使用此 IP？(y/n) [y]: " USE_AUTO_IP
+    USE_AUTO_IP=${USE_AUTO_IP:-y}
+    if [[ "$USE_AUTO_IP" =~ ^[Yy]$ ]]; then
+        SERVER_IP="$AUTO_IP"
+    else
+        read -p "请手动输入服务器公网 IP: " SERVER_IP
+    fi
+else
+    log_warn "自动获取 IP 失败，请手动输入"
+    read -p "请输入服务器的公网 IP 地址: " SERVER_IP
+fi
 
 # 验证 IP 地址格式
 if [[ ! "$SERVER_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -500,7 +521,50 @@ fi
 log_step "8. 配置音乐API服务..."
 cd /opt/blog
 
-# 无论是否升级模式，都确保服务文件存在
+# 安装 NeteaseCloudMusicApi（网易云音乐 API，监听 3000 端口）
+if [ ! -d "/opt/netease-music-api" ]; then
+    log_info "安装 NeteaseCloudMusicApi..."
+    mkdir -p /opt/netease-music-api
+    cd /opt/netease-music-api
+    npm init -y
+    npm install NeteaseCloudMusicApi --registry=https://registry.npmmirror.com
+    # 生成启动入口
+    cat > app.js << 'APPEOF'
+const { serveNcmApi } = require('NeteaseCloudMusicApi')
+serveNcmApi({ port: process.env.PORT || 3000 })
+APPEOF
+    cd /opt/blog
+    log_info "NeteaseCloudMusicApi 安装完成"
+else
+    log_info "NeteaseCloudMusicApi 已存在，跳过安装"
+fi
+
+# 创建网易云音乐 API systemd 服务
+if [ ! -f "/etc/systemd/system/netease-music-api.service" ]; then
+    cat > /etc/systemd/system/netease-music-api.service << 'SYSTEMDEOF'
+[Unit]
+Description=NeteaseCloudMusicApi Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/netease-music-api
+Environment=PORT=3000
+ExecStart=/usr/bin/node app.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=netease-music-api
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMDEOF
+    log_info "创建 NeteaseCloudMusicApi 服务文件"
+fi
+
+# 无论是否升级模式，都确保 meting-server 服务文件存在
 if [ ! -f "/etc/systemd/system/blog-music-api.service" ]; then
     cat > /etc/systemd/system/blog-music-api.service << 'SYSTEMDEOF'
 [Unit]
@@ -525,6 +589,8 @@ SYSTEMDEOF
 fi
 
 systemctl daemon-reload
+systemctl start netease-music-api
+systemctl enable netease-music-api
 systemctl start blog-music-api
 systemctl enable blog-music-api
 
@@ -989,7 +1055,7 @@ echo "=========================================="
 echo "  服务状态检查"
 echo "=========================================="
 
-services=("mysql" "redis-server" "blog-music-api" "blog-backend" "nginx")
+services=("mysql" "redis-server" "netease-music-api" "blog-music-api" "blog-backend" "nginx")
 for service in "${services[@]}"; do
     if systemctl is-active --quiet "$service" 2>/dev/null || systemctl is-active --quiet "${service}.service" 2>/dev/null; then
         log_info "✓ $service 运行正常"
