@@ -53,8 +53,6 @@ import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const DANMAKU_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE']
 const MAX_VISIBLE_DANMAKU = 24
-const DANMAKU_INTERVAL_MIN = 650
-const DANMAKU_INTERVAL_RANGE = 400
 const SAFE_BOTTOM_SPACE = 190
 
 const content = ref('')
@@ -62,10 +60,9 @@ const visibleMessages = ref([])
 const allMessages = ref([])
 const headerHeight = ref(64)
 
-let loopTimer = null
 let uidCounter = 0
-let roundRobinLane = 0
-const lanes = ref([])
+// 每条轨道的下次可用时间戳
+const laneNextAvailable = ref([])
 
 const getHeaderHeight = () => {
   const header = document.querySelector('header')
@@ -73,48 +70,29 @@ const getHeaderHeight = () => {
 }
 
 const getDanmakuFontSize = () => (window.innerWidth <= 768 ? 14 : 18)
-const getLaneHeight = () => getDanmakuFontSize() + 12
-
-const estimateTextWidth = (text) => {
-  const charWidth = getDanmakuFontSize() * 0.62
-  return Math.max(80, text.length * charWidth + 28)
-}
+const getLaneHeight = () => getDanmakuFontSize() + 14
 
 const rebuildLanes = () => {
   const availableHeight = Math.max(80, window.innerHeight - headerHeight.value - SAFE_BOTTOM_SPACE)
   const laneCount = Math.max(3, Math.floor(availableHeight / getLaneHeight()))
-  lanes.value = Array.from({ length: laneCount }, () => ({ last: null }))
+  laneNextAvailable.value = Array.from({ length: laneCount }, () => 0)
 }
 
-const canUseLane = (lane, now, viewportWidth, msgSpeed) => {
-  if (!lane?.last) return true
-  const prev = lane.last
-  const elapsed = (now - prev.startAt) / 1000
-  if (elapsed <= 0) return false
+const getLaneCount = () => laneNextAvailable.value.length
 
-  const prevRightNow = viewportWidth + prev.width - prev.speed * elapsed
-  if (prevRightNow > viewportWidth) return false
-  if (msgSpeed <= prev.speed) return true
-
-  const gapNow = prevRightNow - viewportWidth
-  const catchUpWindow = prevRightNow / prev.speed
-  return gapNow + (msgSpeed - prev.speed) * catchUpWindow <= 0
-}
-
-const pickLane = (msgSpeed) => {
-  if (!lanes.value.length) rebuildLanes()
+// 找一条当前可用的轨道，优先选最早空闲的
+const pickLane = () => {
+  if (!getLaneCount()) rebuildLanes()
   const now = performance.now()
-  const viewportWidth = window.innerWidth
-  const start = roundRobinLane % lanes.value.length
-
-  for (let i = 0; i < lanes.value.length; i += 1) {
-    const laneIndex = (start + i) % lanes.value.length
-    if (canUseLane(lanes.value[laneIndex], now, viewportWidth, msgSpeed)) {
-      roundRobinLane = laneIndex + 1
-      return laneIndex
+  let bestLane = -1
+  let bestTime = Infinity
+  for (let i = 0; i < getLaneCount(); i++) {
+    if (laneNextAvailable.value[i] <= now && laneNextAvailable.value[i] < bestTime) {
+      bestTime = laneNextAvailable.value[i]
+      bestLane = i
     }
   }
-  return -1
+  return bestLane
 }
 
 const removeDanmaku = (uid) => {
@@ -126,26 +104,26 @@ const addDanmaku = (msg) => {
   if (visibleMessages.value.length >= MAX_VISIBLE_DANMAKU) return
   if (!msg?.content) return
 
-  const duration = 9 + Math.random() * 2.2
-  const width = estimateTextWidth(msg.content)
-  const speed = (window.innerWidth + width) / duration
-  const laneIndex = pickLane(speed)
+  const laneIndex = pickLane()
   if (laneIndex < 0) return
 
+  // 每条弹幕速度略有差异，持续时间 8~12s
+  const duration = 8 + Math.random() * 4
   const uid = `${msg.id || Date.now()}-${uidCounter++}`
   const laneTop = laneIndex * getLaneHeight()
-  const jitter = Math.random() * 4
+
   visibleMessages.value.push({
     ...msg,
     uid,
     style: {
-      top: `${laneTop + jitter}px`,
+      top: `${laneTop}px`,
       color: msg.color || '#fff',
       animationDuration: `${duration}s`
     }
   })
 
-  lanes.value[laneIndex].last = { width, speed, startAt: performance.now() }
+  // 该轨道在弹幕飞出屏幕前不再分配新弹幕（留 1s 间隔避免重叠）
+  laneNextAvailable.value[laneIndex] = performance.now() + (duration - 1) * 1000
 }
 
 const loadMessages = async () => {
@@ -156,20 +134,30 @@ const loadMessages = async () => {
   }
 }
 
+let msgIndex = 0
+const timers = []
+
 const startLoop = () => {
-  let index = 0
-  const playNext = () => {
-    if (!allMessages.value.length) return
-    addDanmaku(allMessages.value[index])
-    index = (index + 1) % allMessages.value.length
-    if (visibleMessages.value.length < 10 && allMessages.value.length > 1) {
-      addDanmaku(allMessages.value[index])
-      index = (index + 1) % allMessages.value.length
+  if (!allMessages.value.length) return
+  const laneCount = getLaneCount() || 8
+
+  // 每条轨道独立随机延迟启动，错开出现时间
+  for (let lane = 0; lane < laneCount; lane++) {
+    const initialDelay = Math.random() * 6000 // 0~6s 随机初始延迟
+    const scheduleNext = () => {
+      if (!allMessages.value.length) return
+      const msg = allMessages.value[msgIndex % allMessages.value.length]
+      msgIndex++
+      addDanmaku(msg)
+      // 每条轨道下次发射间隔：弹幕飞行时长 + 随机 1~4s 间隔
+      const duration = 8 + Math.random() * 4
+      const nextDelay = duration * 1000 + 1000 + Math.random() * 3000
+      const t = setTimeout(scheduleNext, nextDelay)
+      timers.push(t)
     }
-    const nextDelay = DANMAKU_INTERVAL_MIN + Math.random() * DANMAKU_INTERVAL_RANGE
-    loopTimer = setTimeout(playNext, nextDelay)
+    const t = setTimeout(scheduleNext, initialDelay)
+    timers.push(t)
   }
-  playNext()
 }
 
 const send = async () => {
@@ -205,7 +193,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  clearTimeout(loopTimer)
+  timers.forEach(t => clearTimeout(t))
   window.removeEventListener('resize', handleResize)
 })
 </script>

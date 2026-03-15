@@ -1,12 +1,12 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.blog.constant.AppConstants;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.TreeHole;
 import com.blog.service.TreeHoleService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,12 +38,14 @@ public class TreeHoleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         treeHoleService.removeById(id);
         return ApiResponse.success(null);
     }
 
     @PostMapping("/batch-delete")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
         List<Long> ids = body.get("ids");
         if (ids != null && !ids.isEmpty()) {

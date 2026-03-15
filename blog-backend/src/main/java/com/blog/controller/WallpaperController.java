@@ -303,20 +303,15 @@ public class WallpaperController {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
+        // 只信任 X-Real-IP（由 Nginx 注入的真实 IP），不信任客户端可伪造的 X-Forwarded-For
+        String ip = request.getHeader("X-Real-IP");
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getHeader("CF-Connecting-IP");
         }
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getRemoteAddr();
         }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip == null ? "" : ip;
+        return ip == null ? "" : ip.trim();
     }
 
     private String getPublicIp() {

@@ -9,6 +9,7 @@ import com.blog.service.TagService;
 import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Comparator;
@@ -44,6 +45,7 @@ public class TagController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Tag> createTag(@RequestBody Map<String, String> body) {
         String name = body.get("name");
         if (name == null || name.trim().isEmpty()) {

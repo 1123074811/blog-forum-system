@@ -127,6 +127,21 @@ public class MinioStorageService implements StorageService {
     }
 
     @Override
+    public String uploadBytes(byte[] data, String objectName, String contentType) throws Exception {
+        minioClient.putObject(
+                PutObjectArgs.builder()
+                        .bucket(config.getBucket())
+                        .object(objectName)
+                        .stream(new ByteArrayInputStream(data), data.length, -1)
+                        .contentType(contentType)
+                        .build()
+        );
+        String url = config.getEndpoint() + "/" + config.getBucket() + "/" + objectName;
+        log.debug("字节数组上传成功: {}", url);
+        return url;
+    }
+
+    @Override
     public void delete(String filename) throws Exception {
         if (filename.startsWith("http")) {
             filename = filename.substring(filename.lastIndexOf("/") + 1);

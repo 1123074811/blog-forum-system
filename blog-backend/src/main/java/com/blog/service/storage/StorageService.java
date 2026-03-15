@@ -32,6 +32,15 @@ public interface StorageService {
     String uploadFromUrl(String imageUrl, String filename) throws Exception;
     
     /**
+     * 上传字节数组（用于缩略图等内存中生成的文件）
+     * @param data        文件字节数组
+     * @param objectName  存储路径/文件名
+     * @param contentType MIME 类型
+     * @return 文件访问 URL
+     */
+    String uploadBytes(byte[] data, String objectName, String contentType) throws Exception;
+
+    /**
      * 删除文件
      * @param filename 文件名或完整路径
      */

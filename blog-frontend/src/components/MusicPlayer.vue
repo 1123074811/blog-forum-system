@@ -122,7 +122,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useMusicStore } from '@/stores/music'
-import { searchSongs, getSongDetail, PLATFORMS } from '@/api/music'
+import { searchSongs, getSongDetail, getLyric, PLATFORMS } from '@/api/music'
 
 const musicStore = useMusicStore()
 

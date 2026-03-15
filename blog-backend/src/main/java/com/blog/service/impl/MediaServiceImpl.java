@@ -9,8 +9,11 @@ import com.blog.mapper.MediaMapper;
 import com.blog.mapper.UserMapper;
 import com.blog.service.MediaService;
 import com.blog.service.MinioService;
+import com.blog.service.storage.StorageService;
 import com.blog.util.DateUtil;
+import com.blog.util.ThumbnailUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MediaServiceImpl implements MediaService {
@@ -26,6 +30,7 @@ public class MediaServiceImpl implements MediaService {
     private final AlbumMapper albumMapper;
     private final UserMapper userMapper;
     private final MinioService minioService;
+    private final StorageService storageService;
 
     private void fillUserInfo(List<Media> mediaList) {
         if (mediaList.isEmpty()) return;
@@ -52,12 +57,31 @@ public class MediaServiceImpl implements MediaService {
             String contentType = file.getContentType();
             String type = contentType != null && contentType.startsWith("video") ? "video" : "image";
 
+            // 生成缩略图（仅图片，异步不阻塞主流程）
+            String thumbnailUrl = null;
+            if ("image".equals(type)) {
+                try {
+                    byte[] thumbData = ThumbnailUtil.generate(file);
+                    if (thumbData != null) {
+                        // 从原始 URL 末尾取文件名，构造缩略图存储路径
+                        String[] parts = url.split("/");
+                        String rawName = parts[parts.length - 1];
+                        String thumbObjectName = ThumbnailUtil.thumbObjectName(rawName);
+                        thumbnailUrl = storageService.uploadBytes(thumbData, thumbObjectName, "image/jpeg");
+                        log.debug("缩略图生成成功: {}", thumbnailUrl);
+                    }
+                } catch (Exception e) {
+                    log.warn("缩略图生成失败，使用原图: {}", e.getMessage());
+                }
+            }
+
             Media media = new Media();
             media.setUserId(userId);
             media.setAlbumId(albumId);
             media.setTitle(title);
             media.setDescription(description);
             media.setUrl(url);
+            media.setThumbnailUrl(thumbnailUrl);
             media.setType(type);
             media.setFileSize(file.getSize());
             media.setIsPublic(false);
@@ -70,7 +94,7 @@ public class MediaServiceImpl implements MediaService {
                 if (album != null) {
                     album.setMediaCount(album.getMediaCount() + 1);
                     if (album.getCoverUrl() == null) {
-                        album.setCoverUrl(url);
+                        album.setCoverUrl(thumbnailUrl != null ? thumbnailUrl : url);
                     }
                     albumMapper.updateById(album);
                 }

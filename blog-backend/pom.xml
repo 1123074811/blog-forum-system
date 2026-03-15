@@ -116,6 +116,13 @@
             <version>1.17.2</version>
         </dependency>
 
+        <!-- Thumbnailator 图片缩略图生成 -->
+        <dependency>
+            <groupId>net.coobird</groupId>
+            <artifactId>thumbnailator</artifactId>
+            <version>0.4.20</version>
+        </dependency>
+
         <!-- HTML to Markdown converter -->
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>

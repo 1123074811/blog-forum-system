@@ -52,7 +52,7 @@
       <el-tab-pane label="公开图片" name="images">
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
           <div v-for="item in mediaList" :key="item.id" class="aspect-square bg-gray-100 rounded overflow-hidden cursor-pointer" @click="previewMedia(item)">
-            <img :src="item.url" class="w-full h-full object-cover" />
+            <img :src="item.thumbnailUrl || item.url" loading="lazy" class="w-full h-full object-cover" />
           </div>
         </div>
         <div ref="mediaLoadTrigger" class="h-20 flex items-center justify-center">
@@ -64,7 +64,7 @@
       <el-tab-pane label="公开视频" name="videos">
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div v-for="item in mediaList" :key="item.id" class="aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer relative" @click="previewMedia(item)">
-            <video :src="item.url" class="w-full h-full object-cover" />
+            <video :src="item.url" preload="none" class="w-full h-full object-cover" />
             <div class="absolute inset-0 flex items-center justify-center">
               <el-icon :size="48" class="text-white drop-shadow-lg"><VideoPlay /></el-icon>
             </div>
@@ -83,8 +83,8 @@
       <div v-if="albumMedia.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <div v-for="item in albumMedia" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer overflow-hidden" @click="previewMedia(item)">
           <div class="aspect-square bg-gray-100 overflow-hidden">
-            <img v-if="item.type === 'image'" :src="item.url" class="w-full h-full object-cover" />
-            <video v-else :src="item.url" class="w-full h-full object-cover" />
+            <img v-if="item.type === 'image'" :src="item.thumbnailUrl || item.url" loading="lazy" class="w-full h-full object-cover" />
+            <video v-else :src="item.url" preload="none" class="w-full h-full object-cover" />
           </div>
           <div class="p-2">
             <p class="text-xs text-gray-500 truncate">{{ item.description || '暂无简介' }}</p>

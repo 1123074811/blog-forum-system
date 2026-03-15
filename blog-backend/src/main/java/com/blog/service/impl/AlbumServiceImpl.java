@@ -30,9 +30,13 @@ public class AlbumServiceImpl implements AlbumService {
                     .eq(Media::getAlbumId, album.getId())
                     .orderByDesc(Media::getCreatedAt)
                     .last("LIMIT 3"));
-            album.setCoverUrls(mediaList.stream().map(Media::getUrl).collect(Collectors.toList()));
+            // 封面列表优先使用缩略图，降级到原图
+            album.setCoverUrls(mediaList.stream()
+                    .map(m -> m.getThumbnailUrl() != null ? m.getThumbnailUrl() : m.getUrl())
+                    .collect(Collectors.toList()));
             if (album.getCoverUrl() == null && !mediaList.isEmpty()) {
-                album.setCoverUrl(mediaList.get(0).getUrl());
+                Media first = mediaList.get(0);
+                album.setCoverUrl(first.getThumbnailUrl() != null ? first.getThumbnailUrl() : first.getUrl());
             }
         }
     }

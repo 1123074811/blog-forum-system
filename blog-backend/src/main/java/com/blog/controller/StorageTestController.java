@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +24,7 @@ import java.util.Map;
 @RequestMapping("/api/storage/test")
 @RequiredArgsConstructor
 @Profile({"dev", "test"})
+@PreAuthorize("hasRole('ADMIN')")
 public class StorageTestController {
     
     private final StorageService storageService;

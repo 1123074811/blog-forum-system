@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node node_modules/NeteaseCloudMusicApi/app.js\" \"node meting-server.js\" \"vite\"",
+    "dev": "concurrently \"node music-crawler.js\" \"node start-netease.js\" \"vite\"",
     "dev:vite": "vite",
-    "music-api": "node node_modules/NeteaseCloudMusicApi/app.js",
-    "music-parse": "node meting-server.js",
+    "music-crawler": "node music-crawler.js",
+    "netease-api": "node start-netease.js",
     "build": "vite build",
     "preview": "vite preview",
     "start": "vite preview --host 0.0.0.0 --port $PORT"
