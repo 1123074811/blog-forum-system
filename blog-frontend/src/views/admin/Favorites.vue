@@ -89,6 +89,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminFavorites, deleteAdminFavorite } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
+import { getStepUpToken } from '@/utils/stepUp'
 import { useIsMobile } from '@/composables/useIsMobile'
 import MobileAdminListShell from '@/components/admin/MobileAdminListShell.vue'
 import MobileActionSheet from '@/components/admin/MobileActionSheet.vue'
@@ -148,7 +149,8 @@ const handleDelete = async (id) => {
 
 const handleBatchDelete = async () => {
   await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个收藏？`, '批量删除')
-  await api.post('/admin/favorites/batch-delete', { ids: selectedIds.value })
+  const stepUpToken = await getStepUpToken('batch_delete_favorites')
+  await api.post('/admin/favorites/batch-delete', { ids: selectedIds.value, stepUpToken })
   ElMessage.success('批量删除成功')
   selectedIds.value = []
   fetchFavorites()
@@ -167,3 +169,4 @@ onMounted(fetchFavorites)
 .card-meta { margin-top: 6px; font-size: 12px; color: #64748b; }
 .card-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
 </style>
+

@@ -201,7 +201,9 @@ const fetchNotifications = async () => {
 const connectWebSocket = () => {
   if (!userStore.isLoggedIn || !userStore.user?.id) return
   try {
-    ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?userId=${userStore.user.id}`)
+    const token = localStorage.getItem('token')
+    if (!token) return
+    ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?token=${encodeURIComponent(token)}`)
     ws.onmessage = (e) => {
       const n = JSON.parse(e.data)
       notifications.value.unshift(n)

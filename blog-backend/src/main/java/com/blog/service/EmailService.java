@@ -9,6 +9,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -24,10 +25,24 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    @Value("${spring.mail.sender-name:Blog}")
+    private String senderName;
+
     private static final String RESET_TOKEN_PREFIX = "reset:";
     private static final String RESET_CODE_PREFIX = "reset_code:";
     private static final String RESET_VERIFIED_PREFIX = "reset_verified:";
     private static final long TOKEN_EXPIRE_MINUTES = 30;
+
+    private static final String REGISTER_CODE_PREFIX = "reg_code:";
+    private static final long REGISTER_CODE_EXPIRE_MINUTES = 10;
+
+    private void setFrom(MimeMessageHelper helper) throws MessagingException {
+        try {
+            helper.setFrom(new InternetAddress(fromEmail, senderName, "UTF-8"));
+        } catch (java.io.UnsupportedEncodingException e) {
+            helper.setFrom(fromEmail);
+        }
+    }
 
     public String generateResetToken(Long userId) {
         String token = UUID.randomUUID().toString();
@@ -75,7 +90,7 @@ public class EmailService {
         log.info("正在发送重置密码邮件到: {}，用户名: {}", toEmail, username);
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setFrom(fromEmail);
+        setFrom(helper);
         helper.setTo(toEmail);
         helper.setSubject("重置密码验证码");
         helper.setText(buildResetEmailContent(username, code), true);
@@ -91,6 +106,52 @@ public class EmailService {
         return userId != null;
     }
 
+
+    // ===== 注册邮箱验证码 =====
+
+    public void sendRegisterCode(String toEmail, String code) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        setFrom(helper);
+        helper.setTo(toEmail);
+        helper.setSubject("注册验证码");
+        helper.setText(buildRegisterEmailContent(code), true);
+        mailSender.send(message);
+        log.info("注册验证码已发送到: {}", toEmail);
+    }
+
+    public void storeRegisterCode(String email, String code) {
+        redisTemplate.opsForValue().set(
+            REGISTER_CODE_PREFIX + email.toLowerCase(),
+            code,
+            REGISTER_CODE_EXPIRE_MINUTES,
+            TimeUnit.MINUTES
+        );
+    }
+
+    /**
+     * 验证注册验证码（验证后立即删除，防止重放）
+     */
+    public boolean validateRegisterCode(String email, String code) {
+        String key = REGISTER_CODE_PREFIX + email.toLowerCase();
+        String stored = redisTemplate.opsForValue().get(key);
+        if (stored != null && stored.equals(code)) {
+            redisTemplate.delete(key);
+            return true;
+        }
+        return false;
+    }
+
+    private String buildRegisterEmailContent(String code) {
+        return "<div style=\"max-width:600px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;\">" +
+            "<h2 style=\"color:#333;\">邮箱验证</h2>" +
+            "<p>您正在注册账号，验证码为：</p>" +
+            "<div style=\"text-align:center;margin:30px 0;\">" +
+            "<span style=\"background:#4F46E5;color:white;padding:12px 30px;font-size:24px;letter-spacing:5px;border-radius:5px;display:inline-block;\">" + code + "</span>" +
+            "</div>" +
+            "<p style=\"color:#999;font-size:12px;\">此验证码10分钟内有效。如果您没有注册，请忽略此邮件。</p>" +
+            "</div>";
+    }
 
     private String buildResetEmailContent(String username, String code) {
         return "<div style=\"max-width:600px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;\">" +

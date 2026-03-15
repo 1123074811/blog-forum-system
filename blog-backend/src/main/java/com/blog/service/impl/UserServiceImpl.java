@@ -9,6 +9,7 @@ import com.blog.constant.AppConstants;
 import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,8 +19,11 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
+    private static final long ROLE_CACHE_TTL_SECONDS = 300L;
+
     private final PasswordEncoder passwordEncoder;
     private final CacheUtil cacheUtil;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public User findByUsername(String username) {
@@ -70,5 +74,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void clearUserCache(Long id, String username) {
         cacheUtil.delete(AppConstants.CACHE_USER_PREFIX + id);
         cacheUtil.delete(AppConstants.CACHE_USER_PREFIX + "name:" + username);
+        invalidateUserRoleCache(id);
+    }
+
+    @Override
+    public String getUserRoleFromCache(Long userId) {
+        Object value = redisTemplate.opsForValue().get("user:role:" + userId);
+        return value == null ? null : value.toString();
+    }
+
+    @Override
+    public void cacheUserRole(Long userId, String role) {
+        redisTemplate.opsForValue().set("user:role:" + userId, role, ROLE_CACHE_TTL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void invalidateUserRoleCache(Long userId) {
+        redisTemplate.delete("user:role:" + userId);
     }
 }

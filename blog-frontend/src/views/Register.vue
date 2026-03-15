@@ -4,7 +4,10 @@
       <h2 class="text-2xl font-bold text-center mb-6 text-gray-800 dark:text-white">注册</h2>
       <el-form :model="form" @submit.prevent="handleRegister">
         <el-form-item>
-          <el-input v-model="form.username" placeholder="账号" :prefix-icon="User" size="large" />
+          <el-input v-model="form.username" placeholder="账号（4-20位，字母/数字/下划线）" :prefix-icon="User" size="large" maxlength="20" />
+          <div v-if="form.username && !isValidUsername(form.username)" class="text-xs text-red-400 mt-1 pl-1">
+            4-20位，只允许字母、数字、下划线
+          </div>
         </el-form-item>
         <el-form-item>
           <el-input v-model="form.email" placeholder="邮箱" :prefix-icon="Message" size="large" />
@@ -19,6 +22,18 @@
           <div class="flex gap-2 w-full">
             <el-input v-model="form.captchaCode" placeholder="验证码" size="large" class="flex-1" />
             <img :src="captchaUrl" @click="refreshCaptcha" class="h-10 cursor-pointer rounded" alt="验证码" />
+          </div>
+        </el-form-item>
+        <el-form-item>
+          <div class="flex gap-2 w-full">
+            <el-input v-model="form.emailCode" placeholder="邮箱验证码" size="large" class="flex-1" maxlength="6" />
+            <el-button
+              :disabled="emailCodeCooldown > 0 || !form.email"
+              :loading="sendingCode"
+              size="large"
+              style="min-width: 110px"
+              @click="handleSendCode"
+            >{{ emailCodeCooldown > 0 ? `${emailCodeCooldown}s 后重试` : '获取验证码' }}</el-button>
           </div>
         </el-form-item>
         <el-form-item>
@@ -37,14 +52,17 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { register, getCaptcha } from '@/api/blog'
+import { register, getCaptcha, sendRegisterCode } from '@/api/blog'
 import { User, Message, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const loading = ref(false)
+const sendingCode = ref(false)
+const emailCodeCooldown = ref(0)
 const captchaUrl = ref('')
-const form = ref({ username: '', email: '', password: '', confirmPassword: '', captchaId: '', captchaCode: '' })
+const form = ref({ username: '', email: '', password: '', confirmPassword: '', captchaId: '', captchaCode: '', emailCode: '' })
 let captchaRefreshTimer = null
+let cooldownTimer = null
 
 const scheduleCaptchaRefresh = (expiresInSeconds) => {
   const seconds = Number(expiresInSeconds)
@@ -74,11 +92,49 @@ onMounted(refreshCaptcha)
 
 onUnmounted(() => {
   if (captchaRefreshTimer) clearTimeout(captchaRefreshTimer)
+  if (cooldownTimer) clearInterval(cooldownTimer)
 })
+
+const isValidUsername = (v) => /^[a-zA-Z0-9_]{4,20}$/.test(v)
+
+const handleSendCode = async () => {
+  const emailRegex = /^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/
+  if (!form.value.email || !emailRegex.test(form.value.email)) {
+    ElMessage.warning('请先填写正确的邮箱地址')
+    return
+  }
+  sendingCode.value = true
+  try {
+    const res = await sendRegisterCode(form.value.email)
+    if (res.success) {
+      ElMessage.success('验证码已发送，请查收邮件')
+      emailCodeCooldown.value = 60
+      cooldownTimer = setInterval(() => {
+        emailCodeCooldown.value--
+        if (emailCodeCooldown.value <= 0) clearInterval(cooldownTimer)
+      }, 1000)
+    } else {
+      ElMessage.error(res.message || '发送失败')
+    }
+  } catch (e) {
+    ElMessage.error('发送失败，请稍后重试')
+  } finally {
+    sendingCode.value = false
+  }
+}
 
 const handleRegister = async () => {
   if (!form.value.username || !form.value.email || !form.value.password) {
     ElMessage.warning('请填写完整信息')
+    return
+  }
+  if (!isValidUsername(form.value.username)) {
+    ElMessage.warning('账号格式不正确：4-20位，只允许字母、数字、下划线')
+    return
+  }
+  const emailRegex = /^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/
+  if (!emailRegex.test(form.value.email)) {
+    ElMessage.warning('邮箱格式不正确')
     return
   }
   if (form.value.password !== form.value.confirmPassword) {
@@ -86,7 +142,11 @@ const handleRegister = async () => {
     return
   }
   if (!form.value.captchaCode) {
-    ElMessage.warning('请输入验证码')
+    ElMessage.warning('请输入图形验证码')
+    return
+  }
+  if (!form.value.emailCode) {
+    ElMessage.warning('请输入邮箱验证码')
     return
   }
   loading.value = true

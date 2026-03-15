@@ -2,20 +2,23 @@ package com.blog.aspect;
 
 import com.blog.annotation.AuditLog;
 import com.blog.context.BaseContext;
+import com.blog.mapper.SecurityEventMapper;
+import com.blog.pojo.entity.SecurityEvent;
+import com.blog.service.AlertService;
+import com.blog.util.DateUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,39 +33,28 @@ import java.util.Map;
 public class AuditLogAspect {
 
     private final ObjectMapper objectMapper;
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private final SecurityEventMapper securityEventMapper;
+    private final AlertService alertService;
 
     @Around("@annotation(auditLog)")
     public Object around(ProceedingJoinPoint joinPoint, AuditLog auditLog) throws Throwable {
         long startTime = System.currentTimeMillis();
-        
+
         // 获取请求信息
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
-        
         // 获取当前用户ID
-        Long userId = null;
-        try {
-            userId = BaseContext.getCurrentId();
-        } catch (Exception e) {
-            // 未登录用户
-        }
+        Long userId = BaseContext.getCurrentId();
 
         // 获取方法信息
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        String className = signature.getDeclaringTypeName();
-        String methodName = signature.getName();
-
         // 构建审计日志
         Map<String, Object> auditInfo = new HashMap<>();
-        auditInfo.put("timestamp", LocalDateTime.now().format(formatter));
-        auditInfo.put("userId", userId);
         auditInfo.put("module", auditLog.module());
         auditInfo.put("operation", auditLog.operation());
-        auditInfo.put("description", auditLog.description());
-        auditInfo.put("className", className);
-        auditInfo.put("methodName", methodName);
-        
+        auditInfo.put("className", signature.getDeclaringTypeName());
+        auditInfo.put("methodName", signature.getName());
+
         if (request != null) {
             auditInfo.put("requestMethod", request.getMethod());
             auditInfo.put("requestUrl", request.getRequestURI());
@@ -71,47 +63,79 @@ public class AuditLogAspect {
         }
 
         // 记录请求参数（敏感信息需要脱敏）
-        Object[] args = joinPoint.getArgs();
-        if (args != null && args.length > 0) {
-            try {
-                String params = objectMapper.writeValueAsString(args);
-                // 脱敏处理
-                params = desensitize(params);
-                auditInfo.put("params", params);
-            } catch (Exception e) {
-                auditInfo.put("params", "参数序列化失败");
-            }
+        try {
+            auditInfo.put("params", desensitize(objectMapper.writeValueAsString(joinPoint.getArgs())));
+        } catch (Exception ignored) {
+            auditInfo.put("params", "serialize_failed");
         }
 
-        Object result = null;
         String status = "SUCCESS";
         String errorMessage = null;
 
         try {
-            // 执行目标方法
-            result = joinPoint.proceed();
-            return result;
+            return joinPoint.proceed();
         } catch (Exception e) {
             status = "FAILURE";
             errorMessage = e.getMessage();
             throw e;
         } finally {
-            long endTime = System.currentTimeMillis();
-            long executionTime = endTime - startTime;
-
+            long executionTime = System.currentTimeMillis() - startTime;
             auditInfo.put("status", status);
             auditInfo.put("executionTime", executionTime + "ms");
-            
             if (errorMessage != null) {
                 auditInfo.put("errorMessage", errorMessage);
             }
 
             // 记录审计日志
-            if ("FAILURE".equals(status)) {
-                log.error("【审计日志】操作失败: {}", objectMapper.writeValueAsString(auditInfo));
-            } else {
-                log.info("【审计日志】{}", objectMapper.writeValueAsString(auditInfo));
+            SecurityEvent event = SecurityEvent.builder()
+                    .traceId(MDC.get("traceId"))
+                    .userId(userId)
+                    .ip((String) auditInfo.get("ip"))
+                    .userAgent((String) auditInfo.get("userAgent"))
+                    .method((String) auditInfo.get("requestMethod"))
+                    .path((String) auditInfo.get("requestUrl"))
+                    .operation(auditLog.operation())
+                    .result(status)
+                    .reasonCode(errorMessage == null ? "OK" : "EXCEPTION")
+                    .detail((String) auditInfo.get("params"))
+                    .createdAt(DateUtil.now())
+                    .build();
+
+            try {
+                securityEventMapper.insert(event);
+            } catch (Exception insertEx) {
+                log.warn("Failed to persist security event", insertEx);
             }
+
+            if ("FAILURE".equals(status) || isHighRiskOperation(auditLog.operation())) {
+                alertService.sendAlert(event);
+            }
+
+            if ("FAILURE".equals(status)) {
+                log.error("[AUDIT] {}", objectToJson(auditInfo));
+            } else {
+                log.info("[AUDIT] {}", objectToJson(auditInfo));
+            }
+        }
+    }
+
+    private boolean isHighRiskOperation(String operation) {
+        if (operation == null) {
+            return false;
+        }
+        String op = operation.toLowerCase();
+        return op.contains("delete")
+                || op.contains("ban")
+                || op.contains("revoke")
+                || op.contains("封")
+                || op.contains("删");
+    }
+
+    private String objectToJson(Object object) {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (Exception e) {
+            return String.valueOf(object);
         }
     }
 
@@ -140,14 +164,13 @@ public class AuditLogAspect {
         if (content == null) {
             return null;
         }
+        String value = content;
         // 脱敏密码字段
-        content = content.replaceAll("\"password\"\\s*:\\s*\"[^\"]*\"", "\"password\":\"******\"");
-        content = content.replaceAll("\"oldPassword\"\\s*:\\s*\"[^\"]*\"", "\"oldPassword\":\"******\"");
-        content = content.replaceAll("\"newPassword\"\\s*:\\s*\"[^\"]*\"", "\"newPassword\":\"******\"");
+        value = value.replaceAll("\\\"password\\\"\\s*:\\s*\\\"[^\\\"]*\\\"", "\\\"password\\\":\\\"******\\\"");
+        value = value.replaceAll("\\\"oldPassword\\\"\\s*:\\s*\\\"[^\\\"]*\\\"", "\\\"oldPassword\\\":\\\"******\\\"");
+        value = value.replaceAll("\\\"newPassword\\\"\\s*:\\s*\\\"[^\\\"]*\\\"", "\\\"newPassword\\\":\\\"******\\\"");
         // 脱敏手机号
-        content = content.replaceAll("\"phone\"\\s*:\\s*\"(\\d{3})\\d{4}(\\d{4})\"", "\"phone\":\"$1****$2\"");
-        // 脱敏身份证号
-        content = content.replaceAll("\"idCard\"\\s*:\\s*\"(\\d{6})\\d{8}(\\d{4})\"", "\"idCard\":\"$1********$2\"");
-        return content;
+        value = value.replaceAll("\\\"phone\\\"\\s*:\\s*\\\"(\\d{3})\\d{4}(\\d{4})\\\"", "\\\"phone\\\":\\\"$1****$2\\\"");
+        return value;
     }
 }

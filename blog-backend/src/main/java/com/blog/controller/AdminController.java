@@ -2,13 +2,18 @@ package com.blog.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.blog.annotation.AuditLog;
 import com.blog.constant.AppConstants;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.*;
 import com.blog.service.*;
 import com.blog.util.DateUtil;
 import com.blog.websocket.ChatWebSocketHandler;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -21,11 +26,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
     private final UserService userService;
@@ -35,12 +42,30 @@ public class AdminController {
     private final TagService tagService;
     private final com.blog.mapper.ArticleFavoriteMapper articleFavoriteMapper;
     private final ChatWebSocketHandler chatWebSocketHandler;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    @GetMapping("/ping")
+    public ApiResponse<String> ping() {
+        return ApiResponse.success("ok");
+    }
 
     // Statistics
     @GetMapping("/statistics")
     public ApiResponse<Map<String, Object>> getStatistics(
             @RequestParam(defaultValue = "30d") String range,
             @RequestParam(defaultValue = "day") String granularity) {
+        String cacheKey = "cache:statistics:" + range + ":" + granularity;
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached instanceof String cachedJson) {
+            try {
+                Map<String, Object> parsed = objectMapper.readValue(cachedJson, new TypeReference<Map<String, Object>>() {});
+                return ApiResponse.success(parsed);
+            } catch (Exception ignored) {
+                redisTemplate.delete(cacheKey);
+            }
+        }
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalArticles", articleService.count());
         stats.put("totalCategories", categoryService.count());
@@ -63,6 +88,10 @@ public class AdminController {
         stats.put("trend", buildTrend(allArticles, allComments, startDate, endDate, normalizedGranularity));
         stats.put("articleStatusDistribution", buildArticleStatusDistribution(allArticles, startDate, endDate));
         stats.put("activeAuthors", buildActiveAuthors(allArticles, startDate, endDate, 5));
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stats), 60, TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+        }
 
         return ApiResponse.success(stats);
     }
@@ -216,8 +245,12 @@ public class AdminController {
 
     // Batch Delete APIs
     @PostMapping("/users/batch-delete")
-    public ApiResponse<Boolean> batchDeleteUsers(@RequestBody Map<String, List<Long>> body) {
-        List<Long> ids = body.get("ids");
+    @AuditLog(module = "User Management", operation = "Batch Delete Users")
+    public ApiResponse<Boolean> batchDeleteUsers(@RequestBody Map<String, Object> body) {
+        if (!validateStepUpToken(body, "batch_delete_users")) {
+            return ApiResponse.error("二次验证失败或已过期");
+        }
+        List<Long> ids = toIdList(body.get("ids"));
         if (ids != null && !ids.isEmpty()) {
             userService.removeByIds(ids);
         }
@@ -225,8 +258,12 @@ public class AdminController {
     }
 
     @PostMapping("/articles/batch-delete")
-    public ApiResponse<Boolean> batchDeleteArticles(@RequestBody Map<String, List<Long>> body) {
-        List<Long> ids = body.get("ids");
+    @AuditLog(module = "Article Management", operation = "Batch Delete Articles")
+    public ApiResponse<Boolean> batchDeleteArticles(@RequestBody Map<String, Object> body) {
+        if (!validateStepUpToken(body, "batch_delete_articles")) {
+            return ApiResponse.error("二次验证失败或已过期");
+        }
+        List<Long> ids = toIdList(body.get("ids"));
         if (ids != null && !ids.isEmpty()) {
             articleService.removeByIds(ids);
         }
@@ -234,8 +271,12 @@ public class AdminController {
     }
 
     @PostMapping("/comments/batch-delete")
-    public ApiResponse<Boolean> batchDeleteComments(@RequestBody Map<String, List<Long>> body) {
-        List<Long> ids = body.get("ids");
+    @AuditLog(module = "Comment Management", operation = "Batch Delete Comments")
+    public ApiResponse<Boolean> batchDeleteComments(@RequestBody Map<String, Object> body) {
+        if (!validateStepUpToken(body, "batch_delete_comments")) {
+            return ApiResponse.error("二次验证失败或已过期");
+        }
+        List<Long> ids = toIdList(body.get("ids"));
         if (ids != null && !ids.isEmpty()) {
             commentService.removeByIds(ids);
         }
@@ -243,8 +284,12 @@ public class AdminController {
     }
 
     @PostMapping("/categories/batch-delete")
-    public ApiResponse<Boolean> batchDeleteCategories(@RequestBody Map<String, List<Long>> body) {
-        List<Long> ids = body.get("ids");
+    @AuditLog(module = "Category Management", operation = "Batch Delete Categories")
+    public ApiResponse<Boolean> batchDeleteCategories(@RequestBody Map<String, Object> body) {
+        if (!validateStepUpToken(body, "batch_delete_categories")) {
+            return ApiResponse.error("二次验证失败或已过期");
+        }
+        List<Long> ids = toIdList(body.get("ids"));
         if (ids != null && !ids.isEmpty()) {
             categoryService.removeByIds(ids);
         }
@@ -252,8 +297,12 @@ public class AdminController {
     }
 
     @PostMapping("/tags/batch-delete")
-    public ApiResponse<Boolean> batchDeleteTags(@RequestBody Map<String, List<Long>> body) {
-        List<Long> ids = body.get("ids");
+    @AuditLog(module = "Tag Management", operation = "Batch Delete Tags")
+    public ApiResponse<Boolean> batchDeleteTags(@RequestBody Map<String, Object> body) {
+        if (!validateStepUpToken(body, "batch_delete_tags")) {
+            return ApiResponse.error("二次验证失败或已过期");
+        }
+        List<Long> ids = toIdList(body.get("ids"));
         if (ids != null && !ids.isEmpty()) {
             tagService.removeByIds(ids);
         }
@@ -261,8 +310,12 @@ public class AdminController {
     }
 
     @PostMapping("/favorites/batch-delete")
-    public ApiResponse<Boolean> batchDeleteFavorites(@RequestBody Map<String, List<Long>> body) {
-        List<Long> ids = body.get("ids");
+    @AuditLog(module = "Favorite Management", operation = "Batch Delete Favorites")
+    public ApiResponse<Boolean> batchDeleteFavorites(@RequestBody Map<String, Object> body) {
+        if (!validateStepUpToken(body, "batch_delete_favorites")) {
+            return ApiResponse.error("二次验证失败或已过期");
+        }
+        List<Long> ids = toIdList(body.get("ids"));
         if (ids != null && !ids.isEmpty()) {
             articleFavoriteMapper.deleteBatchIds(ids);
         }
@@ -386,19 +439,19 @@ public class AdminController {
         int draft = 0;
         for (Article article : allArticles) {
             LocalDate date = parseDateSafe(article.getCreatedAt());
-            if (date == null || date.isBefore(startDate) || date.isAfter(endDate)) continue;
+            if (date == null || date.isBefore(startDate) || date.isAfter(endDate)) {
+                continue;
+            }
             if ("published".equalsIgnoreCase(article.getStatus())) {
                 published++;
             } else if ("draft".equalsIgnoreCase(article.getStatus())) {
                 draft++;
             }
         }
+
         List<Map<String, Object>> result = new ArrayList<>();
         result.add(Map.of("name", "已发布", "value", published));
         result.add(Map.of("name", "草稿", "value", draft));
-        result.clear();
-        result.add(Map.of("name", "\u5df2\u53d1\u5e03", "value", published));
-        result.add(Map.of("name", "\u8349\u7a3f", "value", draft));
         return result;
     }
 
@@ -427,4 +480,45 @@ public class AdminController {
                 })
                 .collect(Collectors.toList());
     }
+
+    @SuppressWarnings("unchecked")
+    private List<Long> toIdList(Object rawIds) {
+        if (!(rawIds instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(v -> {
+                    if (v instanceof Number n) {
+                        return n.longValue();
+                    }
+                    try {
+                        return Long.parseLong(String.valueOf(v));
+                    } catch (Exception ignored) {
+                        return null;
+                    }
+                })
+                .filter(v -> v != null)
+                .collect(Collectors.toList());
+    }
+
+    private boolean validateStepUpToken(Map<String, Object> body, String operation) {
+        Object token = body.get("stepUpToken");
+        if (!(token instanceof String tokenText) || tokenText.isBlank()) {
+            return false;
+        }
+
+        Long adminId = com.blog.context.BaseContext.getCurrentId();
+        if (adminId == null) {
+            return false;
+        }
+
+        String key = "stepup:token:" + adminId + ":" + operation;
+        Object stored = redisTemplate.opsForValue().get(key);
+        if (!(stored instanceof String storedText) || !tokenText.equals(storedText)) {
+            return false;
+        }
+        redisTemplate.delete(key);
+        return true;
+    }
 }
+

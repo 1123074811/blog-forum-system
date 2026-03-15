@@ -9,4 +9,5 @@ public class RegisterRequest {
     private String email;
     private String captchaId;
     private String captchaCode;
+    private String emailCode; // 邮箱验证码
 }

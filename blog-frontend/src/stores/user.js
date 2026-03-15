@@ -1,34 +1,98 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import api from '@/api'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
   const token = ref(localStorage.getItem('token') || '')
   const isDark = ref(localStorage.getItem('isDark') === 'true')
+  const isAdmin = ref(false)
 
   const isLoggedIn = computed(() => !!token.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
+
+  async function checkAdminStatus() {
+    if (!token.value) {
+      isAdmin.value = false
+      return false
+    }
+    try {
+      await api.get('/admin/ping')
+      isAdmin.value = true
+      return true
+    } catch {
+      isAdmin.value = false
+      return false
+    }
+  }
+
+  async function initSession() {
+    if (!token.value) {
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (refreshToken) {
+        try {
+          const res = await api.post('/auth/refresh', null, {
+            headers: { Authorization: `Bearer ${refreshToken}` }
+          })
+          if (res.success && res.data) {
+            setToken(res.data)
+          }
+        } catch {
+          localStorage.removeItem('refreshToken')
+        }
+      }
+    }
+
+    if (token.value) {
+      await checkAdminStatus()
+    }
+  }
+
+  function setToken(value) {
+    token.value = value || ''
+    if (token.value) {
+      localStorage.setItem('token', token.value)
+    } else {
+      localStorage.removeItem('token')
+    }
+  }
 
   function setUser(userData, tokenData, refreshToken) {
-    user.value = userData
-    token.value = tokenData
-    localStorage.setItem('user', JSON.stringify(userData))
-    localStorage.setItem('token', tokenData)
-    localStorage.setItem('refreshToken', refreshToken)
+    const safeUser = userData
+      ? {
+          id: userData.id,
+          username: userData.username,
+          nickname: userData.nickname,
+          avatar: userData.avatar
+        }
+      : null
+
+    user.value = safeUser
+    setToken(tokenData)
+
+    if (safeUser) {
+      localStorage.setItem('user', JSON.stringify(safeUser))
+    } else {
+      localStorage.removeItem('user')
+    }
+
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken)
+    }
+
+    checkAdminStatus()
   }
 
   async function logout() {
-    // 调用后端登出接口删除 Redis 中的 token
     try {
-      await api.post('/api/auth/logout')
-    } catch (e) {
+      // 调用后端登出接口删除 Redis 中的 token
+      await api.post('/auth/logout')
+    } catch {
       // 忽略错误，继续清理本地状态
     }
     user.value = null
-    token.value = ''
+    setToken('')
+    isAdmin.value = false
     localStorage.removeItem('user')
-    localStorage.removeItem('token')
     localStorage.removeItem('refreshToken')
   }
 
@@ -37,5 +101,17 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('isDark', isDark.value.toString())
   }
 
-  return { user, token, isDark, isLoggedIn, isAdmin, setUser, logout, toggleDark }
+  return {
+    user,
+    token,
+    isDark,
+    isLoggedIn,
+    isAdmin,
+    setUser,
+    setToken,
+    logout,
+    toggleDark,
+    checkAdminStatus,
+    initSession
+  }
 })

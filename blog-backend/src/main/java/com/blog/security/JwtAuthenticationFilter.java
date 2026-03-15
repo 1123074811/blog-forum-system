@@ -1,7 +1,9 @@
 package com.blog.security;
 
 import com.blog.context.BaseContext;
+import com.blog.pojo.entity.User;
 import com.blog.service.TokenService;
+import com.blog.service.UserService;
 import com.blog.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final TokenService tokenService;
+    private final UserService userService;
 
     @Value("${jwt.expiration}")
     private long expiration;
@@ -35,33 +38,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            // 先验证 JWT 签名，再验证 Redis 中是否存在
-            if (jwtUtil.validateToken(token) && tokenService.validateToken(token)) {
-                Long userId = jwtUtil.getUserIdFromToken(token);
-                String username = jwtUtil.getUsernameFromToken(token);
+            try {
+                if (jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token) && tokenService.validateToken(token)) {
+                    Long userId = jwtUtil.getUserIdFromToken(token);
+                    String role = userService.getUserRoleFromCache(userId);
+                    if (role == null) {
+                        User user = userService.getById(userId);
+                        if (user != null && !Boolean.TRUE.equals(user.getBanned())) {
+                            role = user.getRole();
+                            userService.cacheUserRole(userId, role);
+                        }
+                    }
 
-                String role = jwtUtil.getRoleFromToken(token);
-                String authority = "ROLE_USER";
-                if ("admin".equals(role)) {
-                    authority = "ROLE_ADMIN";
+                    if (role != null) {
+                        String authority = "admin".equalsIgnoreCase(role) ? "ROLE_ADMIN" : "ROLE_USER";
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                userId,
+                                null,
+                                List.of(new SimpleGrantedAuthority(authority))
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        BaseContext.setCurrentId(userId);
+                        BaseContext.setCurrentRole(role);
+                        tokenService.refreshToken(token, expiration);
+                    }
                 }
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userId, null, Collections.singletonList(new SimpleGrantedAuthority(authority)));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                // 同时设置到 ThreadLocal，方便 AOP 和 Service 使用
-                BaseContext.setCurrentId(userId);
-
-                // 滑动过期：每次请求都刷新 Redis 中 token 的过期时间
-                tokenService.refreshToken(token, expiration);
+            } catch (RuntimeException ex) {
+                // 线上常见：Redis 不可用/权限不对/网络抖动导致 token 校验抛异常。
+                // 降级策略：视为未登录，交给后续鉴权返回 401，而不是直接 500。
+                SecurityContextHolder.clearContext();
+                BaseContext.removeAll();
             }
         }
 
         try {
             filterChain.doFilter(request, response);
         } finally {
-            // 请求结束后清理 ThreadLocal，防止内存泄漏
-            BaseContext.removeCurrentId();
+            BaseContext.removeAll();
         }
     }
 }

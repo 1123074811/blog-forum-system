@@ -9,6 +9,7 @@ import com.blog.service.MinioService;
 import com.blog.service.QuizService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -108,22 +109,26 @@ public class QuizController {
     }
 
     @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<QuizBank>> getAllQuizBanks() {
         return ApiResponse.success(quizService.getAllQuizBanks());
     }
 
     @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Boolean> adminDelete(@PathVariable Long id) {
         quizService.adminDelete(id);
         return ApiResponse.success(true);
     }
 
     @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<QuizBank> adminUpdate(@PathVariable Long id, @RequestBody QuizBank quizBank) {
         return ApiResponse.success(quizService.adminUpdate(id, quizBank));
     }
 
     @PostMapping("/admin/batch-delete")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
         List<Long> ids = body.get("ids");
         if (ids != null && !ids.isEmpty()) {
@@ -134,18 +139,21 @@ public class QuizController {
 
     // 题目管理接口
     @PostMapping("/admin/{quizBankId}/questions")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Question> addQuestion(@PathVariable Long quizBankId, @RequestBody Question question) {
         question.setQuizBankId(quizBankId);
         return ApiResponse.success(quizService.addQuestion(question));
     }
 
     @PutMapping("/admin/questions/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Question> updateQuestion(@PathVariable Long id, @RequestBody Question question) {
         question.setId(id);
         return ApiResponse.success(quizService.updateQuestion(question));
     }
 
     @DeleteMapping("/admin/questions/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Boolean> deleteQuestion(@PathVariable Long id) {
         quizService.deleteQuestion(id);
         return ApiResponse.success(true);

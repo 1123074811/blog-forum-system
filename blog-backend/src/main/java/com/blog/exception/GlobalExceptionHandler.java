@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.stream.Collectors;
 
@@ -87,6 +88,16 @@ public class GlobalExceptionHandler {
     /**
      * 系统异常
      */
+    /**
+     * ResponseStatusException ???
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ApiResponse<Void> handleResponseStatusException(ResponseStatusException e) {
+        HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
+        log.warn("??????: status={}, message={}", status.value(), e.getReason());
+        return ApiResponse.error(status.value(), e.getReason() == null ? status.getReasonPhrase() : e.getReason());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {

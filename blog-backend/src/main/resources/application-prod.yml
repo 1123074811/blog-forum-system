@@ -42,6 +42,7 @@ spring:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
+    sender-name: ${MAIL_SENDER_NAME:哈基聪}
     properties:
       mail:
         smtp:
@@ -49,30 +50,34 @@ spring:
           starttls:
             enable: true
 
-# MyBatis Plus 生产环境配置（关闭SQL日志）
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
 mybatis-plus:
+  # MyBatis Plus 生产环境配置（关闭SQL日志）
   configuration:
-    log-impl: ~  # 生产环境不打印SQL
+    log-impl: ~
 
-# JWT 密钥���生产环境必须使用强密钥）
 jwt:
-  secret: ${JWT_SECRET}  # 必须通过环境变量设置
+  # JWT 密钥（生产环境必须使用强密钥）
+  secret: ${JWT_SECRET}
 
-# MinIO 配置（生产环境）
+storage:
+  # ============================================
+  # 文件存储配置
+  # ============================================
+  # 存储类型：minio 或 oss
+  type: ${STORAGE_TYPE:oss}
+
 minio:
+  # MinIO 配置（生产环境）
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   access-key: ${MINIO_ACCESS_KEY}
   secret-key: ${MINIO_SECRET_KEY}
   bucket: ${MINIO_BUCKET:blog}
 
-# ============================================
-# 文件存储配置
-# ============================================
-# 存储类型：minio 或 oss
-storage:
-  type: ${STORAGE_TYPE:oss}
-
-# 阿里云OSS配置（当 storage.type=oss 时使用）
 aliyun:
   oss:
     endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
@@ -81,16 +86,17 @@ aliyun:
     bucket: ${ALIYUN_OSS_BUCKET:iblog-forum}
     custom-domain: ${ALIYUN_OSS_CUSTOM_DOMAIN:}
 
-# 高德地图 API
 amap:
+  # 高德地图 API
   key: ${AMAP_KEY}
 
-# 智谱AI配置
 zhipu:
+  # 智谱AI配置
   api-key: ${ZHIPU_API_KEY}
 
-# OAuth配置（生产环境回调地址）
 oauth:
+  # OAuth配置（生产环境回调地址）
+  frontend-redirect-base: ${OAUTH_FRONTEND_REDIRECT_BASE:https://yourdomain.com}
   github:
     client-id: ${OAUTH_GITHUB_CLIENT_ID}
     client-secret: ${OAUTH_GITHUB_CLIENT_SECRET}
@@ -99,6 +105,14 @@ oauth:
     client-id: ${OAUTH_GITEE_CLIENT_ID}
     client-secret: ${OAUTH_GITEE_CLIENT_SECRET}
     redirect-uri: ${OAUTH_GITEE_REDIRECT_URI:https://yourdomain.com/api/auth/gitee/callback}
+
+# 生产环境 CORS/WebSocket 允许的源（与前端域名一致，多个用英文逗号分隔）
+# cors-allowed-hosts：按主机名放行，请求 Origin 的 host 在此列表即通过，避免协议/端口差异导致 Invalid CORS request
+app:
+  security:
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:https://oujincong.xyz,https://www.oujincong.xyz}
+    cors-allowed-hosts: ${CORS_ALLOWED_HOSTS:oujincong.xyz,www.oujincong.xyz}
+    websocket-allowed-origins: ${WS_ALLOWED_ORIGINS:https://oujincong.xyz,https://www.oujincong.xyz}
 
 captcha:
   expire-seconds: ${CAPTCHA_EXPIRE_SECONDS:300}

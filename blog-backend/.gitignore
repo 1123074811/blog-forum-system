@@ -44,3 +44,5 @@ temp/
 *.tar.gz
 *.rar
 docs/
+/docx/
+/src/test/

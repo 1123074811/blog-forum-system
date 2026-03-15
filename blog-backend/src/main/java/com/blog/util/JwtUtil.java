@@ -1,20 +1,24 @@
 package com.blog.util;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-
-import javax.crypto.SecretKey;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 @Component
 public class JwtUtil {
+
+    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_TOKEN_TYPE = "tokenType";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -33,8 +37,9 @@ public class JwtUtil {
     public String generateToken(Long userId, String username, String role) {
         return Jwts.builder()
                 .subject(username)
-                .claim("userId", userId)
-                .claim("role", role)
+                .claim(CLAIM_USER_ID, userId)
+                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_TOKEN_TYPE, ACCESS_TOKEN_TYPE)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
@@ -44,8 +49,9 @@ public class JwtUtil {
     public String generateRefreshToken(Long userId, String username, String role) {
         return Jwts.builder()
                 .subject(username)
-                .claim("userId", userId)
-                .claim("role", role)
+                .claim(CLAIM_USER_ID, userId)
+                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_TOKEN_TYPE, REFRESH_TOKEN_TYPE)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
                 .signWith(getSigningKey())
@@ -74,28 +80,36 @@ public class JwtUtil {
     }
 
     public Long getUserIdFromToken(String token) {
-        Object userId = parseToken(token).get("userId");
-        if (userId instanceof Number) {
-            return ((Number) userId).longValue();
+        Object userId = parseToken(token).get(CLAIM_USER_ID);
+        if (userId instanceof Number number) {
+            return number.longValue();
         }
         return null;
     }
 
     public String getRoleFromToken(String token) {
-        Object role = parseToken(token).get("role");
-        if (role instanceof String) {
-            return (String) role;
+        Object role = parseToken(token).get(CLAIM_ROLE);
+        if (role instanceof String roleText) {
+            return roleText;
         }
         return null;
     }
 
-    // 获取 token 剩余有效时间（毫秒）
-    public long getRemainingTime(String token) {
-        Date expiration = parseToken(token).getExpiration();
-        return expiration.getTime() - System.currentTimeMillis();
+    public boolean isAccessToken(String token) {
+        Object tokenType = parseToken(token).get(CLAIM_TOKEN_TYPE);
+        return ACCESS_TOKEN_TYPE.equals(tokenType);
     }
 
-    // 获取 token 过期时间配置
+    public boolean isRefreshToken(String token) {
+        Object tokenType = parseToken(token).get(CLAIM_TOKEN_TYPE);
+        return REFRESH_TOKEN_TYPE.equals(tokenType);
+    }
+
+    public long getRemainingTime(String token) {
+        Date tokenExpiration = parseToken(token).getExpiration();
+        return tokenExpiration.getTime() - System.currentTimeMillis();
+    }
+
     public long getExpiration() {
         return expiration;
     }

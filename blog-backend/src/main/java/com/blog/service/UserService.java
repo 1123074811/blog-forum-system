@@ -10,4 +10,7 @@ public interface UserService extends IService<User> {
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
     void clearUserCache(Long id, String username);
+    String getUserRoleFromCache(Long userId);
+    void cacheUserRole(Long userId, String role);
+    void invalidateUserRoleCache(Long userId);
 }

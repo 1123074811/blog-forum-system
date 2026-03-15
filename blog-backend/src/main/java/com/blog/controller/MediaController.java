@@ -4,6 +4,7 @@ import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.Media;
 import com.blog.service.MediaService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -87,22 +88,26 @@ public class MediaController {
     }
 
     @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<Media>> getAllMedia() {
         return ApiResponse.success(mediaService.getAllMedia());
     }
 
     @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> adminDelete(@PathVariable Long id) {
         mediaService.adminDelete(id);
         return ApiResponse.success(null);
     }
 
     @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Media> adminUpdate(@PathVariable Long id, @RequestBody Media media) {
         return ApiResponse.success(mediaService.adminUpdate(id, media.getTitle(), media.getDescription(), media.getIsPublic()));
     }
 
     @PostMapping("/admin/batch-delete")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
         List<Long> ids = body.get("ids");
         if (ids != null && !ids.isEmpty()) {

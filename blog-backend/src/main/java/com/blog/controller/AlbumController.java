@@ -4,6 +4,7 @@ import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.Album;
 import com.blog.service.AlbumService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -66,22 +67,26 @@ public class AlbumController {
     }
 
     @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<Album>> getAllAlbums() {
         return ApiResponse.success(albumService.getAllAlbums());
     }
 
     @DeleteMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> adminDelete(@PathVariable Long id) {
         albumService.adminDelete(id);
         return ApiResponse.success(null);
     }
 
     @PutMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Album> adminUpdate(@PathVariable Long id, @RequestBody Album album) {
         return ApiResponse.success(albumService.adminUpdate(id, album));
     }
 
     @PostMapping("/admin/batch-delete")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
         List<Long> ids = body.get("ids");
         if (ids != null && !ids.isEmpty()) {

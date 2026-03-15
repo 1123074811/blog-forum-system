@@ -147,6 +147,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { getAdminUsers, deleteUser } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
+import { getStepUpToken } from '@/utils/stepUp'
 import { useIsMobile } from '@/composables/useIsMobile'
 import MobileAdminListShell from '@/components/admin/MobileAdminListShell.vue'
 import MobileActionSheet from '@/components/admin/MobileActionSheet.vue'
@@ -217,7 +218,8 @@ const handleDelete = async (id) => {
 
 const handleBatchDelete = async () => {
   await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个用户？`, '批量删除')
-  await api.post('/admin/users/batch-delete', { ids: selectedIds.value })
+  const stepUpToken = await getStepUpToken('batch_delete_users')
+  await api.post('/admin/users/batch-delete', { ids: selectedIds.value, stepUpToken })
   ElMessage.success('批量删除成功')
   selectedIds.value = []
   fetchUsers()
@@ -282,3 +284,4 @@ onMounted(fetchUsers)
   justify-content: flex-end;
 }
 </style>
+

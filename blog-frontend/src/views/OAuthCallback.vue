@@ -24,81 +24,64 @@ const error = ref(false)
 const message = ref('登录中...')
 
 const errorMessages = {
-  'gitee_failed': 'Gitee 登录失败，请重试',
-  'gitee_token_failed': '获取 Gitee Token 失败',
-  'gitee_no_token': 'Gitee 未返回 Token',
-  'gitee_user_failed': '获取 Gitee 用户信息失败',
-  'gitee_api_error': 'Gitee API 调用失败',
-  'gitee_missing_id': 'Gitee 响应缺少用户ID',
-  'gitee_missing_login': 'Gitee 响应缺少用户名',
-  'save_user_failed': '保存用户信息失败',
-  'query_user_failed': '查询用户信息失败',
-  'json_parse_error': '数据解析失败',
-  'github_failed': 'GitHub 登录失败，请重试'
+  gitee_failed: 'Gitee 登录失败，请重试',
+  gitee_token_failed: '获取 Gitee Token 失败',
+  gitee_no_token: 'Gitee 未返回 Token',
+  gitee_user_failed: '获取 Gitee 用户信息失败',
+  gitee_api_error: 'Gitee API 调用失败',
+  gitee_missing_id: 'Gitee 响应缺少用户ID',
+  gitee_missing_login: 'Gitee 响应缺少用户名',
+  save_user_failed: '保存用户信息失败',
+  query_user_failed: '查询用户信息失败',
+  json_parse_error: '数据解析失败',
+  github_failed: 'GitHub 登录失败，请重试'
 }
 
 onMounted(async () => {
   const { token, refreshToken, userId, error: errorCode, message: errorMsg } = route.query
-  
+
   // 处理错误
   if (errorCode) {
     error.value = true
-    const errorMessage = errorMessages[errorCode] || '登录失败'
-    message.value = errorMsg ? `${errorMessage}: ${errorMsg}` : errorMessage
+    const text = errorMessages[String(errorCode)] || '登录失败'
+    message.value = errorMsg ? `${text} ${String(errorMsg)}` : text
     ElMessage.error(message.value)
-    
-    // 3秒后跳转到登录页
-    setTimeout(() => {
-      router.replace('/login')
-    }, 3000)
+    setTimeout(() => router.replace('/login'), 3000)
     return
   }
-  
+
   // 处理成功
-  if (token && refreshToken && userId) {
-    try {
-      message.value = '正在获取用户信息...'
-      const res = await getUser(userId)
-      
-      if (res.success) {
-        message.value = '登录成功，正在跳转...'
-        userStore.setUser(res.data, token, refreshToken)
-        ElMessage.success('登录成功')
-        
-        // 返回之前的页面
-        const redirect = sessionStorage.getItem('oauth_redirect') || '/'
-        sessionStorage.removeItem('oauth_redirect')
-        
-        setTimeout(() => {
-          router.replace(redirect)
-        }, 500)
-      } else {
-        error.value = true
-        message.value = '获取用户信息失败'
-        ElMessage.error(message.value)
-        
-        setTimeout(() => {
-          router.replace('/login')
-        }, 3000)
-      }
-    } catch (err) {
-      console.error('登录处理失败:', err)
-      error.value = true
-      message.value = '登录处理失败'
-      ElMessage.error(message.value)
-      
-      setTimeout(() => {
-        router.replace('/login')
-      }, 3000)
-    }
-  } else {
+  if (!(token && refreshToken && userId)) {
     error.value = true
     message.value = '登录参数缺失'
     ElMessage.error(message.value)
-    
-    setTimeout(() => {
-      router.replace('/login')
-    }, 3000)
+    setTimeout(() => router.replace('/login'), 3000)
+    return
+  }
+
+  try {
+    message.value = '正在获取用户信息...'
+    const res = await getUser(userId)
+    if (!res.success) {
+      throw new Error(res.message || '获取用户信息失败')
+    }
+
+    userStore.setUser(res.data, token, refreshToken)
+    await userStore.checkAdminStatus()
+
+    message.value = '登录成功，正在跳转...'
+    ElMessage.success('登录成功')
+
+    // 返回之前的页面
+    const redirect = sessionStorage.getItem('oauth_redirect') || '/'
+    sessionStorage.removeItem('oauth_redirect')
+    setTimeout(() => router.replace(redirect), 500)
+  } catch (err) {
+    console.error('登录处理失败:', err)
+    error.value = true
+    message.value = '登录处理失败'
+    ElMessage.error(message.value)
+    setTimeout(() => router.replace('/login'), 3000)
   }
 })
 </script>

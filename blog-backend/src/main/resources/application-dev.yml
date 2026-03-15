@@ -1,31 +1,32 @@
 # ============================================
 # 开发环境配置
 # ============================================
+
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/blog_forum?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: ojc132598.
+    url: ${DB_URL:jdbc:mysql://localhost:3306/blog_forum?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
     # HikariCP 连接池优化配置
     hikari:
-      maximum-pool-size: 20              # 最大连接数
-      minimum-idle: 5                    # 最小空闲连接数
-      connection-timeout: 30000          # 连接超时时间（毫秒）
-      idle-timeout: 600000               # 空闲连接超时时间（10分钟）
-      max-lifetime: 1800000              # 连接最大存活时间（30分钟）
-      connection-test-query: SELECT 1    # 连接测试查询
-      pool-name: BlogHikariPool          # 连接池名称
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+      pool-name: BlogHikariPool
 
   data:
     redis:
-      host: 127.0.0.1
-      port: 6379
-      password: ojc132598.
-      database: 3
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:3}
       timeout: 10000ms
       connect-timeout: 10000ms
       lettuce:
@@ -37,10 +38,11 @@ spring:
         shutdown-timeout: 5000ms
 
   mail:
-    host: smtp.qq.com
-    port: 587
-    username: yc2118w40csh8@qq.com
-    password: omsqdmirlczmeaea
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    sender-name: ${MAIL_SENDER_NAME:哈基聪}
     properties:
       mail:
         smtp:
@@ -48,57 +50,62 @@ spring:
           starttls:
             enable: true
 
-# MyBatis Plus 开发环境日志
-mybatis-plus:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 开发环境打印SQL
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
 
-# JWT 密钥（开发环境）
+mybatis-plus:
+  # MyBatis Plus 开发环境日志
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
 jwt:
-  secret: dev-secret-key-for-testing-only-12345678
+  # JWT 密钥（开发环境）
+  secret: ${JWT_SECRET:dev-secret-key-for-testing-only-please-change-me-1234567890}
 
 # ============================================
 # 文件存储配置
 # ============================================
-# 存储类型：minio 或 oss（开发环境默认使用minio）
 storage:
-  type: minio
+  # 存储类型：minio 或 oss（开发环境默认使用minio）
+  type: ${STORAGE_TYPE:minio}
   init-fail-fast: false
 
-# MinIO 配置（本地）
 minio:
-  endpoint: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket: blog
+  # MinIO 配置（本地）
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: ${MINIO_BUCKET:blog}
 
-# 阿里云OSS配置（开发环境，切换时使用）
 aliyun:
   oss:
-    endpoint: oss-cn-beijing.aliyuncs.com
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
     access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
     access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
-    bucket-name: iblog-forum
-    custom-domain:
+    bucket-name: ${ALIYUN_OSS_BUCKET:iblog-forum}
+    custom-domain: ${ALIYUN_OSS_CUSTOM_DOMAIN:}
 
-# 高德地图 API
 amap:
-  key: 08a571b9e5fdf32e3ece1875c9c6e41c
+  # 高德地图 API
+  key: ${AMAP_KEY:}
 
-# 智谱AI配置
 zhipu:
-  api-key: 649edd3035634c99854b2b557c347cdd.kU936A2nVHnf9FSF
+  # 智谱AI配置
+  api-key: ${ZHIPU_API_KEY:}
 
-# OAuth配置（本地回调地址）
 oauth:
+  # OAuth配置（本地回调地址）
+  frontend-redirect-base: ${OAUTH_FRONTEND_REDIRECT_BASE:http://localhost:5173}
   github:
-    client-id: Ov23liSHhYNxADOfz6pN
-    client-secret: 1f52c0d0cec92039c2ad86dee281a49bc3e22243
-    redirect-uri: http://localhost:8080/api/auth/github/callback
+    client-id: ${OAUTH_GITHUB_CLIENT_ID:}
+    client-secret: ${OAUTH_GITHUB_CLIENT_SECRET:}
+    redirect-uri: ${OAUTH_GITHUB_REDIRECT_URI:http://localhost:8080/api/auth/github/callback}
   gitee:
-    client-id: 30b750e1afef9df1e371d33d92d40b5dd7af791c74f9ca05dddc81cdf861c4c6
-    client-secret: 5a4d8e35892b218736cb260f796cfb715bc0f640d2147ee6e0f286b73723759e
-    redirect-uri: http://localhost:8080/api/auth/gitee/callback
+    client-id: ${OAUTH_GITEE_CLIENT_ID:}
+    client-secret: ${OAUTH_GITEE_CLIENT_SECRET:}
+    redirect-uri: ${OAUTH_GITEE_REDIRECT_URI:http://localhost:8080/api/auth/gitee/callback}
 
 captcha:
   expire-seconds: ${CAPTCHA_EXPIRE_SECONDS:300}

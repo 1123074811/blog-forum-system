@@ -22,3 +22,8 @@ Thumbs.db
 .env
 .env.local
 .env.prod
+/blog-backend/docx/
+/blog-backend/src/test/
+/ops/cloudflare-runbook.md
+/ops/key-rotation-runbook.md
+/ops/nginx/secure-blog.conf

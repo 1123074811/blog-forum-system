@@ -1,6 +1,7 @@
 package com.blog.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.blog.annotation.RateLimit;
 import com.blog.converter.ArticleConverter;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.dto.ArticleRequest;
@@ -113,6 +114,7 @@ public class ArticleController extends BaseController {
     }
 
     @PostMapping("/crawl")
+    @RateLimit(key = "crawl", count = 20, time = 86400, limitType = RateLimit.LimitType.USER, message = "每日爬取限额已用完")
     public ApiResponse<CrawlResponse> crawlArticle(@Valid @RequestBody CrawlRequest request) {
         if (request.getUrl() == null || request.getUrl().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "请提供文章链接");

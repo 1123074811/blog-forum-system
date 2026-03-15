@@ -2,7 +2,10 @@ import api from './index'
 
 export const login = (data) => api.post('/auth/login', data)
 export const register = (data) => api.post('/auth/register', data)
-export const refreshToken = () => api.post('/auth/refresh')
+export const sendRegisterCode = (email) => api.post('/auth/send-register-code', { email })
+export const refreshToken = () => api.post('/auth/refresh', null, {
+  headers: { Authorization: `Bearer ${localStorage.getItem('refreshToken') || ''}` }
+})
 export const getCaptcha = () => api.get('/auth/captcha')
 export const forgotPassword = (username) => api.post('/auth/forgot-password', { username })
 export const verifyCode = (data) => api.post('/auth/verify-code', data)

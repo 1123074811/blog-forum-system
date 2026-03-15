@@ -26,7 +26,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String token = getTokenFromSession(session);
-        if (token != null && jwtUtil.validateToken(token)) {
+        if (token != null && jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
             Long userId = jwtUtil.getUserIdFromToken(token);
             sessions.put(userId, session);
             log.info("WebSocket connected: userId={}", userId);
@@ -45,7 +45,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String token = getTokenFromSession(session);
-        if (token != null && jwtUtil.validateToken(token)) {
+        if (token != null && jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
             Long userId = jwtUtil.getUserIdFromToken(token);
             sessions.remove(userId);
             log.info("WebSocket disconnected: userId={}", userId);
@@ -97,8 +97,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private String getTokenFromSession(WebSocketSession session) {
         String query = session.getUri() != null ? session.getUri().getQuery() : null;
-        if (query != null && query.startsWith("token=")) {
-            return query.substring(6);
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        for (String pair : query.split("&")) {
+            String[] split = pair.split("=", 2);
+            if (split.length == 2 && "token".equals(split[0])) {
+                return split[1];
+            }
         }
         return null;
     }
