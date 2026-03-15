@@ -8,6 +8,13 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+OPS_DIR="$SCRIPT_DIR/ops"
+SECURE_NGINX_TEMPLATE="$OPS_DIR/nginx/secure-blog.conf"
+SECURITY_EVENT_SQL="$SCRIPT_DIR/blog-backend/sql/security_event.sql"
+KEY_ROTATION_RUNBOOK="$OPS_DIR/key-rotation-runbook.md"
+CLOUDFLARE_RUNBOOK="$OPS_DIR/cloudflare-runbook.md"
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,6 +36,135 @@ log_error() {
 
 log_step() {
     echo -e "${BLUE}[STEP]${NC} $1"
+}
+
+import_optional_sql() {
+    local sql_file="$1"
+    local db_name="$2"
+
+    if [ ! -f "$sql_file" ]; then
+        log_warn "SQL 文件不存在，跳过导入：$sql_file"
+        return 0
+    fi
+
+    mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" "$db_name" < "$sql_file"
+    log_info "SQL 导入完成：$(basename "$sql_file")"
+}
+
+write_secure_nginx_conf() {
+    local domain_name="$1"
+    local server_port="$2"
+
+    cat > /etc/nginx/sites-available/blog <<EOF
+# Generated from ops/nginx/secure-blog.conf
+limit_req_zone  \$binary_remote_addr zone=api_limit:10m    rate=20r/s;
+limit_req_zone  \$binary_remote_addr zone=login_limit:10m  rate=5r/m;
+limit_req_zone  \$binary_remote_addr zone=admin_limit:10m  rate=30r/m;
+limit_conn_zone \$binary_remote_addr zone=conn_limit:10m;
+
+server {
+    listen 80 default_server;
+    return 444;
+}
+
+server {
+    listen 80;
+    server_name $domain_name www.$domain_name;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $domain_name www.$domain_name;
+
+    ssl_certificate     /etc/letsencrypt/live/$domain_name/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$domain_name/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    client_max_body_size 100m;
+
+    location ~ /\.git { return 404; }
+    location ~ /\.env { return 404; }
+    location ~ /actuator/(env|beans) { return 404; }
+
+    location /api/auth/login {
+        limit_req zone=login_limit burst=3 nodelay;
+        limit_conn zone=conn_limit 5;
+        proxy_pass http://127.0.0.1:$server_port;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /api/admin/ {
+        limit_req zone=admin_limit burst=10 nodelay;
+        limit_conn zone=conn_limit 10;
+        proxy_pass http://127.0.0.1:$server_port;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /api/ {
+        limit_req zone=api_limit burst=40 nodelay;
+        limit_conn zone=conn_limit 20;
+        proxy_pass http://127.0.0.1:$server_port;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    location /ws/ {
+        proxy_pass http://127.0.0.1:$server_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 3600s;
+    }
+
+    location /uploads/ {
+        alias /opt/blog/uploads/;
+    }
+
+    location /music-api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        root /var/www/blog;
+        index index.html;
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+EOF
+
+    log_info "已应用安全版 Nginx 配置"
 }
 
 echo "=========================================="
@@ -222,15 +358,52 @@ if [ "$IS_UPGRADE" = "false" ]; then
     # 检查并加载 mysql_native_password 插件
     ${MYSQL_ADMIN_ARGS[@]} -e "INSTALL PLUGIN mysql_native_password SONAME 'mysql_native_password.so';" 2>/dev/null || true
 
-    ${MYSQL_ADMIN_ARGS[@]} << SQLEOF
-CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';
-ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';
+log_step "2. 配置 MySQL 数据库（强制兼容 JDBC 连接）..."
+
+systemctl start mysql
+systemctl enable mysql
+
+# 确保 mysql_native_password 插件可用（MySQL 8 有时需要手动 install）
+${MYSQL_ADMIN_ARGS[@]} -e "INSTALL PLUGIN mysql_native_password SONAME 'mysql_native_password.so';" 2>/dev/null || true
+
+# 使用 caching_sha2_password（MySQL 8 默认推荐）或 mysql_native_password（更兼容旧 JDBC）
+# 这里优先用 caching_sha2_password，如果你 driver 版本较旧可改成 mysql_native_password
+AUTH_PLUGIN="caching_sha2_password"
+# AUTH_PLUGIN="mysql_native_password"   # 如果上面不行，取消注释这一行
+
+${MYSQL_ADMIN_ARGS[@]} << SQLEOF
+-- 先处理 localhost 用户（最关键）
+CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED WITH $AUTH_PLUGIN BY '$DB_PASSWORD';
+ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED WITH $AUTH_PLUGIN BY '$DB_PASSWORD';
+
+-- 同时创建/更新 % 用户（允许远程，如果以后需要）
+CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED WITH $AUTH_PLUGIN BY '$DB_PASSWORD';
+ALTER USER '$DB_USERNAME'@'%' IDENTIFIED WITH $AUTH_PLUGIN BY '$DB_PASSWORD';
+
+-- 授予权限（生产建议限制到具体数据库，但这里保持原样方便开发）
+GRANT ALL PRIVILEGES ON *.* TO '$DB_USERNAME'@'localhost';
 GRANT ALL PRIVILEGES ON *.* TO '$DB_USERNAME'@'%' WITH GRANT OPTION;
+
 FLUSH PRIVILEGES;
+
+-- 创建数据库
 CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 调试输出：确认插件是否正确设置
+SELECT user, host, plugin, authentication_string FROM mysql.user WHERE user = '$DB_USERNAME';
 SQLEOF
+
+# 允许远程连接（0.0.0.0）
+sed -i 's/^bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf 2>/dev/null || true
+sed -i 's/^#bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf 2>/dev/null || true
+
+systemctl restart mysql
+
+# 等待 MySQL 重启完成
+sleep 5
+
+log_info "MySQL 配置完成，已强制使用 $AUTH_PLUGIN 认证插件（兼容 Spring Boot JDBC）"
+log_info "建议在 application-prod.yml 中使用 url: jdbc:mysql://127.0.0.1:3306/... 而非 localhost（更稳定）"
 
     # 修改 MySQL 绑定地址允许远程连接
     sed -i 's/bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf 2>/dev/null || true
@@ -539,6 +712,12 @@ if [ "$IS_UPGRADE" = "false" ]; then
             certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
             
             log_info "SSL 证书申请完成！"
+            if [ -f "$SECURE_NGINX_TEMPLATE" ]; then
+                log_info "应用安全版 Nginx 配置模板..."
+                write_secure_nginx_conf "$DOMAIN_NAME" "$SERVER_PORT"
+            else
+                log_warn "未找到安全版 Nginx 模板，保留脚本生成的默认配置"
+            fi
             log_info "证书有效期 90 天，Certbot 会自动续期"
         fi
     else
@@ -869,6 +1048,12 @@ echo "  主机：$SERVER_IP"
 echo "  端口：3306"
 echo "  用户：$DB_USERNAME"
 echo "  密码：$DB_PASSWORD"
+echo ""
+echo "运维附加文件："
+[ -f "$SECURE_NGINX_TEMPLATE" ] && echo "  Nginx 安全模板：$SECURE_NGINX_TEMPLATE"
+[ -f "$SECURITY_EVENT_SQL" ] && echo "  安全事件表脚本：$SECURITY_EVENT_SQL"
+[ -f "$KEY_ROTATION_RUNBOOK" ] && echo "  密钥轮换指引：$KEY_ROTATION_RUNBOOK"
+[ -f "$CLOUDFLARE_RUNBOOK" ] && echo "  Cloudflare 指引：$CLOUDFLARE_RUNBOOK"
 echo ""
 echo "OSS 存储配置："
 echo "  Endpoint：$OSS_ENDPOINT"
