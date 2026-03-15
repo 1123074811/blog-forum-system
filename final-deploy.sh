@@ -626,14 +626,15 @@ zhipu:
   api-key: $ZHIPU_API_KEY
 
 oauth:
+  frontend-redirect-base: ${OAUTH_FRONTEND_REDIRECT_BASE:https://oujincong.xyz}
   github:
     client-id: $OAUTH_GITHUB_CLIENT_ID
     client-secret: $OAUTH_GITHUB_CLIENT_SECRET
-    redirect-uri: http://$SERVER_IP/api/auth/github/callback
+    redirect-uri: $OAUTH_GITHUB_REDIRECT_URI
   gitee:
     client-id: $OAUTH_GITEE_CLIENT_ID
     client-secret: $OAUTH_GITEE_CLIENT_SECRET
-    redirect-uri: http://$SERVER_IP/api/auth/gitee/callback
+    redirect-uri: $OAUTH_GITEE_REDIRECT_URI
 PRODYML
     fi
     
@@ -753,6 +754,8 @@ server {
     ssl_prefer_server_ciphers on;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
+
+    client_max_body_size 100m;
     
     # 前端静态文件
     location / {
@@ -864,6 +867,8 @@ server {
     ssl_prefer_server_ciphers on;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
+
+    client_max_body_size 100m;
     
     # 前端静态文件
     location / {

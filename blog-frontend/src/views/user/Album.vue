@@ -130,9 +130,19 @@
         <el-form-item label="标题"><el-input v-model="uploadForm.title" /></el-form-item>
         <el-form-item label="简介"><el-input v-model="uploadForm.description" type="textarea" rows="2" /></el-form-item>
         <el-form-item label="文件">
-          <el-upload drag multiple :auto-upload="false" :file-list="uploadFiles" :on-change="handleFileChange" accept="image/*,video/*">
+          <el-upload
+            drag multiple :auto-upload="false" :file-list="uploadFiles"
+            :on-change="handleFileChange" accept="image/*,video/*"
+            style="width: 100%"
+          >
             <el-icon :size="48"><Upload /></el-icon>
             <div>拖拽或点击上传图片/视频</div>
+            <template #file="{ file }">
+              <div style="display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;padding:0 8px;">
+                <el-icon><Document /></el-icon>
+                <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ file.name }}</span>
+              </div>
+            </template>
           </el-upload>
         </el-form-item>
       </el-form>
@@ -163,7 +173,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Picture, Edit, Delete, View, Upload } from '@element-plus/icons-vue'
+import { Picture, Edit, Delete, View, Upload, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as api from '@/api/blog'
 
