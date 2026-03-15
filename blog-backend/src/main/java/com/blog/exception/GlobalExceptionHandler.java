@@ -86,12 +86,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * HTTP状态异常
+     * 系统异常
+     */
+    /**
+     * ResponseStatusException ???
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ApiResponse<Void> handleResponseStatusException(ResponseStatusException e) {
         HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
-        log.warn("HTTP状态异常: status={}, message={}", status.value(), e.getReason());
+        log.warn("??????: status={}, message={}", status.value(), e.getReason());
         return ApiResponse.error(status.value(), e.getReason() == null ? status.getReasonPhrase() : e.getReason());
     }
 

@@ -27,6 +27,3 @@ Thumbs.db
 /ops/cloudflare-runbook.md
 /ops/key-rotation-runbook.md
 /ops/nginx/secure-blog.conf
-
-# Kiro skills (local only)
-.kiro/skills/

@@ -1,6 +1,5 @@
 package com.blog.config;
 
-import com.blog.filter.HotspotRateLimitFilter;
 import com.blog.filter.IpBanFilter;
 import com.blog.security.JwtAuthenticationFilter;
 import com.blog.security.SecurityAccessDeniedHandler;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -27,13 +25,11 @@ import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final IpBanFilter ipBanFilter;
-    private final HotspotRateLimitFilter hotspotRateLimitFilter;
     private final SecurityAccessDeniedHandler accessDeniedHandler;
     private final SecurityAuthenticationEntryPoint authenticationEntryPoint;
 
@@ -71,14 +67,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/quiz/*/questions").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/site-info").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/tree-hole").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/tree-hole").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/api/tree-hole/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/tree-hole/batch-delete").hasRole("ADMIN")
+                .requestMatchers("/api/tree-hole/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/wallpaper/**").permitAll()
-                .requestMatchers("/api/life-simulator/**").authenticated()
+                .requestMatchers("/api/life-simulator/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/albums/public").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/albums/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/media/public").permitAll()
@@ -90,7 +83,6 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .addFilterBefore(ipBanFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(hotspotRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

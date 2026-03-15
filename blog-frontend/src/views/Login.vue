@@ -152,8 +152,7 @@ const handleLogin = async () => {
       userStore.setUser(res.data.user, res.data.token, res.data.refreshToken)
       await userStore.checkAdminStatus()
       ElMessage.success('登录成功')
-      const redirect = route.query.redirect
-      router.push(redirect || (userStore.isAdmin ? '/admin' : '/'))
+      router.push(userStore.isAdmin ? '/admin' : '/')
       return
     }
     ElMessage.error(res.message || '登录失败')

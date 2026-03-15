@@ -1,28 +1,13 @@
 import axios from 'axios'
 import appConfig from '@/config'
-import { normalizeDeepUrls } from '@/utils/image'
 
 const api = axios.create({
   baseURL: appConfig.apiBaseUrl,
   timeout: 10000
 })
 
-const pendingMap = new Map()
 let isRefreshing = false
 let refreshQueue = []
-
-const generateKey = (config = {}) => {
-  const { method, url, params, data } = config
-  return [method, url, JSON.stringify(params || {}), JSON.stringify(data || {})].join('&')
-}
-
-const removePending = (config = {}) => {
-  const key = generateKey(config)
-  if (pendingMap.has(key)) {
-    pendingMap.get(key).abort()
-    pendingMap.delete(key)
-  }
-}
 
 const processQueue = (error, token = null) => {
   refreshQueue.forEach(({ resolve, reject }) => {
@@ -42,11 +27,6 @@ const clearAuth = () => {
 }
 
 api.interceptors.request.use(config => {
-  removePending(config)
-  const controller = new AbortController()
-  config.signal = controller.signal
-  pendingMap.set(generateKey(config), controller)
-
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -56,23 +36,15 @@ api.interceptors.request.use(config => {
 
 api.interceptors.response.use(
   response => {
-    pendingMap.delete(generateKey(response.config))
-
+    // 滑动过期：检查是否有新 token
     const newToken = response.headers['x-new-token']
     if (newToken) {
       localStorage.setItem('token', newToken)
     }
-
-    const payload = response.data
-    if (payload && typeof payload === 'object') {
-      normalizeDeepUrls(payload)
-    }
-    return payload
+    return response.data
   },
   async error => {
     const originalRequest = error.config || {}
-    pendingMap.delete(generateKey(originalRequest))
-
     const status = error.response?.status
 
     if (status === 401 && !originalRequest._retry && !String(originalRequest.url || '').includes('/auth/refresh')) {
@@ -87,10 +59,11 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           refreshQueue.push({ resolve, reject })
-        }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`
-          return api(originalRequest)
         })
+          .then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`
+            return api(originalRequest)
+          })
       }
 
       isRefreshing = true
@@ -112,7 +85,12 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
+        // 清除过期的认证信息
         clearAuth()
+        // 只有在以下情况才跳转到登录页：
+        // 1. 用户之前有 token（说明是 token 过期）
+        // 2. 当前不在登录相关页面
+        // 3. 当前不在公开页面（公开页面的 401 错误应该被忽略）
         if (!['/login', '/register', '/forgot-password'].includes(window.location.pathname)) {
           window.location.href = '/login?msg=登录已过期，请重新登录'
         }

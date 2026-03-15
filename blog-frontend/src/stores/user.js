@@ -8,17 +8,6 @@ export const useUserStore = defineStore('user', () => {
   const isDark = ref(localStorage.getItem('isDark') === 'true')
   const isAdmin = ref(false)
 
-  // session 初始化完成的 Promise，路由守卫等它完成再放行
-  let _sessionReady = null
-  let _sessionResolve = null
-
-  const sessionReady = () => {
-    if (!_sessionReady) {
-      _sessionReady = new Promise(resolve => { _sessionResolve = resolve })
-    }
-    return _sessionReady
-  }
-
   const isLoggedIn = computed(() => !!token.value)
 
   async function checkAdminStatus() {
@@ -27,13 +16,9 @@ export const useUserStore = defineStore('user', () => {
       return false
     }
     try {
-      const res = await api.get('/auth/me')
-      if (res.success && res.data?.authenticated) {
-        isAdmin.value = res.data.role?.toUpperCase() === 'ADMIN'
-        return isAdmin.value
-      }
-      isAdmin.value = false
-      return false
+      await api.get('/admin/ping')
+      isAdmin.value = true
+      return true
     } catch {
       isAdmin.value = false
       return false
@@ -41,32 +26,24 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function initSession() {
-    // 确保 Promise 已创建
-    sessionReady()
-
-    try {
-      if (!token.value) {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (refreshToken) {
-          try {
-            const res = await api.post('/auth/refresh', null, {
-              headers: { Authorization: `Bearer ${refreshToken}` }
-            })
-            if (res.success && res.data) {
-              setToken(res.data)
-            }
-          } catch {
-            localStorage.removeItem('refreshToken')
+    if (!token.value) {
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (refreshToken) {
+        try {
+          const res = await api.post('/auth/refresh', null, {
+            headers: { Authorization: `Bearer ${refreshToken}` }
+          })
+          if (res.success && res.data) {
+            setToken(res.data)
           }
+        } catch {
+          localStorage.removeItem('refreshToken')
         }
       }
+    }
 
-      if (token.value) {
-        await checkAdminStatus()
-      }
-    } finally {
-      // 无论成功失败，都标记初始化完成
-      _sessionResolve?.()
+    if (token.value) {
+      await checkAdminStatus()
     }
   }
 
@@ -79,7 +56,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function setUser(userData, tokenData, refreshToken) {
+  function setUser(userData, tokenData, refreshToken) {
     const safeUser = userData
       ? {
           id: userData.id,
@@ -102,14 +79,12 @@ export const useUserStore = defineStore('user', () => {
       localStorage.setItem('refreshToken', refreshToken)
     }
 
-    // 等待 admin 状态确认后再 resolve，避免路由守卫拿到 isAdmin=false 的瞬态
-    sessionReady()
-    await checkAdminStatus()
-    _sessionResolve?.()
+    checkAdminStatus()
   }
 
   async function logout() {
     try {
+      // 调用后端登出接口删除 Redis 中的 token
       await api.post('/auth/logout')
     } catch {
       // 忽略错误，继续清理本地状态
@@ -119,9 +94,6 @@ export const useUserStore = defineStore('user', () => {
     isAdmin.value = false
     localStorage.removeItem('user')
     localStorage.removeItem('refreshToken')
-    // 重置 session ready，下次登录后重新初始化
-    _sessionReady = null
-    _sessionResolve = null
   }
 
   function toggleDark() {
@@ -140,7 +112,6 @@ export const useUserStore = defineStore('user', () => {
     logout,
     toggleDark,
     checkAdminStatus,
-    initSession,
-    sessionReady,
+    initSession
   }
 })

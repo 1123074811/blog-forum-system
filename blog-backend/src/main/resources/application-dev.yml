@@ -4,10 +4,6 @@
 
 server:
   port: ${SERVER_PORT:8080}
-  compression:
-    enabled: true
-    mime-types: application/json,application/xml,text/html,text/plain
-    min-response-size: 1024
 
 spring:
   datasource:
@@ -17,10 +13,10 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # HikariCP 连接池优化配置
     hikari:
-      maximum-pool-size: 30
-      minimum-idle: 8
+      maximum-pool-size: 20
+      minimum-idle: 5
       connection-timeout: 30000
-      idle-timeout: 300000
+      idle-timeout: 600000
       max-lifetime: 1800000
       connection-test-query: SELECT 1
       pool-name: BlogHikariPool
@@ -35,10 +31,10 @@ spring:
       connect-timeout: 10000ms
       lettuce:
         pool:
-          max-active: 32
-          max-idle: 16
-          min-idle: 4
-          max-wait: 10000ms
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 5000ms
         shutdown-timeout: 5000ms
 
   mail:
@@ -60,26 +56,9 @@ spring:
       max-request-size: 100MB
 
 mybatis-plus:
-  # MyBatis Plus 开发环境日志（仅在需要调试时开启，默认关闭以提升性能）
+  # MyBatis Plus 开发环境日志
   configuration:
-    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-    map-underscore-to-camel-case: true
-    default-fetch-size: 100
-    default-statement-timeout: 30
-
-# ============================================
-# 日志配置（开发环境）
-# ============================================
-logging:
-  level:
-    root: INFO
-    com.blog: DEBUG
-    # 关闭框架噪音日志
-    org.springframework.security: WARN
-    org.springframework.web: WARN
-    com.zaxxer.hikari: WARN
-    org.redisson: WARN
-    io.lettuce: WARN
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 jwt:
   # JWT 密钥（开发环境）

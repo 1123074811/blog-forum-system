@@ -32,6 +32,8 @@ public class ArticleCrawlerService {
     @Retry(name = "crawler")
     public CrawlResponse crawlArticle(String url) {
         try {
+            log.info("开始爬取文章: {}", url);
+
             if (url == null || url.trim().isEmpty()) {
                 throw new IllegalArgumentException("请提供文章链接");
             }
@@ -41,10 +43,11 @@ public class ArticleCrawlerService {
 
             ArticleParser parser = findParser(url);
             if (parser == null) {
+                log.warn("不支持的网站: {}", url);
                 throw new IllegalArgumentException("暂不支持该网站，目前支持：CSDN、掘金、博客园、知乎");
             }
 
-            log.info("爬取文章 [{}]: {}", parser.getPlatformName(), url);
+            log.info("使用解析器: {}", parser.getPlatformName());
 
             Document doc = Jsoup.connect(url)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -119,8 +122,9 @@ public class ArticleCrawlerService {
                     String filename = "crawled/" + UUID.randomUUID() + extension;
                     String newUrl = minioService.uploadFromUrl(originalSrc, filename);
                     img.attr("src", newUrl);
+                    log.info("图片上传成功: {} -> {}", originalSrc, newUrl);
                 } catch (Exception e) {
-                    log.warn("图片上传失败，保留原链接: {}", originalSrc);
+                    log.warn("图片上传失败，保留原链接: {}", originalSrc, e);
                 }
             }
 

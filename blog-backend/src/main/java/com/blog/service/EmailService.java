@@ -87,6 +87,7 @@ public class EmailService {
     }
 
     public void sendResetPasswordEmail(String toEmail, String username, String code) throws MessagingException {
+        log.info("正在发送重置密码邮件到: {}，用户名: {}", toEmail, username);
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         setFrom(helper);
@@ -94,7 +95,7 @@ public class EmailService {
         helper.setSubject("重置密码验证码");
         helper.setText(buildResetEmailContent(username, code), true);
         mailSender.send(message);
-        log.info("重置密码邮件已发送: {}", toEmail);
+        log.info("重置密码邮件已成功发送到: {}", toEmail);
     }
 
     /**
@@ -116,7 +117,7 @@ public class EmailService {
         helper.setSubject("注册验证码");
         helper.setText(buildRegisterEmailContent(code), true);
         mailSender.send(message);
-        log.info("注册验证码已发送: {}", toEmail);
+        log.info("注册验证码已发送到: {}", toEmail);
     }
 
     public void storeRegisterCode(String email, String code) {
