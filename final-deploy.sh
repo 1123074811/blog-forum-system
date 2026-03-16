@@ -533,6 +533,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/opt/blog/blog-frontend
+EnvironmentFile=-/opt/blog/blog-backend/.env
 ExecStart=/usr/bin/node meting-server.js
 Restart=always
 RestartSec=10

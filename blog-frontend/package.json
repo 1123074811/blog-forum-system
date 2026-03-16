@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
-    "@meting/core": "^1.6.1",
     "axios": "^1.6.2",
     "docx-preview": "^0.3.7",
     "echarts": "^5.4.3",

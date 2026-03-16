@@ -1,50 +1,28 @@
 import axios from 'axios'
 
 export const PLATFORMS = {
-  netease: { name: '网易云', icon: '🎵' },
-  kugou: { name: '酷狗', icon: '🎤' },
-  qq: { name: 'QQ音乐', icon: '🎶' }
+  bilibili: { name: 'B站', icon: '📺' },
 }
 
-const metingApi = axios.create({ baseURL: '/music-api', timeout: 15000 })
-metingApi.interceptors.response.use((res) => res.data, (err) => Promise.reject(err))
+const api = axios.create({ baseURL: '/music-api', timeout: 15000 })
+api.interceptors.response.use((res) => res.data, (err) => Promise.reject(err))
 
-const normalizeSong = (song, platform = 'netease') => {
-  const artists = song.artists || song.ar || []
-  const album = song.album || song.al || { name: '', picUrl: '' }
-
-  return {
-    ...song,
-    id: song.id,
-    name: song.name,
-    artists,
-    ar: artists,
-    album,
-    al: album,
-    _platform: song._platform || platform,
-    _isVip: !!song._isVip
-  }
+export const searchSongs = async (keywords, limit = 20) => {
+  const res = await api.get('/search', { params: { keywords, limit } })
+  return { result: { songs: res.result?.songs || [] } }
 }
 
-export const searchSongs = async (keywords, limit = 30, platform = 'netease') => {
-  const res = await metingApi.get('/search', { params: { keywords, limit, platform } })
-  const songs = (res.result?.songs || []).map((song) => normalizeSong(song, platform))
-  return { result: { songs } }
+export const getSongUrl = async (id) => {
+  return api.get('/song/url', { params: { id } })
 }
 
-export const getSongUrl = async (id, platform = 'netease') => {
-  return metingApi.get('/song/url', { params: { id, platform } })
-}
-
-export const getSongDetail = async (ids, platform = 'netease') => {
+export const getSongDetail = async (ids) => {
   const idsParam = Array.isArray(ids) ? ids.join(',') : ids
-  const res = await metingApi.get('/song/detail', { params: { ids: idsParam, platform } })
-  const songs = (res.songs || []).map((song) => normalizeSong(song, platform))
-  return { songs }
+  return api.get('/song/detail', { params: { ids: idsParam } })
 }
 
-export const getLyric = async (id, platform = 'netease') => {
-  return metingApi.get('/lyric', { params: { id, platform } })
+export const getLyric = async (id) => {
+  return api.get('/lyric', { params: { id } })
 }
 
-export default metingApi
+export default api

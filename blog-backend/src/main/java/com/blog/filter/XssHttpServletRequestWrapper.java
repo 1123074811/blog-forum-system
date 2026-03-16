@@ -129,30 +129,18 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper {
     }
 
     /**
-     * 清理 XSS 脚本
+     * 清理 XSS 脚本 —— 转义所有 HTML 特殊字符，彻底防止注入
      */
     private String cleanXSS(String value) {
         if (!StringUtils.hasText(value)) {
             return value;
         }
-
-        // 移除脚本标签
-        value = value.replaceAll("<script[^>]*?>.*?</script>", "");
-        value = value.replaceAll("<iframe[^>]*?>.*?</iframe>", "");
-        value = value.replaceAll("<object[^>]*?>.*?</object>", "");
-        value = value.replaceAll("<embed[^>]*?>.*?</embed>", "");
-
-        // 移除事件处理器
-        value = value.replaceAll("(?i)on\\w+\\s*=", "");
-
-        // 移除 javascript: 协议
-        value = value.replaceAll("(?i)javascript:", "");
-        value = value.replaceAll("(?i)vbscript:", "");
-
-        // 移除 eval 和 expression
-        value = value.replaceAll("(?i)eval\\(", "");
-        value = value.replaceAll("(?i)expression\\(", "");
-
+        value = value.replace("&", "&amp;");
+        value = value.replace("<", "&lt;");
+        value = value.replace(">", "&gt;");
+        value = value.replace("\"", "&quot;");
+        value = value.replace("'", "&#x27;");
+        value = value.replace("/", "&#x2F;");
         return value;
     }
 }

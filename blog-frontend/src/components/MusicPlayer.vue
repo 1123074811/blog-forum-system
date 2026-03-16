@@ -21,9 +21,7 @@
           <button class="back-btn" @click="expanded = false" title="收起">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42a.996.996 0 00-1.41 0l-6.59 6.59a.996.996 0 000 1.41l6.59 6.59a.996.996 0 101.41-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>
           </button>
-          <select v-model="currentPlatform" class="platform-select">
-            <option v-for="(info, key) in PLATFORMS" :key="key" :value="key">{{ info.icon }} {{ info.name }}</option>
-          </select>
+          <span class="platform-label">📺 B站</span>
           <div class="search-input-wrap">
             <input v-model="searchKeyword" placeholder="搜索歌曲..." @keyup.enter="handleSearch" />
             <button class="search-btn" @click="handleSearch" :disabled="searching">
@@ -129,9 +127,7 @@
             <button class="back-btn" @click="expanded = false" title="收起">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42a.996.996 0 00-1.41 0l-6.59 6.59a.996.996 0 000 1.41l6.59 6.59a.996.996 0 101.41-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>
             </button>
-            <select v-model="currentPlatform" class="platform-select">
-              <option v-for="(info, key) in PLATFORMS" :key="key" :value="key">{{ info.icon }} {{ info.name }}</option>
-            </select>
+            <span class="platform-label">📺 B站</span>
             <div class="search-input-wrap">
               <input v-model="searchKeyword" placeholder="搜索歌曲..." @keyup.enter="handleSearch" />
               <button class="search-btn" @click="handleSearch" :disabled="searching">
@@ -212,7 +208,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMusicStore } from '@/stores/music'
-import { searchSongs, getSongDetail, getLyric, PLATFORMS } from '@/api/music'
+import { searchSongs, getSongDetail } from '@/api/music'
 
 const musicStore = useMusicStore()
 
@@ -224,7 +220,6 @@ const onResize = () => { isMobile.value = window.innerWidth < 768 }
 window.addEventListener('resize', onResize)
 onUnmounted(() => window.removeEventListener('resize', onResize))
 
-// 外部（如移动端 header 音乐按钮）通过 musicStore.showPlayer++ 触发展开
 watch(() => musicStore.showPlayer, (val) => {
   if (val > 0) { expanded.value = true }
 })
@@ -232,7 +227,6 @@ const showPlaylist = ref(false)
 const searchKeyword = ref('')
 const searchResults = ref([])
 const searching = ref(false)
-const currentPlatform = ref('netease')
 
 const currentSong = computed(() => musicStore.currentSong)
 const artistName = computed(() => getArtists(currentSong.value))
@@ -252,25 +246,14 @@ const handleSearch = async () => {
   if (!searchKeyword.value.trim()) return
   searching.value = true
   try {
-    const res = await searchSongs(searchKeyword.value, 30, currentPlatform.value)
+    const res = await searchSongs(searchKeyword.value, 20)
     searchResults.value = res.result?.songs || []
   } catch (e) { console.error('搜索失败:', e) }
   finally { searching.value = false }
 }
 
 const playSong = async (song) => {
-  // 网易云需要获取详情，其他平台直接播放
-  if (currentPlatform.value === 'netease') {
-    try {
-      const detail = await getSongDetail(song.id)
-      const fullSong = detail.songs?.[0] || song
-      musicStore.addAndPlay(fullSong)
-    } catch (e) {
-      musicStore.addAndPlay(song)
-    }
-  } else {
-    musicStore.addAndPlay(song)
-  }
+  musicStore.addAndPlay(song)
   searchResults.value = []
 }
 
@@ -280,16 +263,12 @@ const handleVolume = (e) => { musicStore.setVolume(e.target.value / 100) }
 
 const defaultCover = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjOTk5Ij48cGF0aCBkPSJNMTIgM3Y5LjI2Yy0uNS0uMTctMS0uMjYtMS41LS4yNkM4IDEyIDYgMTQgNiAxNi41UzggMjEgMTAuNSAyMXM0LjUtMiA0LjUtNC41VjZoNFYzaC03eiIvPjwvc3ZnPg=='
 
-// 获取歌曲封面 - 兼容所有平台
+// 获取歌曲封面
 const getSongCover = (song) => {
   if (!song) return defaultCover
-  // 酷狗/QQ音乐: album.picUrl
-  if (song.album?.picUrl) return song.album.picUrl
-  // 网易云详情: al.picUrl
-  if (song.al?.picUrl) return song.al.picUrl + '?param=100y100'
-  // 网易云搜索: 歌手头像作为备用
-  if (song.artists?.[0]?.img1v1Url) return song.artists[0].img1v1Url + '?param=100y100'
-  return defaultCover
+  const url = song.al?.picUrl || song.album?.picUrl || ''
+  if (!url) return defaultCover
+  return url.startsWith('//') ? 'https:' + url : url
 }
 const handleImgError = (e) => { e.target.src = defaultCover }
 const getArtists = (song) => {
@@ -387,15 +366,13 @@ const getArtists = (song) => {
   transition: all 0.2s;
 }
 .back-btn:hover { opacity: 1; background: rgba(255,255,255,0.15); }
-.platform-select {
-  padding: 6px 8px;
-  border: none;
+.platform-label {
+  font-size: 12px;
+  padding: 4px 8px;
   border-radius: 12px;
   background: rgba(255,255,255,0.15);
-  color: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  outline: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .search-input-wrap {
   flex: 1;

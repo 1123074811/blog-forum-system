@@ -3,6 +3,22 @@ import { ref, computed, watch } from 'vue'
 import { getSongUrl, getSongDetail } from '@/api/music'
 import { ElNotification } from 'element-plus'
 
+// 同一时间只允许一条失败通知，防止堆叠
+let activeFailNotification = null
+function showFailNotification(title, message, type = 'error') {
+  if (activeFailNotification) {
+    activeFailNotification.close()
+  }
+  activeFailNotification = ElNotification({
+    title,
+    message,
+    type,
+    position: 'top-left',
+    offset: 50,
+    onClose: () => { activeFailNotification = null }
+  })
+}
+
 // 从 localStorage 读取保存的状态
 const loadState = () => {
   try {
@@ -60,6 +76,10 @@ export const useMusicStore = defineStore('music', () => {
     return playlist.value[currentIndex.value] || null
   })
 
+  // 连续失败计数，防止无限跳曲
+  let consecutiveFails = 0
+  const MAX_CONSECUTIVE_FAILS = 3
+
   // Audio 实例
   let audio = null
 
@@ -89,73 +109,43 @@ export const useMusicStore = defineStore('music', () => {
         console.error('音频加载失败', audio.error)
         isPlaying.value = false
         
-        // 根据错误类型给出不同提示
         let errorMsg = '音频加载失败'
         if (audio.error) {
           switch (audio.error.code) {
-            case 1: // MEDIA_ERR_ABORTED
-              errorMsg = '播放被中止'
-              break
-            case 2: // MEDIA_ERR_NETWORK
-              errorMsg = '网络错误，无法加载歌曲'
-              break
-            case 3: // MEDIA_ERR_DECODE
-              errorMsg = '歌曲解码失败'
-              break
-            case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-              errorMsg = '该歌曲需要VIP权限或格式不支持'
-              break
+            case 1: errorMsg = '播放被中止'; break
+            case 2: errorMsg = '网络错误，无法加载歌曲'; break
+            case 3: errorMsg = '歌曲解码失败'; break
+            case 4: errorMsg = '该歌曲格式不支持'; break
           }
         }
-        
-        // 添加自动播放提示
-        if (playlist.value.length > 1) {
-          errorMsg += '，2秒后将自动播放下一首'
-        }
-        
-        ElNotification({
-          title: '播放失败',
-          message: errorMsg,
-          type: 'error',
-          position: 'top-left',
-          offset: 50
-        })
-        
-        // 自动播放下一首（仅当当前没有正在播放的音乐时）
-        if (playlist.value.length > 1 && !isPlaying.value) {
+
+        consecutiveFails++
+        const canSkip = playlist.value.length > 1 && consecutiveFails <= MAX_CONSECUTIVE_FAILS
+
+        showFailNotification(
+          '播放失败',
+          canSkip ? `${errorMsg}，2秒后将自动播放下一首` : errorMsg,
+          'error'
+        )
+
+        if (canSkip) {
           setTimeout(() => playNext(), 2000)
+        } else {
+          consecutiveFails = 0
         }
       })
     }
     return audio
   }
 
-  // 恢复上次播放的歌曲（页面刷新后调用）
+  // 恢复上次播放的歌曲（页面刷新后调用）—— 只恢复状态，不自动播放，避免过期 URL 报错
   const restorePlayback = async () => {
+    // B站音频流 URL 有时效性，页面刷新后不自动恢复播放，只保留播放列表和进度状态
+    // 用户手动点击播放时会重新获取 URL
     if (currentIndex.value >= 0 && playlist.value[currentIndex.value]) {
-      const song = playlist.value[currentIndex.value]
       initAudio()
-      try {
-        const res = await getSongUrl(song.id, song._platform || 'netease')
-        const url = res.data?.[0]?.url
-        if (url) {
-          audio.src = url
-          audio.load()
-          
-          // 恢复播放进度
-          audio.addEventListener('loadedmetadata', () => {
-            const savedTime = savedState?.currentTime ?? 0
-            if (savedTime > 0 && savedTime < audio.duration) {
-              audio.currentTime = savedTime
-              currentTime.value = savedTime
-            }
-          }, { once: true })
-          
-          console.log('已恢复音乐播放器状态，点击播放按钮继续播放')
-        }
-      } catch (e) {
-        console.error('恢复播放失败:', e)
-      }
+      // 恢复音量
+      if (audio) audio.volume = volume.value
     }
   }
 
@@ -164,73 +154,50 @@ export const useMusicStore = defineStore('music', () => {
     initAudio()
 
     try {
-      // 获取播放链接
-      const res = await getSongUrl(song.id, song._platform || 'netease')
+      const res = await getSongUrl(song.id)
       const urlData = res.data?.[0]
       const url = urlData?.url
 
       if (!url) {
-        // 检查是否为VIP歌曲
-        if (urlData?.vip) {
-          const message = urlData?.message || '该歌曲为VIP专享，无法播放'
-          ElNotification({
-            title: 'VIP歌曲',
-            message: playlist.value.length > 1 ? `${message}，2秒后将自动播放下一首` : message,
-            type: 'error',
-            position: 'top-left',
-            offset: 50
-          })
-        } else {
-          const message = urlData?.message || '无法获取播放链接，该歌曲可能需要付费或暂时不可用'
-          ElNotification({
-            title: '播放失败',
-            message: playlist.value.length > 1 ? `${message}，2秒后将自动播放下一首` : message,
-            type: 'error',
-            position: 'top-left',
-            offset: 50
-          })
-        }
-        // 自动播放下一首（仅当当前没有正在播放的音乐时）
-        if (playlist.value.length > 1 && !isPlaying.value) {
-          setTimeout(() => playNext(), 2000)
-        }
+        consecutiveFails++
+        const canSkip = playlist.value.length > 1 && consecutiveFails <= MAX_CONSECUTIVE_FAILS
+        const baseMsg = urlData?.message || '无法获取播放链接，该视频可能有版权限制'
+        showFailNotification(
+          '播放失败',
+          canSkip ? `${baseMsg}，2秒后将自动播放下一首` : baseMsg,
+          'warning'
+        )
+        if (canSkip) setTimeout(() => playNext(), 2000)
+        else consecutiveFails = 0
         return
       }
 
       audio.src = url
-      // play()返回Promise，需要捕获错误
       audio.play().catch(err => {
         console.error('播放错误:', err)
         isPlaying.value = false
-        const message = '播放失败，该歌曲可能需要VIP权限'
-        ElNotification({
-          title: '播放失败',
-          message: playlist.value.length > 1 ? `${message}，2秒后将自动播放下一首` : message,
-          type: 'error',
-          position: 'top-left',
-          offset: 50
-        })
-        // 自动播放下一首（仅当当前没有正在播放的音乐时）
-        if (playlist.value.length > 1 && !isPlaying.value) {
-          setTimeout(() => playNext(), 2000)
-        }
+        consecutiveFails++
+        const canSkip = playlist.value.length > 1 && consecutiveFails <= MAX_CONSECUTIVE_FAILS
+        showFailNotification(
+          '播放失败',
+          canSkip ? '播放失败，2秒后将自动播放下一首' : '播放失败，请手动选择歌曲'
+        )
+        if (canSkip) setTimeout(() => playNext(), 2000)
+        else consecutiveFails = 0
       })
       isPlaying.value = true
       currentIndex.value = index
+      consecutiveFails = 0 // 成功播放，重置失败计数
     } catch (error) {
       console.error('播放失败:', error)
-      const message = '播放失败，请稍后重试'
-      ElNotification({
-        title: '播放失败',
-        message: playlist.value.length > 1 ? `${message}，2秒后将自动播放下一首` : message,
-        type: 'error',
-        position: 'top-left',
-        offset: 50
-      })
-      // 自动播放下一首（仅当当前没有正在播放的音乐时）
-      if (playlist.value.length > 1 && !isPlaying.value) {
-        setTimeout(() => playNext(), 2000)
-      }
+      consecutiveFails++
+      const canSkip = playlist.value.length > 1 && consecutiveFails <= MAX_CONSECUTIVE_FAILS
+      showFailNotification(
+        '播放失败',
+        canSkip ? '请求失败，2秒后将自动播放下一首' : '播放失败，请手动选择歌曲'
+      )
+      if (canSkip) setTimeout(() => playNext(), 2000)
+      else consecutiveFails = 0
     }
   }
 

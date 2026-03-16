@@ -101,7 +101,7 @@
                     <span class="font-medium dark:text-white cursor-pointer hover:text-primary-500 transition-colors" @click="router.push(`/user/${comment.userId}`)">{{ comment.username }}</span>
                     <span class="text-sm text-gray-500">{{ comment.createdAt }}</span>
                   </div>
-                  <p class="text-gray-700 dark:text-gray-300 mb-2">{{ comment.content }}</p>
+                  <p class="text-gray-700 dark:text-gray-300 mb-2 break-all">{{ comment.content }}</p>
                   <div class="flex items-center gap-4 text-sm text-gray-500">
                     <!-- 未登录时显示提示 -->
                     <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可点赞" placement="top">
@@ -147,7 +147,7 @@
                             <span class="font-medium text-sm dark:text-white cursor-pointer hover:text-primary-500 transition-colors" @click="router.push(`/user/${reply.userId}`)">{{ reply.username }}</span>
                             <span class="text-xs text-gray-500">{{ reply.createdAt }}</span>
                           </div>
-                          <p class="text-sm text-gray-700 dark:text-gray-300">{{ reply.content }}</p>
+                          <p class="text-sm text-gray-700 dark:text-gray-300 break-all">{{ reply.content }}</p>
                           <div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
                             <!-- 未登录时显示提示 -->
                             <el-tooltip v-if="!userStore.isLoggedIn" content="登录后可点赞" placement="top">
