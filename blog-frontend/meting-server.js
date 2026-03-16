@@ -1,130 +1,149 @@
 import http from 'http'
-import https from 'https'
 import { URL } from 'url'
+import Meting from '@meting/core'
 
-const PORT = 3001
+const PORT = Number(process.env.METING_PORT || process.env.PORT || 3000)
 
-// HTTPS 请求封装
-const fetch = (url, options = {}) => {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url)
-    const client = urlObj.protocol === 'https:' ? https : http
-    const req = client.request(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Cookie': options.cookie || '',
-        ...options.headers
-      }
-    }, (res) => {
-      let data = ''
-      res.on('data', chunk => data += chunk)
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)) }
-        catch { resolve(data) }
-      })
-    })
-    req.on('error', reject)
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')) })
-    req.end()
-  })
+const PLATFORM_MAP = {
+  netease: 'netease',
+  qq: 'tencent',
+  kugou: 'kugou'
+}
+
+const getServerCode = (platform) => PLATFORM_MAP[platform] || 'netease'
+
+const json = (res, statusCode, payload) => {
+  res.statusCode = statusCode
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.end(JSON.stringify(payload))
+}
+
+const normalizeSong = (song, platform = 'netease') => {
+  const artists = Array.isArray(song.artist)
+    ? song.artist.map((name) => ({ name }))
+    : (song.artists || song.ar || [])
+
+  const cover = song.pic || song.picUrl || song.cover || ''
+  const albumName = song.album || song.albumname || song.al?.name || ''
+
+  return {
+    id: String(song.id || song.url_id || ''),
+    name: song.name || '',
+    artists,
+    ar: artists,
+    album: {
+      name: albumName,
+      picUrl: cover
+    },
+    al: {
+      name: albumName,
+      picUrl: cover
+    },
+    duration: Number(song.duration || 0),
+    _platform: platform,
+    _urlId: String(song.url_id || song.id || ''),
+    _lyricId: String(song.lyric_id || song.id || ''),
+    _raw: song
+  }
+}
+
+const callMeting = async (platform, action, ...args) => {
+  const meting = new Meting(getServerCode(platform))
+  meting.format(true)
+  const raw = await meting[action](...args)
+  return typeof raw === 'string' ? JSON.parse(raw) : raw
 }
 
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-
-  const url = new URL(req.url, `http://localhost:${PORT}`)
-  const pathname = url.pathname
-
-  // 酷狗播放链接
-  if (pathname === '/api/kugou/url') {
-    const hash = url.searchParams.get('hash')
-    if (!hash) {
-      res.end(JSON.stringify({ error: 'missing hash' }))
-      return
-    }
-    try {
-      // 使用第三方解析API
-      const apis = [
-        `https://api.lolimi.cn/API/kgdg/?msg=${hash}`,
-        `https://api.xingzhige.com/API/Kugou_GN/?hash=${hash}`
-      ]
-
-      for (const api of apis) {
-        try {
-          const data = await fetch(api)
-          const playUrl = data?.data?.url || data?.url || data?.data?.play_url
-          if (playUrl) {
-            res.end(JSON.stringify({ url: playUrl }))
-            return
-          }
-        } catch (e) { console.log('API failed:', api, e.message) }
-      }
-
-      res.end(JSON.stringify({ url: null, error: 'all APIs failed' }))
-    } catch (e) {
-      res.end(JSON.stringify({ error: e.message }))
-    }
+  if (req.method === 'OPTIONS') {
+    json(res, 204, {})
     return
   }
 
-  // QQ音乐播放链接
-  if (pathname === '/api/qq/url') {
-    const id = url.searchParams.get('id')
-    if (!id) {
-      res.end(JSON.stringify({ error: 'missing id' }))
+  const requestUrl = new URL(req.url, `http://localhost:${PORT}`)
+  const path = requestUrl.pathname
+  const platform = requestUrl.searchParams.get('platform') || 'netease'
+
+  try {
+    if (path === '/search') {
+      const keywords = requestUrl.searchParams.get('keywords') || ''
+      const limit = Number(requestUrl.searchParams.get('limit') || 30)
+      if (!keywords.trim()) {
+        json(res, 400, { error: 'missing keywords' })
+        return
+      }
+      const songs = await callMeting(platform, 'search', keywords, { page: 1, limit, type: 1 })
+      const normalized = Array.isArray(songs) ? songs.map((song) => normalizeSong(song, platform)) : []
+      json(res, 200, { result: { songs: normalized } })
       return
     }
-    try {
-      // 方案1: QQ音乐官方免费接口
-      const guid = Math.floor(Math.random() * 10000000000)
-      const officialUrl = `https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data=${encodeURIComponent(JSON.stringify({
-        req_0: {
-          module: 'vkey.GetVkeyServer',
-          method: 'CgiGetVkey',
-          param: { guid: String(guid), songmid: [id], songtype: [0], uin: '0', loginflag: 1, platform: '20' }
-        }
-      }))}`
 
-      try {
-        const data = await fetch(officialUrl)
-        const purl = data?.req_0?.data?.midurlinfo?.[0]?.purl
-        const sip = data?.req_0?.data?.sip?.[0] || 'https://ws.stream.qqmusic.qq.com/'
-        if (purl) {
-          res.end(JSON.stringify({ url: sip + purl }))
-          return
-        }
-      } catch (e) { console.log('QQ官方接口失败:', e.message) }
-
-      // 方案2: 备用第三方API
-      const apis = [
-        `https://api.lolimi.cn/API/qqdg/?msg=${id}`,
-        `https://api.xingzhige.com/API/QQmusicVIP/?mid=${id}`
-      ]
-      for (const api of apis) {
-        try {
-          const data = await fetch(api)
-          const playUrl = data?.data?.url || data?.url || data?.data?.music
-          if (playUrl) {
-            res.end(JSON.stringify({ url: playUrl }))
-            return
-          }
-        } catch (e) { console.log('API failed:', api, e.message) }
+    if (path === '/song/detail') {
+      const ids = (requestUrl.searchParams.get('ids') || '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+      if (ids.length === 0) {
+        json(res, 400, { error: 'missing ids' })
+        return
       }
-
-      res.end(JSON.stringify({ url: null, error: 'all APIs failed' }))
-    } catch (e) {
-      res.end(JSON.stringify({ error: e.message }))
+      const songs = await Promise.all(ids.map(async (id) => {
+        const detail = await callMeting(platform, 'song', id)
+        const first = Array.isArray(detail) ? detail[0] : detail
+        return normalizeSong(first || { id }, platform)
+      }))
+      json(res, 200, { songs })
+      return
     }
-    return
-  }
 
-  res.end(JSON.stringify({ error: 'unknown endpoint' }))
+    if (path === '/song/url') {
+      const id = requestUrl.searchParams.get('id')
+      if (!id) {
+        json(res, 400, { error: 'missing id' })
+        return
+      }
+      const urls = await callMeting(platform, 'url', id, 320)
+      const first = Array.isArray(urls) ? urls[0] : urls
+      const playUrl = first?.url || null
+      if (!playUrl) {
+        json(res, 200, {
+          data: [{
+            url: null,
+            vip: true,
+            message: '该歌曲可能需要会员权限或当前源不可用'
+          }]
+        })
+        return
+      }
+      json(res, 200, { data: [{ url: playUrl }] })
+      return
+    }
+
+    if (path === '/lyric') {
+      const id = requestUrl.searchParams.get('id')
+      if (!id) {
+        json(res, 400, { error: 'missing id' })
+        return
+      }
+      const lyric = await callMeting(platform, 'lyric', id)
+      const text = typeof lyric === 'string'
+        ? lyric
+        : (lyric?.lyric || lyric?.lrc?.lyric || '')
+      json(res, 200, { lrc: { lyric: text } })
+      return
+    }
+
+    json(res, 404, { error: 'unknown endpoint' })
+  } catch (error) {
+    console.error(`[meting-server] ${path} failed:`, error?.message || error)
+    json(res, 500, { error: error?.message || 'music api failed' })
+  }
 })
 
 server.listen(PORT, () => {
-  console.log(`Music API running at http://localhost:${PORT}`)
-  console.log('Endpoints: /api/kugou/url?hash=xxx, /api/qq/url?id=xxx')
+  console.log(`Meting music API running at http://localhost:${PORT}`)
+  console.log('Endpoints: /search /song/detail /song/url /lyric')
 })

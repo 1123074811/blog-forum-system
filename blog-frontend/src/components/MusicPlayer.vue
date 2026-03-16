@@ -1,6 +1,7 @@
 <template>
+  <div style="display:contents">
   <div class="music-player-wrapper">
-    <!-- 隐藏的触发器（露出一点点） -->
+    <!-- 桌面端触发器（左下角悬浮按钮，移动端隐藏） -->
     <div class="player-trigger" :class="{ expanded }" @click="expanded = !expanded">
       <div class="trigger-icon">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -12,9 +13,9 @@
       </div>
     </div>
 
-    <!-- 展开的玻璃拟态播放器卡片 -->
+    <!-- 桌面端播放器卡片（左下角展开） -->
     <transition name="slide">
-      <div v-show="expanded" class="player-card glass">
+      <div v-show="expanded && !isMobile" class="player-card glass">
         <!-- 顶部栏 -->
         <div class="top-bar">
           <button class="back-btn" @click="expanded = false" title="收起">
@@ -117,10 +118,99 @@
       </div>
     </transition>
   </div>
-</template>
 
+  <!-- 移动端：Teleport 到 body，居中模态框 -->
+  <Teleport to="body">
+    <Transition name="mobile-player">
+      <div v-if="expanded && isMobile" class="mobile-player-overlay" @click.self="expanded = false">
+        <div class="mobile-player-card glass">
+          <!-- 顶部栏 -->
+          <div class="top-bar">
+            <button class="back-btn" @click="expanded = false" title="收起">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42a.996.996 0 00-1.41 0l-6.59 6.59a.996.996 0 000 1.41l6.59 6.59a.996.996 0 101.41-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>
+            </button>
+            <select v-model="currentPlatform" class="platform-select">
+              <option v-for="(info, key) in PLATFORMS" :key="key" :value="key">{{ info.icon }} {{ info.name }}</option>
+            </select>
+            <div class="search-input-wrap">
+              <input v-model="searchKeyword" placeholder="搜索歌曲..." @keyup.enter="handleSearch" />
+              <button class="search-btn" @click="handleSearch" :disabled="searching">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+              </button>
+            </div>
+          </div>
+          <!-- 搜索结果 -->
+          <div v-if="searchResults.length" class="search-results">
+            <div v-for="song in searchResults" :key="song.id" class="result-item" :class="{ 'vip-song': song._isVip }" @click="playSong(song)">
+              <img :src="getSongCover(song)" @error="handleImgError" />
+              <div class="info">
+                <div class="name">{{ song.name }}<span v-if="song._isVip" class="vip-badge">VIP</span></div>
+                <div class="artist">{{ getArtists(song) }}</div>
+              </div>
+              <button class="add-btn" @click.stop="addToPlaylist(song)">+</button>
+            </div>
+          </div>
+          <!-- 当前播放 -->
+          <div v-if="currentSong" class="now-playing">
+            <img :src="getSongCover(currentSong)" class="cover" :class="{ spinning: musicStore.isPlaying }" @error="handleImgError" />
+            <div class="info">
+              <div class="name">{{ currentSong.name }}</div>
+              <div class="artist">{{ artistName }}</div>
+            </div>
+          </div>
+          <div v-else class="now-playing empty"><div class="info"><div class="name">未播放</div></div></div>
+          <!-- 进度条 -->
+          <div class="progress-wrap">
+            <span>{{ formatTime(musicStore.currentTime) }}</span>
+            <input type="range" v-model="progress" min="0" max="100" @change="handleSeek" />
+            <span>{{ formatTime(musicStore.duration) }}</span>
+          </div>
+          <!-- 控制按钮 -->
+          <div class="controls">
+            <button @click="musicStore.togglePlayMode" :title="playModeText">
+              <svg v-if="musicStore.playMode === 0" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+              <svg v-else-if="musicStore.playMode === 1" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z"/></svg>
+            </button>
+            <button @click="musicStore.playPrev"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+            <button class="play-btn" @click="musicStore.togglePlay">
+              <svg v-if="musicStore.isPlaying" viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button @click="musicStore.playNext"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+            <button @click="showPlaylist = !showPlaylist"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></button>
+          </div>
+          <!-- 音量 -->
+          <div class="volume-wrap">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+            <input type="range" v-model="volumeValue" min="0" max="100" @input="handleVolume" />
+          </div>
+          <!-- 播放列表 -->
+          <div v-if="showPlaylist" class="playlist">
+            <div class="playlist-header">
+              <span>播放列表 ({{ musicStore.playlist.length }})</span>
+              <button @click="musicStore.clearPlaylist">清空</button>
+            </div>
+            <div class="playlist-items">
+              <div v-for="(song, index) in musicStore.playlist" :key="song.id"
+                   class="playlist-item" :class="{ active: index === musicStore.currentIndex }"
+                   @click="musicStore.playSong(song, index)">
+                <div class="pl-info">
+                  <div class="pl-name">{{ song.name }}</div>
+                  <div class="pl-artist">{{ song.ar?.map(a => a.name).join(' / ') }}</div>
+                </div>
+                <button @click.stop="musicStore.removeSong(index)">×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+  </div>
+</template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMusicStore } from '@/stores/music'
 import { searchSongs, getSongDetail, getLyric, PLATFORMS } from '@/api/music'
 
@@ -129,6 +219,15 @@ const musicStore = useMusicStore()
 onMounted(() => { musicStore.restorePlayback() })
 
 const expanded = ref(false)
+const isMobile = ref(window.innerWidth < 768)
+const onResize = () => { isMobile.value = window.innerWidth < 768 }
+window.addEventListener('resize', onResize)
+onUnmounted(() => window.removeEventListener('resize', onResize))
+
+// 外部（如移动端 header 音乐按钮）通过 musicStore.showPlayer++ 触发展开
+watch(() => musicStore.showPlayer, (val) => {
+  if (val > 0) { expanded.value = true }
+})
 const showPlaylist = ref(false)
 const searchKeyword = ref('')
 const searchResults = ref([])
@@ -461,4 +560,66 @@ const getArtists = (song) => {
 .pl-artist { font-size: 10px; opacity: 0.6; }
 .playlist-item button { background: none; border: none; color: inherit; cursor: pointer; opacity: 0.5; font-size: 16px; }
 .playlist-item button:hover { opacity: 1; color: #f56c6c; }
+
+/* 移动端：隐藏桌面端触发器 */
+@media (max-width: 767px) {
+  .music-player-wrapper {
+    display: none;
+  }
+}
+
+/* 移动端播放器模态框 */
+.mobile-player-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+}
+.mobile-player-card {
+  width: calc(100vw - 24px);
+  max-width: 400px;
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(20, 20, 30, 0.92);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  color: #fff;
+}
+.mobile-player-card .platform-select {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.mobile-player-card .search-input-wrap input {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.mobile-player-card .search-input-wrap input::placeholder { color: rgba(255,255,255,0.45); }
+.mobile-player-card .back-btn,
+.mobile-player-card .controls button {
+  color: #fff;
+}
+.mobile-player-card .now-playing .name { color: #fff; }
+.mobile-player-card .now-playing .artist { color: rgba(255,255,255,0.65); }
+.mobile-player-card .progress-wrap { color: rgba(255,255,255,0.7); }
+.mobile-player-card .volume-wrap { color: rgba(255,255,255,0.7); }
+.mobile-player-card .search-results { background: rgba(255,255,255,0.08); }
+.mobile-player-card .result-item .name { color: #fff; }
+.mobile-player-card .result-item .artist { color: rgba(255,255,255,0.6); }
+.mobile-player-card .playlist { background: rgba(255,255,255,0.08); }
+.mobile-player-card .playlist-header { color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.1); }
+.mobile-player-card .pl-name { color: #fff; }
+.mobile-player-card .pl-artist { color: rgba(255,255,255,0.55); }
+.mobile-player-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.mobile-player-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.mobile-player-enter-from { opacity: 0; transform: translateY(-20px) scale(0.96); }
+.mobile-player-leave-to { opacity: 0; transform: translateY(-20px) scale(0.96); }
 </style>

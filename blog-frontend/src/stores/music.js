@@ -28,8 +28,8 @@ export const useMusicStore = defineStore('music', () => {
   const volume = ref(savedState?.volume ?? 0.7)
   // 播放模式: 0-顺序 1-随机 2-单曲循环
   const playMode = ref(savedState?.playMode ?? 0)
-  // 显示播放器
-  const showPlayer = ref(savedState?.playlist?.length > 0)
+  // 显示播放器（用 counter 触发，每次点击递增，watch 总能检测到变化）
+  const showPlayer = ref(0)
   // 显示播放列表
   const showPlaylist = ref(false)
 
@@ -217,7 +217,6 @@ export const useMusicStore = defineStore('music', () => {
       })
       isPlaying.value = true
       currentIndex.value = index
-      showPlayer.value = true
     } catch (error) {
       console.error('播放失败:', error)
       const message = '播放失败，请稍后重试'

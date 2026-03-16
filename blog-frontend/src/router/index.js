@@ -23,6 +23,7 @@ const routes = [
       { path: 'favorites', name: 'Favorites', component: () => import('@/views/user/Favorites.vue'), meta: { requiresAuth: true, title: '珍藏阁' } },
       { path: 'tree-hole', name: 'TreeHole', component: () => import('@/views/user/TreeHole.vue'), meta: { title: '听风谷' } },
       { path: 'chat', name: 'Chat', component: () => import('@/views/user/Chat.vue'), meta: { requiresAuth: true, title: '私信' } },
+      { path: 'messages', name: 'Messages', component: () => import('@/views/user/Messages.vue'), meta: { requiresAuth: true, title: '消息' } },
       { path: 'about', name: 'About', component: () => import('@/views/user/About.vue'), meta: { title: '关于我们' } },
       { path: 'life-simulator', name: 'LifeSimulator', component: () => import('@/views/user/LifeSimulator.vue'), meta: { title: '人生模拟器' } },
       { path: 'recitation', name: 'Recitation', component: () => import('@/views/user/Recitation.vue'), meta: { requiresAuth: true, title: '背书神器' } },

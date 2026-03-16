@@ -4,6 +4,10 @@
 
 server:
   port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 spring:
   datasource:
@@ -13,10 +17,10 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # HikariCP 连接池优化配置
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 30
+      minimum-idle: 8
       connection-timeout: 30000
-      idle-timeout: 600000
+      idle-timeout: 300000
       max-lifetime: 1800000
       connection-test-query: SELECT 1
       pool-name: BlogHikariPool
@@ -31,10 +35,10 @@ spring:
       connect-timeout: 10000ms
       lettuce:
         pool:
-          max-active: 16
-          max-idle: 8
-          min-idle: 2
-          max-wait: 5000ms
+          max-active: 32
+          max-idle: 16
+          min-idle: 4
+          max-wait: 10000ms
         shutdown-timeout: 5000ms
 
   mail:

@@ -149,7 +149,7 @@ server {
     }
 
     location /music-api/ {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -521,50 +521,8 @@ fi
 log_step "8. 配置音乐API服务..."
 cd /opt/blog
 
-# 安装 NeteaseCloudMusicApi（网易云音乐 API，监听 3000 端口）
-if [ ! -d "/opt/netease-music-api" ]; then
-    log_info "安装 NeteaseCloudMusicApi..."
-    mkdir -p /opt/netease-music-api
-    cd /opt/netease-music-api
-    npm init -y
-    npm install NeteaseCloudMusicApi --registry=https://registry.npmmirror.com
-    # 生成启动入口
-    cat > app.js << 'APPEOF'
-const { serveNcmApi } = require('NeteaseCloudMusicApi')
-serveNcmApi({ port: process.env.PORT || 3000 })
-APPEOF
-    cd /opt/blog
-    log_info "NeteaseCloudMusicApi 安装完成"
-else
-    log_info "NeteaseCloudMusicApi 已存在，跳过安装"
-fi
-
-# 创建网易云音乐 API systemd 服务
-if [ ! -f "/etc/systemd/system/netease-music-api.service" ]; then
-    cat > /etc/systemd/system/netease-music-api.service << 'SYSTEMDEOF'
-[Unit]
-Description=NeteaseCloudMusicApi Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/netease-music-api
-Environment=PORT=3000
-ExecStart=/usr/bin/node app.js
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=netease-music-api
-
-[Install]
-WantedBy=multi-user.target
-SYSTEMDEOF
-    log_info "创建 NeteaseCloudMusicApi 服务文件"
-fi
-
-# 无论是否升级模式，都确保 meting-server 服务文件存在
+# 使用 Meting API（监听 3000 端口）
+# 仅使用 Meting API，避免并行部署多个音乐 API 引发端口冲突
 if [ ! -f "/etc/systemd/system/blog-music-api.service" ]; then
     cat > /etc/systemd/system/blog-music-api.service << 'SYSTEMDEOF'
 [Unit]
@@ -589,8 +547,6 @@ SYSTEMDEOF
 fi
 
 systemctl daemon-reload
-systemctl start netease-music-api
-systemctl enable netease-music-api
 systemctl start blog-music-api
 systemctl enable blog-music-api
 
@@ -863,7 +819,7 @@ server {
     
     # 音乐API代理
     location /music-api/ {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -976,7 +932,7 @@ server {
     
     # 音乐API代理
     location /music-api/ {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -1055,7 +1011,7 @@ echo "=========================================="
 echo "  服务状态检查"
 echo "=========================================="
 
-services=("mysql" "redis-server" "netease-music-api" "blog-music-api" "blog-backend" "nginx")
+services=("mysql" "redis-server" "blog-music-api" "blog-backend" "nginx")
 for service in "${services[@]}"; do
     if systemctl is-active --quiet "$service" 2>/dev/null || systemctl is-active --quiet "${service}.service" 2>/dev/null; then
         log_info "✓ $service 运行正常"

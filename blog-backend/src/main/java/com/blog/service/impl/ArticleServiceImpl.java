@@ -16,6 +16,7 @@ import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,6 +40,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final CacheUtil cacheUtil;
     private final HotArticleService hotArticleService;
     private final ApplicationEventPublisher eventPublisher;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public Page<Article> getArticles(int page, int limit, Long categoryId, Long userId, String search, String sort) {
@@ -94,10 +96,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         Map<Long, User> userMap = userMapper.selectBatchIds(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
         List<Long> articleIds = articles.stream().map(Article::getId).toList();
-        Map<Long, Long> likeCountMap = articleIds.stream().collect(Collectors.toMap(
-                id -> id,
-                id -> articleLikeMapper.selectCount(new LambdaQueryWrapper<ArticleLike>().eq(ArticleLike::getArticleId, id))
-        ));
+        // 批量查询点赞数，避免 N+1 查询
+        Map<Long, Long> likeCountMap = articleLikeMapper.batchCountByArticleIds(articleIds)
+                .stream().collect(Collectors.toMap(
+                        m -> ((Number) m.get("articleId")).longValue(),
+                        m -> ((Number) m.get("likeCount")).longValue()
+                ));
         // 查询当前用户点赞的文�?
         java.util.Set<Long> likedArticleIds = new java.util.HashSet<>();
         if (currentUserId != null) {
@@ -120,20 +124,18 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     // 改为 public，供 HotArticleService 调用
     public void fillViewCountFromCache(List<Article> articles) {
         if (articles.isEmpty()) return;
-        for (Article article : articles) {
-            Number views = cacheUtil.get(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + article.getId());
-            if (views != null) {
-                article.setViewCount(views.intValue());
-            } else {
-                // Redis中没有数据时，从数据库读取并回填到Redis
-                Article dbArticle = getById(article.getId());
-                if (dbArticle != null && dbArticle.getViewCount() != null) {
-                    article.setViewCount(dbArticle.getViewCount());
-                    // 回填到Redis
-                    cacheUtil.set(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + article.getId(), 
-                                 dbArticle.getViewCount(), 30, TimeUnit.MINUTES);
-                }
+        // 批量从 Redis 获取浏览量，减少网络往返
+        List<String> keys = articles.stream()
+                .map(a -> AppConstants.CACHE_ARTICLE_VIEW_PREFIX + a.getId())
+                .toList();
+        List<Object> values = redisTemplate.opsForValue().multiGet(keys);
+        for (int i = 0; i < articles.size(); i++) {
+            Article article = articles.get(i);
+            Object val = values != null ? values.get(i) : null;
+            if (val != null) {
+                article.setViewCount(((Number) val).intValue());
             }
+            // Redis 没有时保留数据库值，不再逐个回查数据库
         }
     }
 

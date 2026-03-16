@@ -285,7 +285,8 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .input-area {
-    bottom: 16px;
+    /* 底部留出 tab bar 高度(56px) + safe area + 间距 */
+    bottom: calc(56px + env(safe-area-inset-bottom) + 12px);
     padding: 10px 14px;
     border-radius: 24px;
   }

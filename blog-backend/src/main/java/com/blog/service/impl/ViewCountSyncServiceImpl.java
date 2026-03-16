@@ -2,7 +2,6 @@ package com.blog.service.impl;
 
 import com.blog.constant.AppConstants;
 import com.blog.mapper.ArticleMapper;
-import com.blog.pojo.entity.Article;
 import com.blog.service.ViewCountSyncService;
 import com.blog.util.CacheUtil;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.Set;
+import java.util.*;
 
 /**
  * 浏览量同步服务实现
@@ -27,52 +26,44 @@ public class ViewCountSyncServiceImpl implements ViewCountSyncService {
     private final CacheUtil cacheUtil;
 
     /**
-     * 定时同步浏览量（每分钟执行一次）
+     * 定时同步浏览量（每5分钟执行一次，减少数据库写压力）
      */
     @Override
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 300000)
     public void syncAllViewCounts() {
-        log.info("开始同步文章浏览量到数据库...");
         long startTime = System.currentTimeMillis();
-        int syncCount = 0;
 
         try {
-            // 获取所有浏览量缓存的 key
             Set<String> keys = redisTemplate.keys(AppConstants.CACHE_ARTICLE_VIEW_PREFIX + "*");
-
             if (keys == null || keys.isEmpty()) {
-                log.debug("没有需要同步的浏览量数据");
                 return;
             }
 
-            // 批量同步
+            // 批量读取 Redis 值，减少网络往返
+            List<Object> values = redisTemplate.opsForValue().multiGet(new ArrayList<>(keys));
+            List<Map<String, Object>> batchList = new ArrayList<>();
+
+            int i = 0;
             for (String key : keys) {
+                Object val = values != null ? values.get(i++) : null;
+                if (val == null) continue;
                 try {
-                    // 提取文章ID
-                    String articleIdStr = key.replace(AppConstants.CACHE_ARTICLE_VIEW_PREFIX, "");
-                    Long articleId = Long.parseLong(articleIdStr);
-
-                    // 获取 Redis 中的浏览量
-                    Number viewCount = cacheUtil.get(key);
-                    if (viewCount == null) {
-                        continue;
-                    }
-
-                    // 更新数据库
-                    Article article = articleMapper.selectById(articleId);
-                    if (article != null) {
-                        article.setViewCount(viewCount.intValue());
-                        articleMapper.updateById(article);
-                        syncCount++;
-                    }
-
+                    Long articleId = Long.parseLong(key.replace(AppConstants.CACHE_ARTICLE_VIEW_PREFIX, ""));
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("articleId", articleId);
+                    item.put("viewCount", ((Number) val).intValue());
+                    batchList.add(item);
                 } catch (Exception e) {
-                    log.error("同步文章浏览量失败，key: {}", key, e);
+                    log.warn("解析浏览量 key 失败: {}", key);
                 }
             }
 
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("浏览量同步完成，同步 {} 篇文章，耗时 {}ms", syncCount, duration);
+            if (!batchList.isEmpty()) {
+                // 单次批量 UPDATE，替代逐条更新
+                articleMapper.batchUpdateViewCount(batchList);
+                log.info("浏览量批量同步完成，共 {} 篇，耗时 {}ms",
+                        batchList.size(), System.currentTimeMillis() - startTime);
+            }
 
         } catch (Exception e) {
             log.error("批量同步浏览量失败", e);
@@ -87,14 +78,11 @@ public class ViewCountSyncServiceImpl implements ViewCountSyncService {
         try {
             String key = AppConstants.CACHE_ARTICLE_VIEW_PREFIX + articleId;
             Number viewCount = cacheUtil.get(key);
-
             if (viewCount != null) {
-                Article article = articleMapper.selectById(articleId);
-                if (article != null) {
-                    article.setViewCount(viewCount.intValue());
-                    articleMapper.updateById(article);
-                    log.debug("同步文章 {} 的浏览量: {}", articleId, viewCount);
-                }
+                Map<String, Object> item = new HashMap<>();
+                item.put("articleId", articleId);
+                item.put("viewCount", viewCount.intValue());
+                articleMapper.batchUpdateViewCount(List.of(item));
             }
         } catch (Exception e) {
             log.error("同步文章浏览量失败，文章ID: {}", articleId, e);

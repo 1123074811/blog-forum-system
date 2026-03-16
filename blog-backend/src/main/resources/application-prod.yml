@@ -9,6 +9,10 @@
 
 server:
   port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 spring:
   datasource:
@@ -17,9 +21,11 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 30
+      minimum-idle: 8
       connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 1800000
 
   data:
     redis:
@@ -31,10 +37,10 @@ spring:
       connect-timeout: 10000ms
       lettuce:
         pool:
-          max-active: 20
-          max-idle: 10
+          max-active: 32
+          max-idle: 16
           min-idle: 5
-          max-wait: 5000ms
+          max-wait: 10000ms
         shutdown-timeout: 5000ms
 
   mail:

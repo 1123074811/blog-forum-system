@@ -234,6 +234,7 @@ else
 fi
 
 ensure_service_running "blog-backend" "后端服务"
+ensure_service_running "blog-music-api" "音乐服务(Meting API)"
 ensure_service_running "nginx" "Nginx"
 echo
 
@@ -245,6 +246,7 @@ if [ "$STORAGE_TYPE" = "minio" ]; then
     check_port "9001" "MinIO Console"
 fi
 check_port "8080" "后端服务"
+check_port "3000" "音乐服务(Meting API)"
 check_port "80" "Nginx"
 echo
 
@@ -276,6 +278,12 @@ if curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1; then
 else
     log_warn "后端服务连接失败，可能仍在启动中"
 fi
+
+if curl -fsS "http://localhost:3000/search?keywords=test&limit=1&platform=netease" >/dev/null 2>&1; then
+    log_info "音乐服务(Meting API)连接成功"
+else
+    log_warn "音乐服务(Meting API)连接失败，可能仍在启动中"
+fi
 echo
 
 echo "=========================================="
@@ -299,6 +307,7 @@ fi
 echo
 echo "查看日志："
 echo "  journalctl -u blog-backend -f"
+echo "  journalctl -u blog-music-api -f"
 echo "  tail -f /var/log/nginx/error.log"
 echo
 exit 0

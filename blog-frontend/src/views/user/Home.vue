@@ -379,8 +379,10 @@ const closeAnnouncement = () => {
 }
 
 onMounted(async () => {
-  // 锁定 body 滚动，由三列各自独立滚动
-  document.body.style.overflow = 'hidden'
+  // 仅桌面端锁定 body 滚动，由三列各自独立滚动
+  if (window.innerWidth >= 1024) {
+    document.body.style.overflow = 'hidden'
+  }
 
   // 等 DOM 渲染后再绑定滚动监听
   await nextTick()
@@ -442,7 +444,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 离开首页时恢复 body 滚动
-  document.body.style.overflow = ''
+  if (window.innerWidth >= 1024) {
+    document.body.style.overflow = ''
+  }
   if (observer) observer.disconnect()
   if (mainContentRef.value) {
     mainContentRef.value.removeEventListener('scroll', handleScroll)
