@@ -1,5 +1,6 @@
 package com.blog.controller;
 
+import com.blog.annotation.RateLimit;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.blog.pojo.entity.User;
 import com.blog.service.TokenService;
@@ -64,12 +65,15 @@ public class OAuthController {
     }
 
     @GetMapping("/github/callback")
+    @RateLimit(key = "oauth:github:cb", count = 10, time = 60, limitType = RateLimit.LimitType.IP, message = "请求过于频繁，请稍后再试")
     public String githubCallback(@RequestParam String code) {
         try {
             String accessToken = fetchGithubToken(code);
             JsonNode userInfo = fetchGithubUser(accessToken);
             User user = upsertGithubUser(userInfo);
             return buildOAuthSuccessRedirect(user);
+        } catch (com.blog.exception.BusinessException e) {
+            return buildOAuthErrorRedirect("rate_limited", e.getMessage());
         } catch (Exception e) {
             log.error("GitHub oauth failed", e);
             return buildOAuthErrorRedirect("github_failed", e.getMessage());
@@ -85,12 +89,15 @@ public class OAuthController {
     }
 
     @GetMapping("/gitee/callback")
+    @RateLimit(key = "oauth:gitee:cb", count = 10, time = 60, limitType = RateLimit.LimitType.IP, message = "请求过于频繁，请稍后再试")
     public String giteeCallback(@RequestParam String code) {
         try {
             String accessToken = fetchGiteeToken(code);
             JsonNode userInfo = fetchGiteeUser(accessToken);
             User user = upsertGiteeUser(userInfo);
             return buildOAuthSuccessRedirect(user);
+        } catch (com.blog.exception.BusinessException e) {
+            return buildOAuthErrorRedirect("rate_limited", e.getMessage());
         } catch (Exception e) {
             log.error("Gitee oauth failed", e);
             return buildOAuthErrorRedirect("gitee_failed", e.getMessage());

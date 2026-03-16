@@ -61,12 +61,19 @@
 import { ref, onMounted, nextTick, onUnmounted, computed } from 'vue'
 import { getStatistics } from '@/api/blog'
 import { useIsMobile } from '@/composables/useIsMobile'
-import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, GridComponent, LegendComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
 
-echarts.use([TitleComponent, TooltipComponent, GridComponent, LegendComponent, BarChart, LineChart, PieChart, CanvasRenderer])
+// echarts 按需异步加载
+let echarts = null
+const loadEcharts = async () => {
+  if (echarts) return echarts
+  const core = await import('echarts/core')
+  const { BarChart, LineChart, PieChart } = await import('echarts/charts')
+  const { TitleComponent, TooltipComponent, GridComponent, LegendComponent } = await import('echarts/components')
+  const { CanvasRenderer } = await import('echarts/renderers')
+  core.use([TitleComponent, TooltipComponent, GridComponent, LegendComponent, BarChart, LineChart, PieChart, CanvasRenderer])
+  echarts = core
+  return echarts
+}
 
 const stats = ref({
   totalArticles: 0,
@@ -114,10 +121,11 @@ const formatTrendLabel = (label) => {
   return label
 }
 
-const initTrendChart = () => {
+const initTrendChart = async () => {
   if (!trendChartRef.value) return
+  const ec = await loadEcharts()
   trendChart?.dispose()
-  trendChart = echarts.init(trendChartRef.value)
+  trendChart = ec.init(trendChartRef.value)
   trendChart.setOption({
     tooltip: { trigger: 'axis' },
     legend: { top: 0 },
@@ -135,10 +143,11 @@ const initTrendChart = () => {
   })
 }
 
-const initStatusChart = () => {
+const initStatusChart = async () => {
   if (!statusChartRef.value) return
+  const ec = await loadEcharts()
   statusChart?.dispose()
-  statusChart = echarts.init(statusChartRef.value)
+  statusChart = ec.init(statusChartRef.value)
   statusChart.setOption({
     tooltip: { trigger: 'item' },
     legend: { bottom: 0 },
@@ -151,10 +160,11 @@ const initStatusChart = () => {
   })
 }
 
-const initViewChart = () => {
+const initViewChart = async () => {
   if (!viewChartRef.value) return
+  const ec = await loadEcharts()
   viewChart?.dispose()
-  viewChart = echarts.init(viewChartRef.value)
+  viewChart = ec.init(viewChartRef.value)
   viewChart.setOption({
     tooltip: { trigger: 'axis' },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
@@ -176,10 +186,11 @@ const initViewChart = () => {
   })
 }
 
-const initAuthorChart = () => {
+const initAuthorChart = async () => {
   if (!authorChartRef.value) return
+  const ec = await loadEcharts()
   authorChart?.dispose()
-  authorChart = echarts.init(authorChartRef.value)
+  authorChart = ec.init(authorChartRef.value)
   const list = stats.value.activeAuthors || []
   authorChart.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },

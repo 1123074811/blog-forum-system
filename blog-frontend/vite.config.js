@@ -90,8 +90,12 @@ export default defineConfig({
           'element-plus': ['element-plus'],
           'echarts': ['echarts'],
           'md-editor': ['md-editor-v3'],
+          'konva': ['konva', 'vue-konva'],
+          'xlsx': ['xlsx'],
+          'docx-preview': ['docx-preview'],
         }
       }
-    }
+    },
+    chunkSizeWarningLimit: 1000,
   }
 })

@@ -220,8 +220,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getQuizList, getPublicQuizList, importQuiz, deleteQuiz, toggleQuizPublic, uploadQuizFile } from '@/api/blog'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { renderAsync } from 'docx-preview'
-import * as XLSX from 'xlsx'
+
+// docx-preview 和 xlsx 按需加载，仅在预览文件时才引入
+const loadDocxPreview = () => import('docx-preview').then(m => m.renderAsync)
+const loadXlsx = () => import('xlsx')
 
 const router = useRouter()
 const route = useRoute()
@@ -450,12 +452,14 @@ const previewFile = async (quiz) => {
     await nextTick()
     const res = await fetch(fileUrl)
     const blob = await res.blob()
+    const renderAsync = await loadDocxPreview()
     renderAsync(blob, docxContainer.value, null, { className: 'docx-preview' })
     return
   } else if (ext === 'xlsx') {
     previewType.value = 'xlsx'
     const res = await fetch(fileUrl)
     const data = await res.arrayBuffer()
+    const XLSX = await loadXlsx()
     const workbook = XLSX.read(data, { type: 'array' })
     const result = {}
     workbook.SheetNames.forEach(name => {

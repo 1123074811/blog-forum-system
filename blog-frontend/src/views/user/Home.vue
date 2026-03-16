@@ -62,7 +62,7 @@
     </aside>
 
     <!-- 中间内容区 -->
-    <div class="main-content">
+    <div class="main-content" ref="mainContentRef">
       <!-- 必应壁纸轮播图 -->
       <div class="glass-card mb-4 overflow-hidden card-enter">
         <div v-if="wallpaperLoading" class="h-[200px] flex items-center justify-center">
@@ -242,7 +242,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getArticles, getCategories, getTags, getAnnouncements } from '@/api/blog'
@@ -272,6 +272,7 @@ const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
 const loadMoreRef = ref(null)
+const mainContentRef = ref(null)
 const showBackTop = ref(false)
 const showAnnouncement = ref(false)
 const currentAnnouncement = ref(null)
@@ -287,7 +288,7 @@ const setupObserver = () => {
     if (entries[0].isIntersecting && hasMore.value && !loading.value) {
       loadMore()
     }
-  }, { rootMargin: '100px' })
+  }, { root: mainContentRef.value, rootMargin: '100px' })
   if (loadMoreRef.value) observer.observe(loadMoreRef.value)
 }
 
@@ -359,11 +360,13 @@ const handleRefresh = () => {
 }
 
 const scrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  if (mainContentRef.value) {
+    mainContentRef.value.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 }
 
 const handleScroll = () => {
-  showBackTop.value = window.scrollY > 300
+  showBackTop.value = (mainContentRef.value?.scrollTop || 0) > 300
 }
 
 const closeAnnouncement = () => {
@@ -376,7 +379,14 @@ const closeAnnouncement = () => {
 }
 
 onMounted(async () => {
-  window.addEventListener('scroll', handleScroll)
+  // 锁定 body 滚动，由三列各自独立滚动
+  document.body.style.overflow = 'hidden'
+
+  // 等 DOM 渲染后再绑定滚动监听
+  await nextTick()
+  if (mainContentRef.value) {
+    mainContentRef.value.addEventListener('scroll', handleScroll)
+  }
   const [catRes, tagRes, annRes] = await Promise.all([
     getCategories(), 
     getTags(),
@@ -431,8 +441,12 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // 离开首页时恢复 body 滚动
+  document.body.style.overflow = ''
   if (observer) observer.disconnect()
-  window.removeEventListener('scroll', handleScroll)
+  if (mainContentRef.value) {
+    mainContentRef.value.removeEventListener('scroll', handleScroll)
+  }
 })
 </script>
 
@@ -440,7 +454,7 @@ onUnmounted(() => {
 .home-container {
   display: flex;
   gap: 1.5rem;
-  height: calc(100vh - var(--app-header-height));
+  height: 100%;
   overflow: hidden;
 }
 
@@ -454,18 +468,22 @@ onUnmounted(() => {
 .left-sidebar {
   width: 280px;
   flex-shrink: 0;
+  height: 100%;
   overflow-y: auto;
-  padding-right: 8px;
+  padding: 1rem 8px 1rem 0;
 }
 
 .main-content {
   flex: 1;
+  height: 100%;
   overflow-y: auto;
   min-width: 0;
+  padding: 1rem 0;
 }
 
 @media (max-width: 1023px) {
   .main-content {
+    height: auto;
     overflow-y: visible;
   }
 }
@@ -473,8 +491,9 @@ onUnmounted(() => {
 .right-sidebar {
   width: 300px;
   flex-shrink: 0;
+  height: 100%;
   overflow-y: auto;
-  padding-left: 8px;
+  padding: 1rem 0 1rem 8px;
 }
 
 /* 公告内容区域样式 */

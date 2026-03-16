@@ -1,5 +1,6 @@
 package com.blog.config;
 
+import com.blog.filter.HotspotRateLimitFilter;
 import com.blog.filter.IpBanFilter;
 import com.blog.security.JwtAuthenticationFilter;
 import com.blog.security.SecurityAccessDeniedHandler;
@@ -32,6 +33,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final IpBanFilter ipBanFilter;
+    private final HotspotRateLimitFilter hotspotRateLimitFilter;
     private final SecurityAccessDeniedHandler accessDeniedHandler;
     private final SecurityAuthenticationEntryPoint authenticationEntryPoint;
 
@@ -88,6 +90,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .addFilterBefore(ipBanFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(hotspotRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

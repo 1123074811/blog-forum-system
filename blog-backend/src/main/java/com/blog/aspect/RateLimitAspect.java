@@ -46,8 +46,12 @@ public class RateLimitAspect {
 
         // 超过限流次数
         if (count > rateLimit.count()) {
-            log.warn("Rate limit exceeded: key={}, count={}, limit={}", key, count, rateLimit.count());
-            securityEventService.recordRateLimit(getIpAddress());
+            String ip = getIpAddress();
+            log.warn("Rate limit exceeded: key={}, count={}, limit={}, ip={}", key, count, rateLimit.count(), ip);
+            // 只在刚超限时（count == limit+1）记录，避免每次请求都累加封禁计数
+            if (count == rateLimit.count() + 1) {
+                securityEventService.recordRateLimit(ip);
+            }
             throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, rateLimit.message());
         }
     }

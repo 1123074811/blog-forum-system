@@ -84,7 +84,7 @@
           <!-- 已登录评论输入框 -->
           <div v-else class="mb-6">
             <div class="comment-input-box">
-              <el-input v-model="newComment" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="写下你的评论..." />
+              <el-input v-model="newComment" type="textarea" :autosize="{ minRows: 1, maxRows: 6 }" placeholder="写下你的评论..." />
               <div class="input-actions">
                 <EmojiPicker @select="e => newComment += e" />
                 <el-button type="primary" size="small" @click="submitComment">发表</el-button>
@@ -95,10 +95,10 @@
           <div class="space-y-4">
             <div v-for="comment in topLevelComments" :key="comment.id" class="border-b border-gray-200 dark:border-gray-700 pb-4">
               <div class="flex items-start gap-3">
-                <el-avatar :src="comment.avatar" :size="36">{{ comment.username?.[0] }}</el-avatar>
+                <el-avatar :src="comment.avatar" :size="36" class="cursor-pointer" @click="router.push(`/user/${comment.userId}`)">{{ comment.username?.[0] }}</el-avatar>
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-1">
-                    <span class="font-medium dark:text-white">{{ comment.username }}</span>
+                    <span class="font-medium dark:text-white cursor-pointer hover:text-primary-500 transition-colors" @click="router.push(`/user/${comment.userId}`)">{{ comment.username }}</span>
                     <span class="text-sm text-gray-500">{{ comment.createdAt }}</span>
                   </div>
                   <p class="text-gray-700 dark:text-gray-300 mb-2">{{ comment.content }}</p>
@@ -141,10 +141,10 @@
                   <div v-if="getReplies(comment.id).length" class="mt-3 pl-4 border-l-2 border-gray-200 space-y-3">
                     <div v-for="reply in getReplies(comment.id)" :key="reply.id">
                       <div class="flex items-start gap-2">
-                        <el-avatar :src="reply.avatar" :size="28">{{ reply.username?.[0] }}</el-avatar>
+                        <el-avatar :src="reply.avatar" :size="28" class="cursor-pointer" @click="router.push(`/user/${reply.userId}`)">{{ reply.username?.[0] }}</el-avatar>
                         <div class="flex-1">
                           <div class="flex items-center gap-2">
-                            <span class="font-medium text-sm dark:text-white">{{ reply.username }}</span>
+                            <span class="font-medium text-sm dark:text-white cursor-pointer hover:text-primary-500 transition-colors" @click="router.push(`/user/${reply.userId}`)">{{ reply.username }}</span>
                             <span class="text-xs text-gray-500">{{ reply.createdAt }}</span>
                           </div>
                           <p class="text-sm text-gray-700 dark:text-gray-300">{{ reply.content }}</p>
@@ -233,17 +233,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getArticle, getComments, createComment, likeComment, unlikeComment, deleteArticle } from '@/api/blog'
 import api from '@/api'
-import { MdPreview, MdCatalog } from 'md-editor-v3'
-import 'md-editor-v3/lib/preview.css'
 import { View, ChatLineRound, ArrowLeft, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import toast from '@/utils/toast'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+
+// 按需加载 md-editor-v3 预览组件
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then(async (m) => {
+    await import('md-editor-v3/lib/preview.css')
+    return m.MdPreview
+  })
+)
+const MdCatalog = defineAsyncComponent(() =>
+  import('md-editor-v3').then(m => m.MdCatalog)
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -503,22 +512,34 @@ html {
 .comment-input-box {
   position: relative;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  padding: 8px;
+  border-radius: 8px;
   background: #fff;
+  transition: border-color 0.2s;
+}
+.comment-input-box:focus-within {
+  border-color: var(--el-color-primary);
 }
 .comment-input-box :deep(.el-textarea__inner) {
   border: none;
   box-shadow: none;
-  padding-right: 120px;
+  padding: 10px 90px 10px 12px;
+  resize: none;
+  background: transparent;
+  min-height: unset !important;
+  line-height: 1.5;
 }
 .input-actions {
   position: absolute;
   right: 8px;
-  bottom: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+.dark .comment-input-box {
+  border-color: #4b5563;
+  background: #1f2937;
 }
 .typing-effect::after {
   content: '|';
@@ -614,22 +635,6 @@ html {
 }
 
 @media (max-width: 768px) {
-  .comment-input-box {
-    padding: 10px;
-  }
-
-  .comment-input-box :deep(.el-textarea__inner) {
-    padding-right: 0;
-    padding-bottom: 8px;
-  }
-
-  .input-actions {
-    position: static;
-    justify-content: flex-end;
-    margin-top: 8px;
-    gap: 6px;
-  }
-
   .article-catalog {
     max-height: 240px;
   }

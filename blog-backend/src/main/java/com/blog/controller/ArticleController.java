@@ -80,6 +80,7 @@ public class ArticleController extends BaseController {
     }
 
     @PostMapping
+    @RateLimit(key = "article:create", count = 5, time = 3600, limitType = RateLimit.LimitType.USER, message = "发文过于频繁，每小时最多5篇")
     public ApiResponse<ArticleVO> createArticle(@Valid @RequestBody ArticleRequest request, Authentication auth) {
         Long userId = getCurrentUserId(auth);
         Article article = articleService.createArticle(request, userId);

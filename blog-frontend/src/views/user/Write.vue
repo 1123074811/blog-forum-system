@@ -82,14 +82,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getArticle, createArticle, updateArticle, getCategories, getTags, uploadFile, crawlArticle } from '@/api/blog'
-import { MdEditor } from 'md-editor-v3'
-import 'md-editor-v3/lib/style.css'
 import { ElMessage } from 'element-plus'
 import { Upload, Link, ArrowLeft } from '@element-plus/icons-vue'
+
+// 按需加载 md-editor-v3（~200KB）
+const MdEditor = defineAsyncComponent(() =>
+  import('md-editor-v3').then(async (m) => {
+    await import('md-editor-v3/lib/style.css')
+    return m.MdEditor
+  })
+)
 
 const route = useRoute()
 const router = useRouter()

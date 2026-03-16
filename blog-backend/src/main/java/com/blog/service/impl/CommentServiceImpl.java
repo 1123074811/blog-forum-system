@@ -37,7 +37,10 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             comments.forEach(c -> {
                 User user = userMap.get(c.getUserId());
                 if (user != null) {
-                    c.setUsername(user.getUsername());
+                    // 优先显示昵称，若无昵称则回退到账号
+                    String displayName = (user.getNickname() != null && !user.getNickname().isBlank())
+                            ? user.getNickname() : user.getUsername();
+                    c.setUsername(displayName);
                     c.setAvatar(user.getAvatar());
                 }
             });

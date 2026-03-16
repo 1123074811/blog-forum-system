@@ -40,7 +40,8 @@
       <el-table :data="pagedUsers" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" :selectable="row => row.role !== 'admin'" />
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" />
+        <el-table-column prop="username" label="账号" />
+        <el-table-column prop="nickname" label="昵称" />
         <el-table-column prop="email" label="邮箱" />
         <el-table-column prop="role" label="角色">
           <template #default="{ row }">
@@ -81,9 +82,10 @@
             :model-value="selectedIds.includes(user.id)"
             @change="(val) => toggleSelect(user.id, val)"
           />
-          <div class="card-title">{{ user.username || '未知用户' }}</div>
+          <div class="card-title">{{ user.nickname || user.username || '未知用户' }}</div>
           <el-tag size="small" :type="user.role === 'admin' ? 'danger' : 'info'">{{ user.role }}</el-tag>
         </div>
+        <div class="card-meta">账号: {{ user.username || '-' }}</div>
         <div class="card-meta">{{ user.email || '-' }}</div>
         <div class="card-meta">状态: {{ user.banned ? '已封禁' : '正常' }}</div>
         <div class="card-meta">注册: {{ user.createdAt || '-' }}</div>

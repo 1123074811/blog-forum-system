@@ -129,7 +129,7 @@
     </el-dialog>
 
     <!-- 主内容区 -->
-    <main class="main-content pb-8 px-2 sm:px-4 max-w-7xl mx-auto">
+    <main class="main-content px-2 sm:px-4 max-w-7xl mx-auto" :class="{ 'is-fixed': isFixedLayout }">
       <router-view />
     </main>
 
@@ -139,8 +139,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMusicStore } from '@/stores/music'
 import { Search, Menu, Sunny, Moon, Bell, ChatDotRound, Headset } from '@element-plus/icons-vue'
@@ -150,8 +150,12 @@ import config from '@/config'
 import MusicPlayer from '@/components/MusicPlayer.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const musicStore = useMusicStore()
+
+// 需要固定布局（三列独立滚动）的页面
+const isFixedLayout = computed(() => route.path === '/')
 const showMobileMenu = ref(false)
 const showSearchDialog = ref(false)
 const searchQuery = ref('')
@@ -289,10 +293,21 @@ const handleLogout = () => {
 <style scoped>
 .main-content {
   padding-top: calc(var(--app-header-height) + 1rem);
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 @media (min-width: 640px) {
   .main-content {
     padding-top: calc(var(--app-header-height) + 1.5rem);
   }
+}
+
+/* 首页固定布局：锁定 main 自身滚动，由内部三列各自滚动 */
+.main-content.is-fixed {
+  padding-top: var(--app-header-height);
+  height: 100vh;
+  min-height: unset;
+  overflow: hidden;
+  padding-bottom: 0;
 }
 </style>

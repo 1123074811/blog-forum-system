@@ -1,5 +1,6 @@
 package com.blog.controller;
 
+import com.blog.annotation.RateLimit;
 import com.blog.converter.UserConverter;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.dto.UserUpdateRequest;
@@ -74,6 +75,7 @@ public class UserController extends BaseController {
     }
 
     @PostMapping("/{id}/follow")
+    @RateLimit(key = "user:follow", count = 30, time = 60, limitType = RateLimit.LimitType.USER, message = "操作过于频繁，请稍后再试")
     public ApiResponse<Void> follow(@PathVariable Long id, Authentication auth) {
         Long currentUserId = getCurrentUserId(auth);
         if (currentUserId.equals(id)) {

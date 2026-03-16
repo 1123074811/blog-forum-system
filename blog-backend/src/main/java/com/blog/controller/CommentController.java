@@ -1,5 +1,6 @@
 package com.blog.controller;
 
+import com.blog.annotation.RateLimit;
 import com.blog.exception.BusinessException;
 import com.blog.exception.ErrorCode;
 import com.blog.pojo.dto.ApiResponse;
@@ -30,6 +31,7 @@ public class CommentController extends BaseController {
     }
 
     @PostMapping("/comments")
+    @RateLimit(key = "comment:create", count = 10, time = 60, limitType = RateLimit.LimitType.USER, message = "评论过于频繁，请稍后再试")
     public ApiResponse<Comment> createComment(@Valid @RequestBody CommentRequest request, Authentication auth) {
         Long userId = getCurrentUserId(auth);
 

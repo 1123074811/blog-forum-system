@@ -72,7 +72,14 @@
     <el-dialog v-model="showAddDialog" :title="editingId ? '编辑公告' : '添加公告'" :width="isMobile ? '94%' : '600px'">
       <el-form :model="form" label-width="80px">
         <el-form-item label="标题" required><el-input v-model="form.title" /></el-form-item>
-        <el-form-item label="内容" required><el-input v-model="form.content" type="textarea" :rows="5" /></el-form-item>
+        <el-form-item label="内容" required>
+          <el-input
+            v-model="form.content"
+            type="textarea"
+            :autosize="{ minRows: 3, maxRows: 12 }"
+            style="max-height: 300px; overflow-y: auto;"
+          />
+        </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="form.type">
             <el-option label="信息" value="info" />
