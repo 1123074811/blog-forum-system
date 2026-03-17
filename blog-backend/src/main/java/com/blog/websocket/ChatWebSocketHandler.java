@@ -29,7 +29,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         if (token != null && jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
             Long userId = jwtUtil.getUserIdFromToken(token);
             sessions.put(userId, session);
-            log.info("WebSocket connected: userId={}", userId);
+            log.debug("WS connected: userId={}", userId);
             broadcastPresence(userId, true);
         }
     }
@@ -48,7 +48,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         if (token != null && jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
             Long userId = jwtUtil.getUserIdFromToken(token);
             sessions.remove(userId);
-            log.info("WebSocket disconnected: userId={}", userId);
+            log.debug("WS disconnected: userId={}", userId);
             broadcastPresence(userId, false);
         }
     }

@@ -23,6 +23,8 @@ router.beforeEach(async (to) => {
 })
 
 const userStore = useUserStore(pinia)
+// 立即开始初始化（异步），路由守卫会通过 sessionReady() 等待它完成
+// 不 await，让 app.mount 立即执行，避免白屏
 userStore.initSession()
 
 app.mount('#app')

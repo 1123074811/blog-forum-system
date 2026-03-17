@@ -9,6 +9,8 @@ import com.blog.service.TagService;
 import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,8 +32,7 @@ public class TagController {
     private static final String TAG_HOT_KEY = "tag:list:hot";
 
     @GetMapping
-    public ApiResponse<List<Tag>> getTags() {
-        @SuppressWarnings("unchecked")
+    public ResponseEntity<ApiResponse<List<Tag>>> getTags() {
         List<Tag> list = cacheUtil.get(TAG_HOT_KEY);
         if (list == null) {
             list = tagService.list();
@@ -41,7 +42,9 @@ public class TagController {
             list.sort(Comparator.comparing(Tag::getArticleCount).reversed());
             cacheUtil.set(TAG_HOT_KEY, list, 30, TimeUnit.MINUTES);
         }
-        return ApiResponse.success(list);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
+                .body(ApiResponse.success(list));
     }
 
     @PostMapping

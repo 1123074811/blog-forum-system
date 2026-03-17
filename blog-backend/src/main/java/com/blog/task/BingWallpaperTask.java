@@ -28,7 +28,6 @@ public class BingWallpaperTask {
 
     @Scheduled(cron = "0 5 0 * * ?")
     public void fetchDailyBingWallpaper() {
-        log.info("开始爬取必���每日壁纸...");
         try {
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
@@ -56,10 +55,9 @@ public class BingWallpaperTask {
                     media.setCreatedAt(DateUtil.now());
                     media.setUpdatedAt(DateUtil.now());
                     mediaMapper.insert(media);
-                    log.info("必应壁纸保存成功: {}", title);
-                } else {
-                    log.info("今日壁纸已存在，跳过");
+                    log.debug("必应壁纸已保存: {}", title);
                 }
+                // 已存在则静默跳过
             }
         } catch (Exception e) {
             log.error("爬取必应壁纸失败: {}", e.getMessage());

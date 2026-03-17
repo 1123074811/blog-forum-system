@@ -65,6 +65,23 @@ mybatis-plus:
   # MyBatis Plus 生产环境配置（关闭SQL日志）
   configuration:
     log-impl: ~
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+
+# ============================================
+# 日志配置（生产环境）
+# ============================================
+logging:
+  level:
+    root: WARN
+    com.blog: INFO
+    # 安全相关保留WARN以上
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    com.zaxxer.hikari: WARN
+    org.redisson: WARN
+    io.lettuce: WARN
 
 jwt:
   # JWT 密钥（生产环境必须使用强密钥）

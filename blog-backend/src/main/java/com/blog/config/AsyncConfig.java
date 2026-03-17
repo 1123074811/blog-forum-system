@@ -47,8 +47,6 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setAwaitTerminationSeconds(60);
 
         executor.initialize();
-
-        log.info("异步任务线程池初始化完成");
         return executor;
     }
 }

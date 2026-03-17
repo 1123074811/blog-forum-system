@@ -1,4 +1,5 @@
 import api from './index'
+import { memCache, invalidateCache } from '@/utils/memCache'
 
 export const login = (data) => api.post('/auth/login', data)
 export const register = (data) => api.post('/auth/register', data)
@@ -29,9 +30,13 @@ export const updateUser = (id, data) => api.put(`/users/${id}`, data)
 export const followUser = (id) => api.post(`/users/${id}/follow`)
 export const unfollowUser = (id) => api.delete(`/users/${id}/follow`)
 
-export const getCategories = () => api.get('/categories')
-export const getTags = () => api.get('/tags')
+// 分类和标签缓存5分钟，路由切换不重复请求
+export const getCategories = () => memCache('categories', () => api.get('/categories'), 5 * 60 * 1000)
+export const getTags = () => memCache('tags', () => api.get('/tags'), 5 * 60 * 1000)
 export const createUserTag = (name) => api.post('/tags', { name })
+
+// 公告缓存10分钟
+export const getAnnouncements = () => memCache('announcements', () => api.get('/announcements'), 10 * 60 * 1000)
 
 export const uploadFile = (file) => {
   const formData = new FormData()
@@ -50,24 +55,53 @@ export const adminDeleteArticle = (id) => api.delete(`/admin/articles/${id}`)
 export const getAdminComments = () => api.get('/admin/comments')
 export const adminDeleteComment = (id) => api.delete(`/admin/comments/${id}`)
 export const getAdminCategories = () => api.get('/admin/categories')
-export const createCategory = (data) => api.post('/admin/categories', data)
-export const updateCategory = (id, data) => api.put(`/admin/categories/${id}`, data)
-export const deleteCategory = (id) => api.delete(`/admin/categories/${id}`)
+export const createCategory = (data) => {
+  invalidateCache('categories')
+  return api.post('/admin/categories', data)
+}
+export const updateCategory = (id, data) => {
+  invalidateCache('categories')
+  return api.put(`/admin/categories/${id}`, data)
+}
+export const deleteCategory = (id) => {
+  invalidateCache('categories')
+  return api.delete(`/admin/categories/${id}`)
+}
 
 // Site Info APIs
-export const getSiteInfo = () => api.get('/site-info')
-export const updateSiteInfo = (data) => api.put('/admin/site-info', data)
+export const getSiteInfo = () => memCache('site-info', () => api.get('/site-info'), 10 * 60 * 1000)
+export const updateSiteInfo = (data) => {
+  invalidateCache('site-info')
+  return api.put('/admin/site-info', data)
+}
 
 // Announcement APIs
-export const getAnnouncements = () => api.get('/announcements')
 export const getAllAnnouncements = () => api.get('/admin/announcements')
-export const createAnnouncement = (data) => api.post('/admin/announcements', data)
-export const updateAnnouncement = (id, data) => api.put(`/admin/announcements/${id}`, data)
-export const deleteAnnouncement = (id) => api.delete(`/admin/announcements/${id}`)
+export const createAnnouncement = (data) => {
+  invalidateCache('announcements')
+  return api.post('/admin/announcements', data)
+}
+export const updateAnnouncement = (id, data) => {
+  invalidateCache('announcements')
+  return api.put(`/admin/announcements/${id}`, data)
+}
+export const deleteAnnouncement = (id) => {
+  invalidateCache('announcements')
+  return api.delete(`/admin/announcements/${id}`)
+}
 export const getAdminTags = () => api.get('/admin/tags')
-export const createTag = (data) => api.post('/admin/tags', data)
-export const updateTag = (id, data) => api.put(`/admin/tags/${id}`, data)
-export const deleteTag = (id) => api.delete(`/admin/tags/${id}`)
+export const createTag = (data) => {
+  invalidateCache('tags')
+  return api.post('/admin/tags', data)
+}
+export const updateTag = (id, data) => {
+  invalidateCache('tags')
+  return api.put(`/admin/tags/${id}`, data)
+}
+export const deleteTag = (id) => {
+  invalidateCache('tags')
+  return api.delete(`/admin/tags/${id}`)
+}
 export const getAdminFavorites = () => api.get('/admin/favorites')
 export const deleteAdminFavorite = (id) => api.delete(`/admin/favorites/${id}`)
 

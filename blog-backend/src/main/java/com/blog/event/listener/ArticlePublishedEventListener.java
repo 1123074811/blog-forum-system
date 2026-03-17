@@ -31,20 +31,13 @@ public class ArticlePublishedEventListener {
     @Async
     @EventListener
     public void handleArticlePublished(ArticlePublishedEvent event) {
-        log.info("处理文章发布事件，文章ID: {}, 作者ID: {}", event.getArticleId(), event.getAuthorId());
-
         try {
-            // 查询作者的所有粉丝
             List<Follow> followers = followMapper.selectList(
                 new LambdaQueryWrapper<Follow>().eq(Follow::getFollowingId, event.getAuthorId())
             );
 
-            if (followers.isEmpty()) {
-                log.debug("作者 {} 没有粉丝，跳过通知", event.getAuthorId());
-                return;
-            }
+            if (followers.isEmpty()) return;
 
-            // 批量发送通知
             int notifyCount = 0;
             for (Follow follow : followers) {
                 try {
@@ -57,14 +50,14 @@ public class ArticlePublishedEventListener {
                     );
                     notifyCount++;
                 } catch (Exception e) {
-                    log.error("发送通知失败，粉丝ID: {}", follow.getFollowerId(), e);
+                    log.error("通知粉丝{}失败", follow.getFollowerId(), e);
                 }
             }
 
-            log.info("文章发布通知完成，通知 {} 位粉丝", notifyCount);
+            log.debug("文章{}发布通知完成，共{}位粉丝", event.getArticleId(), notifyCount);
 
         } catch (Exception e) {
-            log.error("处理文章发布事件失败", e);
+            log.error("处理文章发布事件失败, articleId={}", event.getArticleId(), e);
         }
     }
 }

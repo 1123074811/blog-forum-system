@@ -8,4 +8,5 @@ import java.util.List;
 public interface AnnouncementService extends IService<Announcement> {
     List<Announcement> getActiveAnnouncements();
     List<Announcement> getAllAnnouncements();
+    void clearCache();
 }

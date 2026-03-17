@@ -22,32 +22,28 @@ public class LogAspect {
     public void controllerLog() {
     }
 
+    // 慢请求阈值（毫秒）
+    private static final long SLOW_THRESHOLD_MS = 1000;
+
     /**
-     * 环绕通知：记录请求日志和执行时间
+     * 环绕通知：仅记录慢请求和异常，减少日志噪音
      */
     @Around("controllerLog()")
     public Object doAround(ProceedingJoinPoint joinPoint) throws Throwable {
         long startTime = System.currentTimeMillis();
-
-        // 获取方法信息
-        String className = joinPoint.getTarget().getClass().getSimpleName();
-        String methodName = joinPoint.getSignature().getName();
-        Object[] args = joinPoint.getArgs();
-
-        log.info("==> {}.{} 开始执行，参数: {}", className, methodName, args);
-
-        Object result;
         try {
-            result = joinPoint.proceed();
-            long executionTime = System.currentTimeMillis() - startTime;
-            log.info("<== {}.{} 执行成功，耗时: {}ms", className, methodName, executionTime);
+            Object result = joinPoint.proceed();
+            long cost = System.currentTimeMillis() - startTime;
+            if (cost >= SLOW_THRESHOLD_MS) {
+                log.warn("[SLOW] {}.{} {}ms", joinPoint.getTarget().getClass().getSimpleName(),
+                        joinPoint.getSignature().getName(), cost);
+            }
+            return result;
         } catch (Throwable e) {
-            long executionTime = System.currentTimeMillis() - startTime;
-            log.error("<== {}.{} 执行失败，耗时: {}ms，异常: {}",
-                className, methodName, executionTime, e.getMessage());
+            long cost = System.currentTimeMillis() - startTime;
+            log.error("[ERR] {}.{} {}ms - {}", joinPoint.getTarget().getClass().getSimpleName(),
+                    joinPoint.getSignature().getName(), cost, e.getMessage());
             throw e;
         }
-
-        return result;
     }
 }

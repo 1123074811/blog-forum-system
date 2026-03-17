@@ -330,6 +330,7 @@ const conversations = ref([])
 const totalUnread = computed(() => unreadCount.value + msgUnreadCount.value)
 
 let ws = null
+let _notifFetched = false  // 只在首次挂载时请求，后续靠 WebSocket 推送更新
 const ENTRY_SOURCE_KEY = 'site_entry_source_v1'
 
 const handleResize = () => {
@@ -355,6 +356,7 @@ const fetchNotifications = async () => {
     if (r2.success) unreadCount.value = r2.data.count
     if (r3.success) msgUnreadCount.value = r3.data
     if (r4.success) conversations.value = r4.data || []
+    _notifFetched = true
   } catch (e) { console.error('获取通知失败', e) }
 }
 
@@ -362,6 +364,8 @@ const connectWebSocket = () => {
   if (!userStore.isLoggedIn) return
   const token = localStorage.getItem('token')
   if (!token) return
+  // 已有连接则不重复创建
+  if (ws && ws.readyState === WebSocket.OPEN) return
   ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?token=${encodeURIComponent(token)}`)
   ws.onmessage = (e) => {
     const n = JSON.parse(e.data)
@@ -436,7 +440,11 @@ onMounted(() => {
     }
     sessionStorage.setItem(ENTRY_SOURCE_KEY, ext ? 'external' : 'internal')
   }
-  if (userStore.isLoggedIn) { fetchNotifications(); connectWebSocket() }
+  if (userStore.isLoggedIn) {
+    // 只在首次挂载时拉取通知，避免路由切换重复请求
+    if (!_notifFetched) fetchNotifications()
+    connectWebSocket()
+  }
   nextTick(updateHeaderHeight)
   // 点击外部关闭设置菜单
   document.addEventListener('click', (e) => {

@@ -60,9 +60,26 @@ spring:
       max-request-size: 100MB
 
 mybatis-plus:
-  # MyBatis Plus 开发环境日志
+  # MyBatis Plus 开发环境日志（仅在需要调试时开启，默认关闭以提升性能）
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+
+# ============================================
+# 日志配置（开发环境）
+# ============================================
+logging:
+  level:
+    root: INFO
+    com.blog: DEBUG
+    # 关闭框架噪音日志
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    com.zaxxer.hikari: WARN
+    org.redisson: WARN
+    io.lettuce: WARN
 
 jwt:
   # JWT 密钥（开发环境）

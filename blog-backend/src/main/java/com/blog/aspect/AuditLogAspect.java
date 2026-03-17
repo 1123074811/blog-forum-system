@@ -113,9 +113,8 @@ public class AuditLogAspect {
 
             if ("FAILURE".equals(status)) {
                 log.error("[AUDIT] {}", objectToJson(auditInfo));
-            } else {
-                log.info("[AUDIT] {}", objectToJson(auditInfo));
             }
+            // 成功的审计操作已入库，不重复打印日志
         }
     }
 

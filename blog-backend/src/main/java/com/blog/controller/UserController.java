@@ -11,12 +11,14 @@ import com.blog.service.FollowService;
 import com.blog.service.NotificationService;
 import com.blog.service.UserService;
 import com.blog.pojo.vo.UserVO;
+import com.blog.util.CacheUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.blog.websocket.ChatWebSocketHandler;
 
 import jakarta.validation.Valid;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/users")
@@ -28,32 +30,68 @@ public class UserController extends BaseController {
     private final NotificationService notificationService;
     private final UserConverter userConverter;
     private final ChatWebSocketHandler chatWebSocketHandler;
+    private final CacheUtil cacheUtil;
+
+    private static final String CACHE_USER_PROFILE = "user:profile:";
+    private static final long PROFILE_CACHE_TTL = 5L;
 
     @GetMapping("/{id}")
     public ApiResponse<UserVO> getUser(@PathVariable Long id, Authentication auth) {
-        User user = userService.getById(id);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        Long currentUserId = getCurrentUserIdOptional(auth);
+
+        // 对于非登录用户，缓存公开的用户资料
+        if (currentUserId == null) {
+            String cacheKey = CACHE_USER_PROFILE + id;
+            UserVO cached = cacheUtil.get(cacheKey);
+            if (cached != null) {
+                return ApiResponse.success(cached);
+            }
+            UserVO userVO = buildUserVO(id, null);
+            cacheUtil.set(cacheKey, userVO, PROFILE_CACHE_TTL, TimeUnit.MINUTES);
+            return ApiResponse.success(userVO);
         }
 
-        UserVO userVO = userConverter.toVO(user);
-        userVO.setFollowerCount(followService.getFollowerCount(id));
-        userVO.setFollowingCount(followService.getFollowingCount(id));
-        userVO.setIsOnline(chatWebSocketHandler.isOnline(id));
-        Long currentUserId = getCurrentUserIdOptional(auth);
-        if (currentUserId != null && !currentUserId.equals(id)) {
+        // 登录用户：缓存不含isFollowing的基础资料，isFollowing单独查
+        String cacheKey = CACHE_USER_PROFILE + id;
+        UserVO userVO;
+        UserVO cached = cacheUtil.get(cacheKey);
+        if (cached != null) {
+            userVO = cached;
+        } else {
+            userVO = buildUserVO(id, null);
+            cacheUtil.set(cacheKey, userVO, PROFILE_CACHE_TTL, TimeUnit.MINUTES);
+        }
+
+        // isFollowing 是用户相关的动态数据，不缓存到公共key
+        if (!currentUserId.equals(id)) {
             userVO.setIsFollowing(followService.isFollowing(currentUserId, id));
         } else {
             userVO.setIsFollowing(false);
+            userVO.setEmail(userVO.getEmail()); // 本人可见email
         }
-        // hide email for non-owner
-        if (currentUserId == null || !currentUserId.equals(id)) {
+        // 非本人隐藏email
+        if (!currentUserId.equals(id)) {
             userVO.setEmail(null);
         }
+        // 在线状态实时查（WebSocket内存，无DB开销）
+        userVO.setIsOnline(chatWebSocketHandler.isOnline(id));
 
         return ApiResponse.success(userVO);
     }
 
+    private UserVO buildUserVO(Long id, Long currentUserId) {
+        User user = userService.getById(id);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        UserVO userVO = userConverter.toVO(user);
+        // getFollowerCount/getFollowingCount 内部已有Redis缓存
+        userVO.setFollowerCount(followService.getFollowerCount(id));
+        userVO.setFollowingCount(followService.getFollowingCount(id));
+        userVO.setIsOnline(chatWebSocketHandler.isOnline(id));
+        userVO.setIsFollowing(false);
+        return userVO;
+    }
 
     @PutMapping("/{id}")
     public ApiResponse<UserVO> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest updateData, Authentication auth) {
@@ -71,6 +109,8 @@ public class UserController extends BaseController {
 
         userService.updateById(user);
         userService.clearUserCache(user.getId(), user.getUsername());
+        // 清除用户资料缓存
+        cacheUtil.delete(CACHE_USER_PROFILE + id);
         return ApiResponse.success(userConverter.toVO(user));
     }
 
@@ -82,6 +122,8 @@ public class UserController extends BaseController {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "不能关注自己");
         }
         followService.follow(currentUserId, id);
+        // 清除被关注者的资料缓存（粉丝数变了）
+        cacheUtil.delete(CACHE_USER_PROFILE + id);
         notificationService.send(id, currentUserId, "follow", currentUserId, "关注了你");
         return ApiResponse.success(null);
     }
@@ -90,6 +132,7 @@ public class UserController extends BaseController {
     public ApiResponse<Void> unfollow(@PathVariable Long id, Authentication auth) {
         Long currentUserId = getCurrentUserId(auth);
         followService.unfollow(currentUserId, id);
+        cacheUtil.delete(CACHE_USER_PROFILE + id);
         return ApiResponse.success(null);
     }
 }
