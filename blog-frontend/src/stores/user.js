@@ -75,7 +75,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  function setUser(userData, tokenData, refreshToken) {
+  async function setUser(userData, tokenData, refreshToken) {
     const safeUser = userData
       ? {
           id: userData.id,
@@ -98,7 +98,10 @@ export const useUserStore = defineStore('user', () => {
       localStorage.setItem('refreshToken', refreshToken)
     }
 
-    checkAdminStatus()
+    // 等待 admin 状态确认后再 resolve，避免路由守卫拿到 isAdmin=false 的瞬态
+    sessionReady()
+    await checkAdminStatus()
+    _sessionResolve?.()
   }
 
   async function logout() {

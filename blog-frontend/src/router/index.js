@@ -95,13 +95,20 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   document.title = to.meta.title ? `${to.meta.title} | ${config.siteName}` : config.siteName
 
-  // 等待 session 初始化完成（只有第一次导航需要等待，之后立即返回）
-  await userStore.sessionReady()
-
-  if ((to.path === '/login' || to.path === '/register') && userStore.isLoggedIn) {
-    next('/')
+  // 公开页面（登录/注册等）无需等待 session，直接放行，避免冷启动卡顿
+  const isPublicOnly = to.path === '/login' || to.path === '/register' || to.path === '/forgot-password' || to.path === '/oauth-callback'
+  if (isPublicOnly) {
+    // 已登录用户不需要等 session，直接检查本地状态
+    if (userStore.isLoggedIn) {
+      next('/')
+      return
+    }
+    next()
     return
   }
+
+  // 需要鉴权的页面，等待 session 初始化完成（只有第一次导航需要等待，之后立即返回）
+  await userStore.sessionReady()
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     next({ path: '/login', query: { redirect: to.fullPath, msg: '请先登录后再访问该页面' } })
@@ -109,9 +116,15 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
-    toast('需要管理员权限才能访问')
-    next('/')
-    return
+    // isAdmin 可能因为 initSession 时后端冷启动失败而未正确设置，重试一次
+    if (userStore.isLoggedIn) {
+      await userStore.checkAdminStatus()
+    }
+    if (!userStore.isAdmin) {
+      toast('需要管理员权限才能访问')
+      next('/')
+      return
+    }
   }
 
   next()

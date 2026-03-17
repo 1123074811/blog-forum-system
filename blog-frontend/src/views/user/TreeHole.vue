@@ -246,10 +246,10 @@ onUnmounted(() => {
   bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 20px;
+  padding: 0;
   border-radius: 30px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  backdrop-filter: none;
   z-index: 2;
   width: auto;
   max-width: 90vw;
@@ -273,6 +273,12 @@ onUnmounted(() => {
 
 .input-area :deep(.el-input__inner) {
   color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.input-area :deep(.el-input__inner)::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .input-actions {
@@ -287,8 +293,7 @@ onUnmounted(() => {
   .input-area {
     /* 底部留出 tab bar 高度(56px) + safe area + 间距 */
     bottom: calc(56px + env(safe-area-inset-bottom) + 12px);
-    padding: 10px 14px;
-    border-radius: 24px;
+    padding: 0;
   }
 
   .input-area :deep(.el-input) {
