@@ -571,7 +571,7 @@ After=network.target mysql.service redis.service
 Type=simple
 User=root
 WorkingDirectory=/opt/blog
-ExecStart=/usr/bin/java -jar -Xms512m -Xmx1024m /opt/blog/blog-backend.jar --spring.profiles.active=prod
+ExecStart=/usr/bin/java -server -Xms2g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -Djava.security.egd=file:/dev/./urandom -jar /opt/blog/blog-backend.jar --spring.profiles.active=prod
 Restart=always
 RestartSec=10
 StandardOutput=journal

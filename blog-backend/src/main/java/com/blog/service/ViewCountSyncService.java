@@ -15,4 +15,9 @@ public interface ViewCountSyncService {
      * 同步单篇文章的浏览量到数据库
      */
     void syncViewCount(Long articleId);
+
+    /**
+     * 批量递增文章浏览量（Redis pipeline）
+     */
+    void batchIncrementViewCount(java.util.List<Long> articleIds);
 }

@@ -5,6 +5,9 @@ spring:
   profiles:
     active: dev
     include: resilience4j
+  threads:
+    virtual:
+      enabled: true
 
   servlet:
     multipart:
@@ -44,7 +47,7 @@ management:
     web:
       exposure:
         # 暴露的端点：health, info
-        include: health,info
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
@@ -81,6 +84,8 @@ app:
   security:
     cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
     websocket-allowed-origins: ${WS_ALLOWED_ORIGINS:http://localhost:5173}
+    hotspot-whitelist-enabled: ${HOTSPOT_WHITELIST_ENABLED:false}
+    hotspot-whitelist-ips: ${HOTSPOT_WHITELIST_IPS:}
 
 alert:
   webhook: ${ALERT_WEBHOOK:}

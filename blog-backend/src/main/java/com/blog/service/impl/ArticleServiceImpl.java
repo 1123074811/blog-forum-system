@@ -67,7 +67,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
 
         if (StringUtils.hasText(search)) {
-            wrapper.and(w -> w.like(Article::getTitle, search).or().like(Article::getContent, search));
+            String keyword = search.trim();
+            wrapper.apply("MATCH(title, content) AGAINST({0} IN BOOLEAN MODE)", "*" + keyword + "*");
         }
 
         if (AppConstants.SORT_LATEST.equals(sort)) {
@@ -141,21 +142,18 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public void incrementViewCount(Long articleId) {
-        // 使用Redis原子递增，高并发安全
         String key = AppConstants.CACHE_ARTICLE_VIEW_PREFIX + articleId;
-        
-        // 检查Redis中是否有数据，如果没有则从数据库加载
-        Number currentViews = cacheUtil.get(key);
-        if (currentViews == null) {
+
+        Boolean exists = redisTemplate.hasKey(key);
+        if (Boolean.FALSE.equals(exists)) {
             Article article = getById(articleId);
-            if (article != null && article.getViewCount() != null) {
-                // 从数据库回填到Redis
-                cacheUtil.set(key, article.getViewCount(), 30, TimeUnit.MINUTES);
-            }
+            int baseViews = (article != null && article.getViewCount() != null) ? article.getViewCount() : 0;
+            redisTemplate.opsForValue().set(key, baseViews);
         }
-        
-        Long views = cacheUtil.increment(key, 30, TimeUnit.MINUTES);
-        // �?0次写入数据库
+
+        Long views = redisTemplate.opsForValue().increment(key);
+        redisTemplate.expire(key, 30, TimeUnit.DAYS);
+
         if (views != null && views % 10 == 0) {
             Article article = getById(articleId);
             if (article != null) {

@@ -60,7 +60,7 @@ public class RedisWarmupServiceImpl implements RedisWarmupService, ApplicationRu
                     Number existingViews = cacheUtil.get(key);
                     if (existingViews == null) {
                         // 只有Redis中没有数据时才回填
-                        cacheUtil.set(key, article.getViewCount(), 30, TimeUnit.MINUTES);
+                        cacheUtil.set(key, article.getViewCount(), 30, TimeUnit.DAYS);
                         count++;
                     }
                 }

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { splitVendorChunkPlugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 import AutoImport from 'unplugin-auto-import/vite'
@@ -8,6 +9,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 export default defineConfig({
   plugins: [
     vue(),
+    splitVendorChunkPlugin(),
     AutoImport({
       resolvers: [ElementPlusResolver()],
     }),
@@ -62,6 +64,7 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000,
+    assetsInlineLimit: 4096,
     minify: 'terser',
     terserOptions: {
       compress: {
@@ -76,5 +79,8 @@ export default defineConfig({
     modulePreload: {
       polyfill: true
     }
+  },
+  optimizeDeps: {
+    include: ['vue', 'vue-router', 'pinia', 'axios']
   }
 })

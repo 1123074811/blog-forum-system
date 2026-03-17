@@ -6,10 +6,12 @@ import com.blog.service.ViewCountSyncService;
 import com.blog.util.CacheUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -87,5 +89,19 @@ public class ViewCountSyncServiceImpl implements ViewCountSyncService {
         } catch (Exception e) {
             log.error("同步文章浏览量失败，文章ID: {}", articleId, e);
         }
+    }
+
+    @Override
+    public void batchIncrementViewCount(List<Long> articleIds) {
+        if (articleIds == null || articleIds.isEmpty()) {
+            return;
+        }
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (Long articleId : articleIds) {
+                String key = AppConstants.CACHE_ARTICLE_VIEW_PREFIX + articleId;
+                connection.stringCommands().incr(key.getBytes(StandardCharsets.UTF_8));
+            }
+            return null;
+        });
     }
 }
