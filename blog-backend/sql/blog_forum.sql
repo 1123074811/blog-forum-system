@@ -11,7 +11,7 @@
  Target Server Version : 90100 (9.1.0)
  File Encoding         : 65001
 
- Date: 15/03/2026 14:28:30
+ Date: 18/03/2026 16:47:41
 */
 
 SET NAMES utf8mb4;
@@ -105,7 +105,8 @@ CREATE TABLE `article_likes`  (
   `article_id` bigint NOT NULL,
   `created_at` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_user_article`(`user_id` ASC, `article_id` ASC) USING BTREE
+  UNIQUE INDEX `uk_user_article`(`user_id` ASC, `article_id` ASC) USING BTREE,
+  INDEX `idx_article_id`(`article_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 24 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '文章点赞记录表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -140,7 +141,11 @@ CREATE TABLE `articles`  (
   INDEX `idx_article_status_created`(`status` ASC, `created_at` ASC) USING BTREE COMMENT '文章状态和创建时间复合索引，优化列表查询',
   INDEX `idx_article_user_status`(`user_id` ASC, `status` ASC) USING BTREE COMMENT '用户ID和状态复合索引，优化个人文章查询',
   INDEX `idx_article_category`(`category_id` ASC) USING BTREE COMMENT '分类索引，优化分类查询',
+  INDEX `idx_status_created`(`status` ASC, `created_at` DESC) USING BTREE,
+  INDEX `idx_user_status`(`user_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_category_status`(`category_id` ASC, `status` ASC) USING BTREE,
   FULLTEXT INDEX `idx_article_search`(`title`, `content`) WITH PARSER `ngram` COMMENT '全文索引，优化搜索性能',
+  FULLTEXT INDEX `ft_title_content`(`title`, `content`) WITH PARSER `ngram`,
   CONSTRAINT `articles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `articles_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
 ) ENGINE = InnoDB AUTO_INCREMENT = 27 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '文章表' ROW_FORMAT = Dynamic;
@@ -191,7 +196,7 @@ CREATE TABLE `comments`  (
   CONSTRAINT `comments_ibfk_1` FOREIGN KEY (`article_id`) REFERENCES `articles` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `comments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `comments_ibfk_3` FOREIGN KEY (`parent_id`) REFERENCES `comments` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 38 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '评论表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 39 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '评论表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for conversations
@@ -250,18 +255,19 @@ CREATE TABLE `follows`  (
 DROP TABLE IF EXISTS `ip_blacklist`;
 CREATE TABLE `ip_blacklist`  (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'IP地址',
-  `reason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '封禁原因',
-  `admin_id` bigint NULL DEFAULT NULL COMMENT '操作管理员ID',
-  `ban_type` tinyint NOT NULL DEFAULT 1 COMMENT '封禁类型：1-永久封禁，2-临时封禁',
-  `expire_time` datetime NULL DEFAULT NULL COMMENT '解封时间（临时封禁）',
-  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：1-生效中，0-已解封',
-  `created_at` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `ip` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `reason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'security_policy',
+  `admin_id` bigint NULL DEFAULT NULL,
+  `ban_type` tinyint NOT NULL DEFAULT 1 COMMENT '1=permanent,2=temporary',
+  `expire_time` datetime NULL DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '1=active,0=inactive',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_ip`(`ip` ASC) USING BTREE,
   INDEX `idx_status`(`status` ASC) USING BTREE,
-  INDEX `idx_expire_time`(`expire_time` ASC) USING BTREE
+  INDEX `idx_expire_time`(`expire_time` ASC) USING BTREE,
+  INDEX `idx_status_expire`(`status` ASC, `expire_time` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'IP黑名单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -290,7 +296,7 @@ CREATE TABLE `media`  (
   INDEX `idx_media_type`(`type` ASC) USING BTREE,
   CONSTRAINT `media_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `media_ibfk_2` FOREIGN KEY (`album_id`) REFERENCES `albums` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 143 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '媒体资源表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 146 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '媒体资源表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for messages

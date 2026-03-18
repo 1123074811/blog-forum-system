@@ -1,19 +1,22 @@
 <template>
   <div class="tree-hole">
     <video
+      v-if="videoEnabled"
       class="video-bg"
       autoplay
       loop
       muted
       playsinline
+      preload="metadata"
       webkit-playsinline
       x5-playsinline
       x-webkit-airplay="allow"
       disablePictureInPicture
       controlsList="nodownload nofullscreen noremoteplayback"
     >
-      <source src="/treehole_bg.mp4" type="video/mp4">
+      <source :src="videoSrc" type="video/mp4">
     </video>
+    <div v-else class="video-bg video-fallback"></div>
 
     <div class="danmaku-container">
       <div
@@ -37,6 +40,9 @@
           @input="checkLength"
         />
         <div class="input-actions">
+          <el-button v-if="showVideoButton" size="small" plain @click="enableVideo">
+            背景视频
+          </el-button>
           <EmojiPicker @select="e => content += e" />
           <el-button type="primary" size="small" @click="send">发送</el-button>
         </div>
@@ -59,6 +65,9 @@ const content = ref('')
 const visibleMessages = ref([])
 const allMessages = ref([])
 const headerHeight = ref(64)
+const videoEnabled = ref(false)
+const videoSrc = ref('')
+const showVideoButton = ref(false)
 
 let uidCounter = 0
 // 每条轨道的下次可用时间戳
@@ -185,10 +194,39 @@ const handleResize = () => {
   rebuildLanes()
 }
 
+const isSlowNetwork = () => {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+  if (!connection) return false
+  const effectiveType = String(connection.effectiveType || '').toLowerCase()
+  return connection.saveData || effectiveType.includes('2g')
+}
+
+const enableVideo = () => {
+  if (videoEnabled.value) return
+  videoSrc.value = '/treehole_bg.mp4'
+  videoEnabled.value = true
+  showVideoButton.value = false
+}
+
+const scheduleVideoLoad = () => {
+  if (isSlowNetwork()) {
+    showVideoButton.value = true
+    return
+  }
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => enableVideo(), { timeout: 2500 })
+    return
+  }
+
+  setTimeout(() => enableVideo(), 1200)
+}
+
 onMounted(() => {
   headerHeight.value = getHeaderHeight()
   rebuildLanes()
   loadMessages()
+  scheduleVideoLoad()
   window.addEventListener('resize', handleResize)
 })
 
@@ -217,6 +255,14 @@ onUnmounted(() => {
   object-fit: cover;
   z-index: 0;
   pointer-events: none;
+}
+
+.video-fallback {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.25), transparent 35%),
+    radial-gradient(circle at 80% 10%, rgba(192, 132, 252, 0.22), transparent 35%),
+    radial-gradient(circle at 70% 75%, rgba(74, 222, 128, 0.2), transparent 40%),
+    linear-gradient(135deg, #0b1220 0%, #111827 45%, #0f172a 100%);
 }
 
 .danmaku-container {

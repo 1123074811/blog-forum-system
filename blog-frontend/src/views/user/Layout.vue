@@ -5,7 +5,7 @@
       <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div class="flex items-center gap-4">
           <router-link to="/" class="flex items-center gap-2">
-            <img :src="config.logo" alt="logo" class="w-8 h-8 rounded-full" />
+            <img :src="normalizeUnsafeUrl(config.logo)" alt="站点 logo" class="w-8 h-8 rounded-full" />
             <span class="text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{{ config.siteName }}</span>
           </router-link>
           <nav class="hidden md:flex items-center gap-6 ml-8">
@@ -39,7 +39,7 @@
                      class="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
                      :class="{ 'bg-blue-50 dark:bg-blue-900/20': getConvUnread(conv) > 0 }"
                      @click="router.push(`/chat?userId=${conv.otherUser?.id}`)">
-                  <el-avatar :src="conv.otherUser?.avatar" :size="40">{{ conv.otherUser?.username?.[0] }}</el-avatar>
+                  <el-avatar :src="toAvatarThumb(conv.otherUser?.avatar, 80)" :size="40">{{ conv.otherUser?.username?.[0] }}</el-avatar>
                   <div class="flex-1 overflow-hidden">
                     <div class="text-sm font-medium truncate">{{ conv.otherUser?.nickname || conv.otherUser?.username }}</div>
                     <div class="text-xs text-gray-400 truncate">{{ conv.lastMessage?.content || '暂无消息' }}</div>
@@ -70,7 +70,7 @@
               </div>
             </el-popover>
             <el-dropdown>
-              <el-avatar :src="userStore.user?.avatar" :size="36" class="cursor-pointer">{{ userStore.user?.username?.[0] }}</el-avatar>
+              <el-avatar :src="toAvatarThumb(userStore.user?.avatar, 72)" :size="36" class="cursor-pointer">{{ userStore.user?.username?.[0] }}</el-avatar>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="router.push(`/user/${userStore.user?.id}`)">个人主页</el-dropdown-item>
@@ -94,7 +94,7 @@
     <!-- ===== 移动端顶部简化 header ===== -->
     <header v-if="isMobile" class="mobile-header glass">
       <router-link to="/" class="flex items-center gap-2">
-        <img :src="config.logo" alt="logo" class="w-7 h-7 rounded-full" />
+        <img :src="normalizeUnsafeUrl(config.logo)" alt="站点 logo" class="w-7 h-7 rounded-full" />
         <span class="text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{{ config.siteName }}</span>
       </router-link>
       <div class="flex items-center gap-2">
@@ -199,7 +199,7 @@
       <!-- 我的 -->
       <button class="tab-item" :class="{ active: activeTab === 'profile' }" @click="handleProfileTab">
         <span class="tab-icon">
-          <el-avatar v-if="userStore.isLoggedIn" :src="userStore.user?.avatar" :size="26" class="tab-avatar">{{ userStore.user?.username?.[0] }}</el-avatar>
+          <el-avatar v-if="userStore.isLoggedIn" :src="toAvatarThumb(userStore.user?.avatar, 52)" :size="26" class="tab-avatar">{{ userStore.user?.username?.[0] }}</el-avatar>
           <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </span>
         <span class="tab-label">我的</span>
@@ -235,7 +235,7 @@
                    :class="{ 'inbox-row--unread': getConvUnread(conv) > 0 }"
                    @click="router.push(`/chat?userId=${conv.otherUser?.id}`); showInboxSheet = false">
                 <div class="inbox-avatar-wrap">
-                  <el-avatar :src="conv.otherUser?.avatar" :size="48">{{ conv.otherUser?.username?.[0] }}</el-avatar>
+                  <el-avatar :src="toAvatarThumb(conv.otherUser?.avatar, 96)" :size="48">{{ conv.otherUser?.username?.[0] }}</el-avatar>
                   <span v-if="getConvUnread(conv) > 0" class="inbox-dot">{{ getConvUnread(conv) > 9 ? '9+' : getConvUnread(conv) }}</span>
                 </div>
                 <div class="inbox-row-info">
@@ -289,7 +289,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useMusicStore } from '@/stores/music'
@@ -297,7 +297,8 @@ import { Search, Bell, ChatDotRound, Headset, Sunny, Moon } from '@element-plus/
 import { ElMessage } from 'element-plus'
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, getMessageUnreadCount, getConversations } from '@/api/blog'
 import config from '@/config'
-import MusicPlayer from '@/components/MusicPlayer.vue'
+import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
+const MusicPlayer = defineAsyncComponent(() => import('@/components/MusicPlayer.vue'))
 
 const router = useRouter()
 const route = useRoute()

@@ -9,20 +9,20 @@
             <!-- 堆叠效果 -->
             <div v-if="album.coverUrls?.length > 2" class="absolute -top-3 -right-3 w-full h-full -z-20 rotate-6">
               <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 h-full">
-                <div class="aspect-square overflow-hidden"><img :src="album.coverUrls[2]" class="w-full h-full object-cover" /></div>
+                <div class="aspect-square overflow-hidden"><img :src="normalizeUnsafeUrl(album.coverUrls[2])" :alt="`${album.title || 'Album'} cover 3`" loading="lazy" class="w-full h-full object-cover" /></div>
                 <div class="p-2 bg-white"><div class="h-4"></div></div>
               </div>
             </div>
             <div v-if="album.coverUrls?.length > 1" class="absolute -top-1.5 -right-1.5 w-full h-full -z-10 rotate-3">
               <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 h-full">
-                <div class="aspect-square overflow-hidden"><img :src="album.coverUrls[1]" class="w-full h-full object-cover" /></div>
+                <div class="aspect-square overflow-hidden"><img :src="normalizeUnsafeUrl(album.coverUrls[1])" :alt="`${album.title || 'Album'} cover 2`" loading="lazy" class="w-full h-full object-cover" /></div>
                 <div class="p-2 bg-white"><div class="h-4"></div></div>
               </div>
             </div>
             <!-- 主卡片 -->
             <div class="bg-white rounded-lg shadow hover:shadow-xl overflow-hidden border border-gray-200 relative z-0">
               <div class="aspect-square bg-gray-100 overflow-hidden">
-                <img v-if="album.coverUrls?.length" :src="album.coverUrls[0]" class="w-full h-full object-cover" />
+                <img v-if="album.coverUrls?.length" :src="normalizeUnsafeUrl(album.coverUrls[0])" :alt="`${album.title || 'Album'} cover`" loading="lazy" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
                   <el-icon :size="48"><Picture /></el-icon>
                 </div>
@@ -35,7 +35,7 @@
                 <div class="flex items-center justify-between mt-1">
                   <span class="text-xs text-gray-400">{{ album.mediaCount }} 项</span>
                   <div class="flex items-center gap-1">
-                    <el-avatar :src="album.avatar" :size="16">{{ album.nickname?.charAt(0) || '?' }}</el-avatar>
+                    <el-avatar :src="toAvatarThumb(album.avatar, 40)" :size="16">{{ album.nickname?.charAt(0) || '?' }}</el-avatar>
                     <span class="text-xs text-gray-400 truncate max-w-16">{{ album.nickname || '匿名' }}</span>
                   </div>
                 </div>
@@ -52,7 +52,7 @@
       <el-tab-pane label="公开图片" name="images">
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
           <div v-for="item in mediaList" :key="item.id" class="aspect-square bg-gray-100 rounded overflow-hidden cursor-pointer" @click="previewMedia(item)">
-            <img :src="item.thumbnailUrl || item.url" loading="lazy" class="w-full h-full object-cover" />
+            <img :src="normalizeUnsafeUrl(item.thumbnailUrl || item.url)" :alt="item.title || 'Public media image'" loading="lazy" class="w-full h-full object-cover" />
           </div>
         </div>
         <div ref="mediaLoadTrigger" class="h-20 flex items-center justify-center">
@@ -64,7 +64,7 @@
       <el-tab-pane label="公开视频" name="videos">
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div v-for="item in mediaList" :key="item.id" class="aspect-video bg-gray-100 rounded overflow-hidden cursor-pointer relative" @click="previewMedia(item)">
-            <video :src="item.url" preload="none" class="w-full h-full object-cover" />
+            <video :src="normalizeUnsafeUrl(item.url)" preload="none" class="w-full h-full object-cover" />
             <div class="absolute inset-0 flex items-center justify-center">
               <el-icon :size="48" class="text-white drop-shadow-lg"><VideoPlay /></el-icon>
             </div>
@@ -83,13 +83,13 @@
       <div v-if="albumMedia.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <div v-for="item in albumMedia" :key="item.id" class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer overflow-hidden" @click="previewMedia(item)">
           <div class="aspect-square bg-gray-100 overflow-hidden">
-            <img v-if="item.type === 'image'" :src="item.thumbnailUrl || item.url" loading="lazy" class="w-full h-full object-cover" />
-            <video v-else :src="item.url" preload="none" class="w-full h-full object-cover" />
+            <img v-if="item.type === 'image'" :src="normalizeUnsafeUrl(item.thumbnailUrl || item.url)" :alt="item.title || 'Album image'" loading="lazy" class="w-full h-full object-cover" />
+            <video v-else :src="normalizeUnsafeUrl(item.url)" preload="none" class="w-full h-full object-cover" />
           </div>
           <div class="p-2">
             <p class="text-xs text-gray-500 truncate">{{ item.description || '暂无简介' }}</p>
             <div class="flex items-center gap-1 mt-1">
-              <el-avatar :src="item.avatar" :size="16">{{ item.nickname?.charAt(0) }}</el-avatar>
+              <el-avatar :src="toAvatarThumb(item.avatar, 40)" :size="16">{{ item.nickname?.charAt(0) }}</el-avatar>
               <span class="text-xs text-gray-400 truncate">{{ item.nickname || '匿名' }}</span>
             </div>
           </div>
@@ -101,15 +101,15 @@
     <!-- 媒体预览 -->
     <el-dialog v-model="showPreview" :width="isMobile ? '95%' : '600px'" top="5vh">
       <div class="max-h-[60vh] overflow-hidden flex items-center justify-center bg-gray-100">
-        <img v-if="previewItem?.type === 'image'" :src="previewItem?.url" class="max-w-full max-h-[60vh] object-contain" />
-        <video v-else :src="previewItem?.url" controls class="max-w-full max-h-[60vh]" />
+        <img v-if="previewItem?.type === 'image'" :src="normalizeUnsafeUrl(previewItem?.url)" :alt="previewItem?.title || 'Preview image'" class="max-w-full max-h-[60vh] object-contain" />
+        <video v-else :src="normalizeUnsafeUrl(previewItem?.url)" controls class="max-w-full max-h-[60vh]" />
       </div>
       <div class="mt-4">
         <h3 class="font-bold text-lg">{{ previewItem?.title || '无标题' }}</h3>
         <p class="text-gray-500 mt-2">{{ previewItem?.description || '暂无简介' }}</p>
         <div class="flex items-center gap-2 mt-4 pt-4 border-t">
           <el-avatar v-if="previewItem?.source === 'bing'" :size="32" src="https://www.bing.com/favicon.ico" class="cursor-pointer" @click="openSource(previewItem)">B</el-avatar>
-          <el-avatar v-else :src="previewItem?.avatar" :size="32">{{ previewItem?.nickname?.charAt(0) }}</el-avatar>
+          <el-avatar v-else :src="toAvatarThumb(previewItem?.avatar, 64)" :size="32">{{ previewItem?.nickname?.charAt(0) }}</el-avatar>
           <span class="font-medium" :class="{ 'cursor-pointer hover:text-primary-500': previewItem?.source === 'bing' }" @click="openSource(previewItem)">{{ previewItem?.source === 'bing' ? '必应壁纸' : (previewItem?.nickname || '匿名') }}</span>
           <span class="text-gray-400 ml-auto">{{ previewItem?.createdAt }}</span>
         </div>
@@ -122,6 +122,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Picture, VideoPlay, Loading } from '@element-plus/icons-vue'
 import * as api from '@/api/blog'
+import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
 
 const activeTab = ref('albums')
 const isMobile = ref(window.innerWidth < 768)

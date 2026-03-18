@@ -111,8 +111,8 @@ public final class AppConstants {
     public static final int BING_WALLPAPER_COUNT = 8;
     public static final String DOUYIN_HOT_API = "https://www.iesdouyin.com/web/api/v2/hotsearch/billboard/word/";
     public static final int DOUYIN_HOT_LIMIT = 10;
-    public static final String IP_LOCATION_API = "http://whois.pconline.com.cn/ipJson.jsp";
-    public static final String WEATHER_API_BASE = "http://wttr.in/";
+    public static final String IP_LOCATION_API = "https://whois.pconline.com.cn/ipJson.jsp";
+    public static final String WEATHER_API_BASE = "https://wttr.in/";
 
     // ==================== Redis ====================
     public static final int REDIS_MIN_IDLE = 4;

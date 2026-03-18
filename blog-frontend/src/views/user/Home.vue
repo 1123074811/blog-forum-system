@@ -5,7 +5,7 @@
       <!-- 用户卡片 -->
       <div v-if="userStore.isLoggedIn" class="glass-card p-4 mb-4 card-enter">
         <div class="flex items-center gap-3 mb-4">
-          <el-avatar :src="userStore.user?.avatar" :size="48" class="ring-2 ring-primary-200 dark:ring-primary-800">{{ (userStore.user?.nickname || userStore.user?.username)?.[0] }}</el-avatar>
+          <el-avatar :src="toAvatarThumb(userStore.user?.avatar, 96)" :size="48" class="ring-2 ring-primary-200 dark:ring-primary-800">{{ (userStore.user?.nickname || userStore.user?.username)?.[0] }}</el-avatar>
           <div>
             <div class="font-semibold dark:text-white">{{ userStore.user?.nickname || userStore.user?.username }}</div>
             <div class="text-sm text-gray-500">{{ userStore.user?.bio || '暂无简介' }}</div>
@@ -64,7 +64,7 @@
     <!-- 中间内容区 -->
     <div class="main-content" ref="mainContentRef">
       <!-- 必应壁纸轮播图 -->
-      <div class="glass-card mb-4 overflow-hidden card-enter">
+      <div v-if="shouldShowWallpaper" class="glass-card mb-4 overflow-hidden card-enter">
         <div v-if="wallpaperLoading" class="h-[200px] flex items-center justify-center">
           <el-icon class="is-loading text-2xl text-primary-500"><Loading /></el-icon>
           <span class="ml-2 text-gray-500">正在加载壁纸...</span>
@@ -72,7 +72,14 @@
         <el-carousel v-else-if="wallpapers.length" height="200px" :interval="5000" indicator-position="none">
           <el-carousel-item v-for="(wp, idx) in wallpapers" :key="idx">
             <div class="relative w-full h-full group">
-              <img :src="wp.url" :alt="wp.title" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+              <img
+                :src="normalizeUnsafeUrl(wp.url)"
+                :alt="wp.title || 'Bing wallpaper'"
+                :loading="idx === 0 ? 'eager' : 'lazy'"
+                :fetchpriority="idx === 0 ? 'high' : 'low'"
+                decoding="async"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
               <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div class="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                 <p class="text-sm font-medium">{{ wp.title }}</p>
@@ -89,7 +96,7 @@
              :style="`animation-delay: ${index * 0.05}s`"
              @click="router.push(`/article/${article.id}`)">
           <div class="flex items-center gap-2 mb-3">
-            <el-avatar :src="article.authorAvatar" :size="36" class="ring-2 ring-primary-100 dark:ring-primary-900">
+            <el-avatar :src="toAvatarThumb(article.authorAvatar, 72)" :size="36" class="ring-2 ring-primary-100 dark:ring-primary-900">
               {{ article.authorName?.[0] || 'U' }}
             </el-avatar>
             <div class="flex-1">
@@ -128,7 +135,7 @@
       <!-- 抖音热榜 -->
       <div v-if="douyinHot.length" class="glass-card p-4 mb-4 card-enter">
         <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <img src="https://www.douyin.com/favicon.ico" class="w-5 h-5" />
+          <img src="https://www.douyin.com/favicon.ico" alt="" loading="lazy" decoding="async" aria-hidden="true" class="w-5 h-5" />
           <span class="text-red-500">抖音热榜</span>
         </h3>
         <div class="space-y-1">
@@ -248,6 +255,7 @@ import { useUserStore } from '@/stores/user'
 import { getArticles, getCategories, getTags, getAnnouncements } from '@/api/blog'
 import api from '@/api'
 import { View, Loading, Location, Top, Edit, Star } from '@element-plus/icons-vue'
+import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -281,6 +289,13 @@ const isMobile = ref(window.innerWidth < 768)
 let observer = null
 const ENTRY_SOURCE_KEY = 'site_entry_source_v1'
 const HOME_ANNOUNCEMENT_CONSUMED_KEY = 'home_announcement_consumed_v1'
+const isDesktop = window.innerWidth >= 1024
+const connection = typeof navigator !== 'undefined'
+  ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection)
+  : null
+const effectiveType = String(connection?.effectiveType || '').toLowerCase()
+const isDataSaver = Boolean(connection?.saveData || effectiveType.includes('2g'))
+const shouldShowWallpaper = isDesktop && !isDataSaver
 
 const setupObserver = () => {
   if (observer) observer.disconnect()
@@ -296,6 +311,74 @@ watch(loadMoreRef, (el) => {
   if (el && articles.value.length > 0) setupObserver()
 })
 
+const runWhenIdle = (task, timeout = 2000) => {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => task(), { timeout })
+  } else {
+    setTimeout(task, 400)
+  }
+}
+
+const fetchSidebarMeta = async () => {
+  try {
+    const [catRes, tagRes] = await Promise.all([getCategories(), getTags()])
+    if (catRes.success) categories.value = catRes.data
+    if (tagRes.success) tags.value = tagRes.data
+  } catch (error) {
+    console.error('Failed to load sidebar meta:', error)
+  }
+}
+
+const fetchAnnouncements = async () => {
+  try {
+    const annRes = await getAnnouncements()
+    if (annRes.success && annRes.data && annRes.data.length > 0) {
+      const announcement = annRes.data[0]
+      const today = new Date().toISOString().split('T')[0]
+      const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
+      const storageKey = `hide_announcement_${userId}_${announcement.id}_${today}`
+
+      const entrySource = sessionStorage.getItem(ENTRY_SOURCE_KEY) || 'external'
+      const consumed = sessionStorage.getItem(HOME_ANNOUNCEMENT_CONSUMED_KEY) === 'true'
+
+      if (entrySource === 'external' && !consumed && !localStorage.getItem(storageKey)) {
+        currentAnnouncement.value = announcement
+        showAnnouncement.value = true
+      }
+    }
+  } catch (error) {
+    console.error('Failed to process announcement:', error)
+  } finally {
+    sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
+  }
+}
+
+const fetchWallpapers = () => {
+  if (!shouldShowWallpaper) return
+  wallpaperLoading.value = true
+  api.get('/wallpaper/bing').then(res => {
+    if (res.success) wallpapers.value = res.data
+  }).catch(() => {}).finally(() => {
+    wallpaperLoading.value = false
+  })
+}
+
+const fetchRightSidebarFeeds = () => {
+  api.get('/wallpaper/douyin-hot').then(res => {
+    if (res.success) douyinHot.value = res.data
+  }).catch(() => {})
+
+  api.get('/wallpaper/weather').then(res => {
+    if (res.success) weather.value = res.data
+  }).catch(() => {})
+
+  fetch('https://v1.hitokoto.cn/?c=i&c=k')
+    .then(r => r.json())
+    .then(data => {
+      hitokoto.value = data
+    }).catch(() => {})
+}
+
 const fetchArticles = async (reset = false) => {
   if (reset) {
     page.value = 1
@@ -304,6 +387,7 @@ const fetchArticles = async (reset = false) => {
   loading.value = true
   try {
     let res
+    const pageSize = page.value === 1 ? 6 : 10
     if (selectedCategory.value === 'following') {
       // 未登录时不请求关注的文章
       if (!userStore.isLoggedIn) {
@@ -311,10 +395,10 @@ const fetchArticles = async (reset = false) => {
         hasMore.value = false
         return
       }
-      res = await api.get('/articles/following', { params: { page: page.value, limit: 10 } })
+      res = await api.get('/articles/following', { params: { page: page.value, limit: pageSize } })
     } else {
       const category = selectedCategory.value === 'all' ? null : selectedCategory.value
-      res = await getArticles({ page: page.value, limit: 10, category })
+      res = await getArticles({ page: page.value, limit: pageSize, category })
     }
     if (res.success) {
       articles.value = reset ? res.data.data : [...articles.value, ...res.data.data]
@@ -379,67 +463,27 @@ const closeAnnouncement = () => {
 }
 
 onMounted(async () => {
-  // 仅桌面端锁定 body 滚动，由三列各自独立滚动
   if (window.innerWidth >= 1024) {
     document.body.style.overflow = 'hidden'
   }
 
-  // 等 DOM 渲染后再绑定滚动监听
   await nextTick()
   if (mainContentRef.value) {
     mainContentRef.value.addEventListener('scroll', handleScroll)
   }
-  const [catRes, tagRes, annRes] = await Promise.all([
-    getCategories(), 
-    getTags(),
-    getAnnouncements()
-  ])
-  if (catRes.success) categories.value = catRes.data
-  if (tagRes.success) tags.value = tagRes.data
-  
-  // 处理公告弹窗
-  try {
-    if (annRes.success && annRes.data && annRes.data.length > 0) {
-      const announcement = annRes.data[0]
-      const today = new Date().toISOString().split('T')[0]
-      const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
-      const storageKey = `hide_announcement_${userId}_${announcement.id}_${today}`
-      
-      const entrySource = sessionStorage.getItem(ENTRY_SOURCE_KEY) || 'external'
-      const consumed = sessionStorage.getItem(HOME_ANNOUNCEMENT_CONSUMED_KEY) === 'true'
 
-      if (entrySource === 'external' && !consumed && !localStorage.getItem(storageKey)) {
-        currentAnnouncement.value = announcement
-        showAnnouncement.value = true
-      }
-    }
-  } catch (error) {
-    console.error('Failed to process announcement:', error)
-  } finally {
-    sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
+  // Critical path first: feed content.
+  fetchArticles(true)
+
+  // Delay non-critical requests to protect first-screen rendering.
+  runWhenIdle(() => fetchAnnouncements(), 2200)
+
+  if (isDesktop) {
+    runWhenIdle(() => fetchSidebarMeta(), 2000)
+    runWhenIdle(() => fetchHotArticles(), 2200)
+    runWhenIdle(() => fetchWallpapers(), 2400)
+    runWhenIdle(() => fetchRightSidebarFeeds(), 2600)
   }
-
-  fetchArticles()
-  fetchHotArticles()
-  // 获取必应壁纸
-  wallpaperLoading.value = true
-  api.get('/wallpaper/bing').then(res => {
-    if (res.success) wallpapers.value = res.data
-  }).catch(() => {}).finally(() => {
-    wallpaperLoading.value = false
-  })
-  // 获取抖音热榜
-  api.get('/wallpaper/douyin-hot').then(res => {
-    if (res.success) douyinHot.value = res.data
-  }).catch(() => {})
-  // 获取天气
-  api.get('/wallpaper/weather').then(res => {
-    if (res.success) weather.value = res.data
-  }).catch(() => {})
-  // 获取一言
-  fetch('https://v1.hitokoto.cn/?c=i&c=k').then(r => r.json()).then(data => {
-    hitokoto.value = data
-  }).catch(() => {})
 })
 
 onUnmounted(() => {

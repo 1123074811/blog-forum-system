@@ -72,7 +72,7 @@ const router = createRouter({
 
 // 路由切换后预加载相邻页面（提升下次跳转速度）
 const prefetchMap = {
-  'Home': ['Article', 'UserProfile', 'Write'],
+  'Home': ['Article', 'UserProfile'],
   'Article': ['Home', 'UserProfile'],
   'UserProfile': ['Article', 'Home'],
 }
@@ -80,6 +80,9 @@ const prefetchMap = {
 router.afterEach((to) => {
   const toPreload = prefetchMap[to.name]
   if (!toPreload) return
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+  const effectiveType = String(connection?.effectiveType || '').toLowerCase()
+  if (connection?.saveData || effectiveType.includes('2g')) return
   // 利用浏览器空闲时间预加载
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
@@ -108,7 +111,10 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // 需要鉴权的页面，等待 session 初始化完成（只有第一次导航需要等待，之后立即返回）
-  await userStore.sessionReady()
+  const needsSession = !!(to.meta.requiresAuth || to.meta.requiresAdmin)
+  if (needsSession) {
+    await userStore.sessionReady()
+  }
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     next({ path: '/login', query: { redirect: to.fullPath, msg: '请先登录后再访问该页面' } })

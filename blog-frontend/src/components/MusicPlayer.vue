@@ -36,7 +36,7 @@
                class="result-item" 
                :class="{ 'vip-song': song._isVip }"
                @click="playSong(song)">
-            <img :src="getSongCover(song)" @error="handleImgError" />
+            <img :src="getSongCover(song)" :alt="`${song.name || '歌曲'} 封面`" @error="handleImgError" />
             <div class="info">
               <div class="name">
                 {{ song.name }}
@@ -50,7 +50,7 @@
 
         <!-- 当前播放 -->
         <div v-if="currentSong" class="now-playing">
-          <img :src="getSongCover(currentSong)" class="cover" :class="{ spinning: musicStore.isPlaying }" @error="handleImgError" />
+          <img :src="getSongCover(currentSong)" :alt="`${currentSong?.name || '当前歌曲'} 封面`" class="cover" :class="{ spinning: musicStore.isPlaying }" @error="handleImgError" />
           <div class="info">
             <div class="name">{{ currentSong.name }}</div>
             <div class="artist">{{ artistName }}</div>
@@ -138,7 +138,7 @@
           <!-- 搜索结果 -->
           <div v-if="searchResults.length" class="search-results">
             <div v-for="song in searchResults" :key="song.id" class="result-item" :class="{ 'vip-song': song._isVip }" @click="playSong(song)">
-              <img :src="getSongCover(song)" @error="handleImgError" />
+              <img :src="getSongCover(song)" :alt="`${song.name || '歌曲'} 封面`" @error="handleImgError" />
               <div class="info">
                 <div class="name">{{ song.name }}<span v-if="song._isVip" class="vip-badge">VIP</span></div>
                 <div class="artist">{{ getArtists(song) }}</div>
@@ -148,7 +148,7 @@
           </div>
           <!-- 当前播放 -->
           <div v-if="currentSong" class="now-playing">
-            <img :src="getSongCover(currentSong)" class="cover" :class="{ spinning: musicStore.isPlaying }" @error="handleImgError" />
+            <img :src="getSongCover(currentSong)" :alt="`${currentSong?.name || '当前歌曲'} 封面`" class="cover" :class="{ spinning: musicStore.isPlaying }" @error="handleImgError" />
             <div class="info">
               <div class="name">{{ currentSong.name }}</div>
               <div class="artist">{{ artistName }}</div>
@@ -209,6 +209,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMusicStore } from '@/stores/music'
 import { searchSongs, getSongDetail } from '@/api/music'
+import { normalizeUnsafeUrl } from '@/utils/image'
 
 const musicStore = useMusicStore()
 
@@ -268,7 +269,8 @@ const getSongCover = (song) => {
   if (!song) return defaultCover
   const url = song.al?.picUrl || song.album?.picUrl || ''
   if (!url) return defaultCover
-  return url.startsWith('//') ? 'https:' + url : url
+  const normalized = url.startsWith('//') ? 'https:' + url : url
+  return normalizeUnsafeUrl(normalized)
 }
 const handleImgError = (e) => { e.target.src = defaultCover }
 const getArtists = (song) => {

@@ -23,7 +23,7 @@
     <el-table v-if="!isMobile" :data="pagedMedia" v-loading="loading" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column label="预览" width="100"><template #default="{ row }"><img v-if="row.type === 'image'" :src="row.thumbnailUrl || row.url" loading="lazy" class="w-16 h-16 object-cover rounded" /><video v-else :src="row.url" preload="none" class="w-16 h-16 object-cover rounded" /></template></el-table-column>
+      <el-table-column label="预览" width="100"><template #default="{ row }"><img v-if="row.type === 'image'" :src="normalizeUnsafeUrl(row.thumbnailUrl || row.url)" :alt="row.title || '媒体预览图'" loading="lazy" class="w-16 h-16 object-cover rounded" /><video v-else :src="normalizeUnsafeUrl(row.url)" preload="none" class="w-16 h-16 object-cover rounded" /></template></el-table-column>
       <el-table-column prop="title" label="标题" show-overflow-tooltip />
       <el-table-column prop="description" label="描述" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="80" />
@@ -37,7 +37,7 @@
     <MobileAdminListShell v-else :items="pagedMedia" :loading="loading" empty-text="暂无媒体">
       <div v-for="media in pagedMedia" :key="media.id" class="admin-mobile-card">
         <div class="card-head"><el-checkbox :model-value="selectedIds.includes(media.id)" @change="(val) => toggleSelect(media.id, val)" /><div class="card-title">{{ media.title || '未命名媒体' }}</div><el-tag size="small" :type="!!media.isPublic ? 'success' : 'info'">{{ !!media.isPublic ? '公开' : '私密' }}</el-tag></div>
-        <div class="card-preview"><img v-if="media.type === 'image'" :src="media.thumbnailUrl || media.url" loading="lazy" class="preview-el" /><video v-else :src="media.url" preload="none" class="preview-el" /></div>
+        <div class="card-preview"><img v-if="media.type === 'image'" :src="normalizeUnsafeUrl(media.thumbnailUrl || media.url)" :alt="media.title || '媒体预览图'" loading="lazy" class="preview-el" /><video v-else :src="normalizeUnsafeUrl(media.url)" preload="none" class="preview-el" /></div>
         <div class="card-meta">类型 {{ media.type }} · 用户 {{ media.userId }} · 相册 {{ media.albumId || '-' }}</div>
         <div class="card-content">{{ media.description || '无描述' }}</div>
         <div class="card-actions"><el-button type="primary" size="small" @click="handleEdit(media)">编辑</el-button><el-button type="danger" size="small" @click="handleDelete(media)">删除</el-button></div>
@@ -83,6 +83,7 @@ import api from '@/api'
 import { useIsMobile } from '@/composables/useIsMobile'
 import MobileAdminListShell from '@/components/admin/MobileAdminListShell.vue'
 import MobileActionSheet from '@/components/admin/MobileActionSheet.vue'
+import { normalizeUnsafeUrl } from '@/utils/image'
 
 const mediaList = ref([])
 const selectedIds = ref([])

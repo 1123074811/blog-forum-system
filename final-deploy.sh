@@ -62,6 +62,18 @@ limit_req_zone  \$binary_remote_addr zone=login_limit:10m  rate=5r/m;
 limit_req_zone  \$binary_remote_addr zone=admin_limit:10m  rate=30r/m;
 limit_conn_zone \$binary_remote_addr zone=conn_limit:10m;
 
+# ---- Gzip 压缩 ----
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 1024;
+gzip_types text/plain text/css text/xml text/javascript
+           application/javascript application/x-javascript
+           application/json application/xml application/rss+xml
+           image/svg+xml font/ttf font/otf application/font-woff
+           application/font-woff2;
+
 server {
     listen 80 default_server;
     return 444;
@@ -87,6 +99,8 @@ server {
     ssl_certificate     /etc/letsencrypt/live/$domain_name/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$domain_name/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
 
     add_header X-Frame-Options DENY always;
     add_header X-Content-Type-Options nosniff always;
@@ -146,6 +160,9 @@ server {
 
     location /uploads/ {
         alias /opt/blog/uploads/;
+        # 用户上传文件缓存 7 天
+        add_header Cache-Control "public, max-age=604800";
+        expires 7d;
     }
 
     location /music-api/ {
@@ -156,15 +173,54 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+    # 带 hash 的静态资源（JS/CSS/字体/图片）永久缓存
+    location ~* ^/assets/.*\.(js|css|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
+        root /var/www/blog;
+        # immutable 告诉浏览器文件内容永不变，无需 revalidate
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Vary "Accept-Encoding";
+        expires 1y;
+        # 优先返回 Brotli 压缩版本
+        brotli_static on;
+        gzip_static on;
+        access_log off;
+    }
+
+    # index.html 不缓存，保证用户拿到最新入口
+    location = /index.html {
+        root /var/www/blog;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        expires 0;
+    }
+
+    location = /robots.txt {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+        access_log off;
+    }
+
+    location = /sitemap.xml {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+        access_log off;
+    }
+
     location / {
         root /var/www/blog;
         index index.html;
         try_files \$uri \$uri/ /index.html;
+        # HTML 文件不缓存
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
     }
 }
 EOF
 
-    log_info "已应用安全版 Nginx 配置"
+    log_info "已应用安全版 Nginx 配置（含缓存/Gzip/Brotli）"
 }
 
 echo "=========================================="
@@ -362,6 +418,8 @@ apt-get install -y \
     mysql-server \
     redis-server \
     nginx \
+    libnginx-mod-http-brotli-filter \
+    libnginx-mod-http-brotli-static \
     openjdk-17-jdk \
     curl \
     wget \
@@ -504,6 +562,8 @@ if [ "$IS_UPGRADE" = "true" ]; then
 fi
 cd /opt/blog/blog-frontend
 npm install --registry=https://registry.npmmirror.com
+# 确保压缩插件已安装
+npm install vite-plugin-compression --save-dev --registry=https://registry.npmmirror.com
 cat > .env.production << ENVEOF
 VITE_API_BASE_URL=/api
 VITE_UPLOAD_BASE_URL=/
@@ -752,6 +812,17 @@ if [ "$IS_UPGRADE" = "false" ]; then
     if [ ! -f "/etc/nginx/sites-available/blog" ]; then
     if [[ "$ENABLE_DOMAIN" =~ ^[Yy]$ ]] && [ -n "$DOMAIN_NAME" ]; then
     cat > /etc/nginx/sites-available/blog << NGINXEOF
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 1024;
+gzip_types text/plain text/css text/xml text/javascript
+           application/javascript application/x-javascript
+           application/json application/xml application/rss+xml
+           image/svg+xml font/ttf font/otf application/font-woff
+           application/font-woff2;
+
 server {
     listen 80;
     server_name $DOMAIN_NAME www.$DOMAIN_NAME;
@@ -779,12 +850,48 @@ server {
     ssl_session_timeout 10m;
 
     client_max_body_size 100m;
-    
+
+    # 带 hash 的静态资源永久缓存
+    location ~* ^/assets/.*\.(js|css|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Vary "Accept-Encoding";
+        expires 1y;
+        brotli_static on;
+        gzip_static on;
+        access_log off;
+    }
+
+    # index.html 不缓存
+    location = /index.html {
+        root /var/www/blog;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        expires 0;
+    }
+
+    location = /robots.txt {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+        access_log off;
+    }
+
+    location = /sitemap.xml {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+        access_log off;
+    }
+
     # 前端静态文件
     location / {
         root /var/www/blog;
         index index.html;
         try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
     }
     
     # 后端 API 代理
@@ -811,11 +918,11 @@ server {
         proxy_read_timeout 3600s;
     }
     
-    # 文件上传代理
+    # 文件上传
     location /uploads/ {
         alias /opt/blog/uploads/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
+        add_header Cache-Control "public, max-age=604800";
+        expires 7d;
     }
     
     # 音乐API代理
@@ -866,6 +973,17 @@ server {
 NGINXEOF
     else
     cat > /etc/nginx/sites-available/blog << NGINXEOF
+gzip on;
+gzip_vary on;
+gzip_proxied any;
+gzip_comp_level 6;
+gzip_min_length 1024;
+gzip_types text/plain text/css text/xml text/javascript
+           application/javascript application/x-javascript
+           application/json application/xml application/rss+xml
+           image/svg+xml font/ttf font/otf application/font-woff
+           application/font-woff2;
+
 # HTTP server - redirect to HTTPS
 server {
     listen 80;
@@ -892,12 +1010,48 @@ server {
     ssl_session_timeout 10m;
 
     client_max_body_size 100m;
-    
+
+    # 带 hash 的静态资源永久缓存
+    location ~* ^/assets/.*\.(js|css|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Vary "Accept-Encoding";
+        expires 1y;
+        brotli_static on;
+        gzip_static on;
+        access_log off;
+    }
+
+    # index.html 不缓存
+    location = /index.html {
+        root /var/www/blog;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        expires 0;
+    }
+
+    location = /robots.txt {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+        access_log off;
+    }
+
+    location = /sitemap.xml {
+        root /var/www/blog;
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+        access_log off;
+    }
+
     # 前端静态文件
     location / {
         root /var/www/blog;
         index index.html;
         try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
     }
     
     # 后端 API 代理
@@ -924,11 +1078,10 @@ server {
         proxy_read_timeout 3600s;
     }
     
-    # 文件上传代理
     location /uploads/ {
         alias /opt/blog/uploads/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
+        add_header Cache-Control "public, max-age=604800";
+        expires 7d;
     }
     
     # 音乐API代理

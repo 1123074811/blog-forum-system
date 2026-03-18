@@ -1,11 +1,14 @@
 package com.blog.service;
 
+import com.blog.mapper.IpBlacklistMapper;
+import com.blog.pojo.entity.IpBlacklist;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -14,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 public class SecurityEventService {
 
     private final RedisTemplate<String, Object> redis;
+    private final IpBlacklistMapper ipBlacklistMapper;
 
     public void recordLoginFail(String ip, String username) {
         increment("risk:ip:loginfail:" + ip, 300);
@@ -48,19 +52,38 @@ public class SecurityEventService {
         if (ip == null || ip.isBlank()) {
             return;
         }
-        redis.opsForValue().set("banned_ip:" + ip, reason, ttl);
-        log.warn("[SECURITY] Banned ip={} reason={} ttl={}", ip, reason, ttl);
+        LocalDateTime expireTime = ttl == null ? null : LocalDateTime.now().plus(ttl);
+        Integer banType = expireTime == null ? 1 : 2;
+        String banReason = (reason == null || reason.isBlank()) ? "security_policy" : reason;
+        ipBlacklistMapper.upsertBan(ip, banReason, banType, expireTime);
+        // 鍏煎鏃у彲鑳界暀瀛樼殑 Redis 灏佺 key锛岄伩鍏嶅幓闄ょ數璺笉涓€鑷?
+        redis.delete("banned_ip:" + ip);
+        log.warn("[SECURITY] Banned ip={} reason={} expireTime={}", ip, banReason, expireTime);
     }
 
     public boolean isIpBanned(String ip) {
         if (ip == null || ip.isBlank()) {
             return false;
         }
-        return Boolean.TRUE.equals(redis.hasKey("banned_ip:" + ip));
+        IpBlacklist record = ipBlacklistMapper.findActiveByIp(ip);
+        if (record == null) {
+            return false;
+        }
+        if (record.getExpireTime() != null && !record.getExpireTime().isAfter(LocalDateTime.now())) {
+            ipBlacklistMapper.deleteByIp(ip);
+            redis.delete("banned_ip:" + ip);
+            return false;
+        }
+        return true;
     }
 
     public void unbanIp(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return;
+        }
+        ipBlacklistMapper.deleteByIp(ip);
         redis.delete("banned_ip:" + ip);
+        redis.delete(THREAT_LEVEL_PREFIX + ip);
         log.info("[SECURITY] Unbanned ip={}", ip);
     }
 

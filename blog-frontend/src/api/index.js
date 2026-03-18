@@ -1,5 +1,6 @@
 import axios from 'axios'
 import appConfig from '@/config'
+import { normalizeDeepUrls } from '@/utils/image'
 
 const api = axios.create({
   baseURL: appConfig.apiBaseUrl,
@@ -61,7 +62,12 @@ api.interceptors.response.use(
     if (newToken) {
       localStorage.setItem('token', newToken)
     }
-    return response.data
+
+    const payload = response.data
+    if (payload && typeof payload === 'object') {
+      normalizeDeepUrls(payload)
+    }
+    return payload
   },
   async error => {
     const originalRequest = error.config || {}
