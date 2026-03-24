@@ -1,14 +1,16 @@
 <template>
-  <div class="max-w-7xl mx-auto">
+  <div class="max-w-7xl mx-auto pt-8 pb-12 px-4 sm:px-6">
     <div class="mb-4">
       <el-button @click="handleBack" :icon="ArrowLeft" text>返回</el-button>
     </div>
 
-    <div class="flex flex-col lg:flex-row gap-2.5">
+    <div class="flex flex-col lg:flex-row gap-4 lg:gap-8">
       <!-- 主内容区 -->
-      <div class="flex-1 min-w-0">
-        <div class="glass rounded-xl p-4 sm:p-6 mb-6">
-          <h1 class="text-xl sm:text-2xl font-bold mb-4 dark:text-white">{{ article.title }}</h1>
+      <div class="flex-1 min-w-0" ref="mainContentRef">
+        <div ref="articleCardRef" class="post-card jp-article-card mb-6">
+          <h1 class="jp-article-title text-xl sm:text-2xl font-bold mb-4 dark:text-white">
+            <span class="stamp">文</span>{{ article.title }}
+          </h1>
 
           <!-- AI 总结 -->
           <div class="ai-summary mb-4" v-if="aiSummary || summaryLoading">
@@ -72,8 +74,10 @@
         </div>
 
         <!-- 评论区 -->
-        <div class="glass rounded-xl p-4 sm:p-6">
-          <h3 class="text-lg font-semibold mb-4 dark:text-white">评论 ({{ comments.length }})</h3>
+        <div class="post-card jp-article-comments">
+          <h3 class="jp-section-title text-lg font-semibold mb-4 dark:text-white">
+            <span class="stamp">注</span>评论 ({{ comments.length }})
+          </h3>
 
           <!-- 未登录提示 -->
           <div v-if="!userStore.isLoggedIn" class="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
@@ -199,8 +203,9 @@
         <div class="h-0"></div>
         <!-- 固定定位的目录 -->
         <div class="fixed w-64" :style="catalogStyle">
-          <div class="glass rounded-xl p-4">
-            <h3 class="text-sm font-semibold mb-3 dark:text-white flex items-center gap-2">
+          <div class="post-card jp-article-catalog">
+            <h3 class="jp-section-title text-sm font-semibold mb-3 dark:text-white flex items-center gap-2">
+              <span class="stamp">目</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
               </svg>
@@ -269,6 +274,8 @@ const aiSummary = ref('')
 const summaryLoading = ref(false)
 const showBackToTop = ref(false)
 const catalogStyle = ref({})
+const mainContentRef = ref(null)
+const articleCardRef = ref(null)
 
 // 目录配置
 const editorId = 'article-preview'
@@ -276,8 +283,8 @@ const scrollElement = document.documentElement
 
 // 计算��录位置
 const updateCatalogPosition = () => {
-  const mainContent = document.querySelector('.flex-1.min-w-0')
-  const articleCard = document.querySelector('.glass.rounded-xl')
+  const mainContent = mainContentRef.value
+  const articleCard = articleCardRef.value
   if (!mainContent || !articleCard) return
 
   const mainRect = mainContent.getBoundingClientRect()
@@ -287,7 +294,7 @@ const updateCatalogPosition = () => {
   const topValue = Math.max(cardRect.top, 16)
 
   catalogStyle.value = {
-    left: `${mainRect.right + 10}px`,
+    left: `${mainRect.right + 24}px`,
     top: `${topValue}px`
   }
 }
@@ -507,6 +514,56 @@ onUnmounted(() => {
 /* 平滑滚动 */
 html {
   scroll-behavior: smooth;
+}
+
+/* 文章/评论/目录卡片：统一到首页的复古手绘基底 */
+.jp-article-card {
+  padding: 20px 18px !important;
+}
+
+.jp-article-comments {
+  padding: 20px 18px !important;
+}
+
+.jp-article-catalog {
+  padding: 16px 16px !important;
+}
+
+/* 详情页为内容展示卡片，禁用悬浮放大/阴影效果 */
+.jp-article-card:hover,
+.jp-article-comments:hover,
+.jp-article-catalog:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.jp-article-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jp-article-title .stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.9);
+}
+
+.jp-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jp-section-title .stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.85);
+}
+
+@media (min-width: 640px) {
+  .jp-article-card,
+  .jp-article-comments {
+    padding: 24px 24px !important;
+  }
 }
 
 .comment-input-box {

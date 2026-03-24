@@ -1,100 +1,133 @@
 <template>
   <div class="layout-root">
-    <!-- ===== PC 顶部导航（仅桌面端显示）===== -->
-    <header class="fixed top-0 left-0 right-0 z-50 glass" :class="{ 'mobile-hide': isMobile }">
-      <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <router-link to="/" class="flex items-center gap-2">
-            <img :src="normalizeUnsafeUrl(config.logo)" alt="站点 logo" class="w-8 h-8 rounded-full" />
-            <span class="text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{{ config.siteName }}</span>
-          </router-link>
-          <nav class="hidden md:flex items-center gap-6 ml-8">
-            <router-link to="/" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">首页</router-link>
-            <router-link to="/discover" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">发现</router-link>
-            <router-link to="/community" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">相册</router-link>
-            <router-link to="/quiz" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">刷题</router-link>
-            <router-link to="/tree-hole" class="text-gray-600 hover:text-primary-500 dark:text-gray-300">树洞</router-link>
-          </nav>
-        </div>
-        <div class="flex items-center gap-3">
-          <el-input v-model="searchQuery" placeholder="搜索..." class="w-48" size="small" @keyup.enter="handleSearch">
-            <template #prefix><el-icon><Search /></el-icon></template>
-          </el-input>
-          <el-button :icon="isDark ? Sunny : Moon" circle @click="userStore.toggleDark" />
-          <el-button :icon="Headset" circle @click="musicStore.showPlayer++" />
-          <template v-if="userStore.isLoggedIn">
-            <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
-              <template #reference>
-                <el-badge :value="msgUnreadCount" :hidden="!msgUnreadCount" :max="99">
-                  <el-button :icon="ChatDotRound" circle />
-                </el-badge>
-              </template>
-              <div class="max-h-80 overflow-y-auto" @wheel.stop>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="font-bold">私信</span>
-                  <el-button type="primary" link size="small" @click="router.push('/chat')">查看全部</el-button>
-                </div>
-                <div v-if="!conversations.length" class="text-center py-4 text-gray-500">暂无私信</div>
-                <div v-for="conv in conversations" :key="conv.id"
-                     class="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
-                     :class="{ 'bg-blue-50 dark:bg-blue-900/20': getConvUnread(conv) > 0 }"
-                     @click="router.push(`/chat?userId=${conv.otherUser?.id}`)">
-                  <el-avatar :src="toAvatarThumb(conv.otherUser?.avatar, 80)" :size="40">{{ conv.otherUser?.username?.[0] }}</el-avatar>
-                  <div class="flex-1 overflow-hidden">
-                    <div class="text-sm font-medium truncate">{{ conv.otherUser?.nickname || conv.otherUser?.username }}</div>
-                    <div class="text-xs text-gray-400 truncate">{{ conv.lastMessage?.content || '暂无消息' }}</div>
-                  </div>
-                  <el-badge v-if="getConvUnread(conv) > 0" :value="getConvUnread(conv)" :max="99" />
-                </div>
-              </div>
-            </el-popover>
-            <el-popover placement="bottom" :width="320" trigger="hover" :show-after="200">
-              <template #reference>
-                <el-badge :value="unreadCount" :hidden="!unreadCount" :max="99">
-                  <el-button :icon="Bell" circle />
-                </el-badge>
-              </template>
-              <div class="max-h-80 overflow-y-auto" @wheel.stop>
-                <div class="flex justify-between items-center mb-2">
-                  <span class="font-bold">消息通知</span>
-                  <el-button v-if="unreadCount" type="primary" link size="small" @click="handleMarkAllRead">全部已读</el-button>
-                </div>
-                <div v-if="!notifications.length" class="text-center py-4 text-gray-500">暂无消息</div>
-                <div v-for="n in notifications" :key="n.id"
-                     class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
-                     :class="{ 'bg-blue-50 dark:bg-blue-900/20': !n.isRead }"
-                     @click="handleNotificationClick(n)">
-                  <div class="text-sm">{{ getNotificationText(n) }}</div>
-                  <div class="text-xs text-gray-400 mt-1">{{ n.createdAt }}</div>
-                </div>
-              </div>
-            </el-popover>
-            <el-dropdown>
-              <el-avatar :src="toAvatarThumb(userStore.user?.avatar, 72)" :size="36" class="cursor-pointer">{{ userStore.user?.username?.[0] }}</el-avatar>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="router.push(`/user/${userStore.user?.id}`)">个人主页</el-dropdown-item>
-                  <el-dropdown-item @click="router.push('/favorites')">我的收藏</el-dropdown-item>
-                  <el-dropdown-item @click="router.push('/album')">我的相册</el-dropdown-item>
-                  <el-dropdown-item @click="router.push('/write')">写文章</el-dropdown-item>
-                  <el-dropdown-item @click="router.push('/about')">关于我们</el-dropdown-item>
-                  <el-dropdown-item v-if="userStore.isAdmin" @click="router.push('/admin')">管理后台</el-dropdown-item>
-                  <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-          <template v-else>
-            <el-button type="primary" @click="router.push('/login')">登录</el-button>
-          </template>
+        <!-- 全屏视差背景（仅首页显示） -->
+    <section v-if="isHomeRoute" ref="heroSectionRef" class="hero-viewport">
+      <div class="hero-illustration" id="parallaxBg">
+        <div
+          v-for="(wp, idx) in heroWallpapers"
+          :key="`${wp.url}-${idx}`"
+          class="hero-slide"
+          :class="{ active: idx === heroWallpaperIndex }"
+        >
+          <img
+            :src="normalizeUnsafeUrl(wp.url)"
+            :alt="wp.title || 'Bing wallpaper'"
+            :loading="idx === 0 ? 'eager' : 'lazy'"
+            decoding="async"
+            class="hero-slide-image"
+          />
         </div>
       </div>
-    </header>
+      <div class="hero-overlay"></div>
+      <div class="main-title-box">
+        <h1 class="site-logo">{{ config.siteName || '树欲静而风不止' }}</h1>
+        <p class="site-subtitle">OUJINCONG.XYZ</p>
+      </div>
+          <button
+        v-if="!isMobile"
+        class="hero-next-btn"
+        type="button"
+        aria-label="scroll to next section"
+        @click="scrollToHomeContent()"
+      >
+        <span></span>
+      </button>
+    </section>
 
-    <!-- ===== 移动端顶部简化 header ===== -->
+    <!-- ===== PC 左侧竖排导航（仅桌面端显示）===== -->
+    <nav v-if="!isMobile" class="fixed left-0 top-0 bottom-0 w-24 border-r-2 border-ink dark:border-[#333] bg-paper dark:bg-[#1a1a1a] z-50 flex flex-col items-center py-8 hidden md:flex">
+      <!-- 站点 Logo -->
+      <router-link to="/" class="mb-8 hover:-translate-y-1 transition-transform">
+        <img :src="normalizeUnsafeUrl(config.logo)" alt="绔欑偣 logo" class="w-12 h-12 rounded-full border-2 border-ink dark:border-[#555]" />
+      </router-link>
+
+      <!-- 用户头像区域 -->
+      <div class="mb-12 relative group/avatar">
+        <template v-if="userStore.isLoggedIn">
+          <el-dropdown placement="right-start" trigger="hover" :hide-timeout="200" popper-class="retro-dropdown" :show-timeout="0" effect="light" :offset="16">
+            <div class="cursor-pointer flex flex-col items-center gap-2">
+              <el-avatar :src="toAvatarThumb(userStore.user?.avatar, 72)" :size="48" class="border-2 border-ink dark:border-[#555] hover:-translate-y-1 transition-transform">
+                {{ userStore.user?.username?.[0] }}
+              </el-avatar>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu class="font-serif !p-0 !bg-paper dark:!bg-[#1a1a1a] !border-2 !border-ink dark:!border-[#555] !rounded-none min-w-[140px] !flex !flex-col">
+                <el-dropdown-item @click="router.push('/user/' + userStore.user?.id)" class="!text-ink dark:!text-gray-300 hover:!bg-subtleBlue dark:hover:!bg-[#333] !py-3 !px-4 text-center block">个人主页</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/favorites')" class="!text-ink dark:!text-gray-300 hover:!bg-subtleBlue dark:hover:!bg-[#333] !py-3 !px-4 text-center block">我的收藏</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/album')" class="!text-ink dark:!text-gray-300 hover:!bg-subtleBlue dark:hover:!bg-[#333] !py-3 !px-4 text-center block">我的相册</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/write')" class="!text-ink dark:!text-gray-300 hover:!bg-subtleBlue dark:hover:!bg-[#333] !py-3 !px-4 text-center block">写文章</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/about')" class="!text-ink dark:!text-gray-300 hover:!bg-subtleBlue dark:hover:!bg-[#333] !py-3 !px-4 text-center block">关于我们</el-dropdown-item>
+                <el-dropdown-item v-if="userStore.isAdmin" @click="router.push('/admin')" class="!text-ink dark:!text-gray-300 hover:!bg-subtleBlue dark:hover:!bg-[#333] !py-3 !px-4 text-center block">管理后台</el-dropdown-item>
+                <div class="h-[1px] w-full bg-ink/20 dark:bg-gray-700/50 my-1"></div>
+                <el-dropdown-item @click="handleLogout" class="!text-accent hover:!bg-red-50 dark:hover:!bg-red-900/30 !py-3 !px-4 text-center block">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template v-else>
+          <div class="cursor-pointer flex flex-col items-center gap-2" @click="router.push('/login')">
+            <div class="w-12 h-12 rounded-full border-2 border-ink dark:border-[#555] flex items-center justify-center bg-white dark:bg-[#222] hover:-translate-y-1 transition-transform">
+              <span class="font-cursive text-xl text-ink dark:text-gray-300">登</span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="flex flex-col gap-10 flex-1 justify-center items-center">
+        <router-link to="/" class="vertical-text text-lg tracking-[0.3em] text-ink dark:text-gray-300 hover:text-accent dark:hover:text-accent transition-colors relative group font-bold font-serif" :class="{ 'text-accent dark:!text-accent': route.path === '/' }">
+          首页
+          <div class="absolute right-[-10px] bottom-0 w-[2px] bg-accent transition-all duration-300" :class="route.path === '/' ? 'h-full' : 'h-0 group-hover:h-4/5'"></div>
+        </router-link>
+        <router-link to="/discover" class="vertical-text text-lg tracking-[0.3em] text-ink dark:text-gray-300 hover:text-accent dark:hover:text-accent transition-colors relative group font-bold font-serif" :class="{ 'text-accent dark:!text-accent': route.path === '/discover' }">
+          发现
+          <div class="absolute right-[-10px] bottom-0 w-[2px] bg-accent transition-all duration-300" :class="route.path === '/discover' ? 'h-full' : 'h-0 group-hover:h-4/5'"></div>
+        </router-link>
+        <router-link to="/community" class="vertical-text text-lg tracking-[0.3em] text-ink dark:text-gray-300 hover:text-accent dark:hover:text-accent transition-colors relative group font-bold font-serif" :class="{ 'text-accent dark:!text-accent': route.path === '/community' }">
+          相册
+          <div class="absolute right-[-10px] bottom-0 w-[2px] bg-accent transition-all duration-300" :class="route.path === '/community' ? 'h-full' : 'h-0 group-hover:h-4/5'"></div>
+        </router-link>
+        <router-link to="/tree-hole" class="vertical-text text-lg tracking-[0.3em] text-ink dark:text-gray-300 hover:text-accent dark:hover:text-accent transition-colors relative group font-bold font-serif" :class="{ 'text-accent dark:!text-accent': route.path === '/tree-hole' }">
+          树洞
+          <div class="absolute right-[-10px] bottom-0 w-[2px] bg-accent transition-all duration-300" :class="route.path === '/tree-hole' ? 'h-full' : 'h-0 group-hover:h-4/5'"></div>
+        </router-link>
+        <router-link to="/quiz" class="vertical-text text-lg tracking-[0.3em] text-ink dark:text-gray-300 hover:text-accent dark:hover:text-accent transition-colors relative group font-bold font-serif" :class="{ 'text-accent dark:!text-accent': route.path === '/quiz' }">
+          刷题
+          <div class="absolute right-[-10px] bottom-0 w-[2px] bg-accent transition-all duration-300" :class="route.path === '/quiz' ? 'h-full' : 'h-0 group-hover:h-4/5'"></div>
+        </router-link>
+      </div>
+
+      <div class="flex flex-col items-center gap-6 mt-auto">
+
+        <el-button :icon="Search" circle @click="showSearchDialog = true" class="!w-10 !h-10 !text-ink dark:!text-gray-300 !border-2 !border-ink dark:!border-[#555] dark:!bg-transparent hover:!bg-ink dark:hover:!bg-[#555] hover:!text-paper dark:hover:!text-white" />
+        <el-button :icon="isDark ? Sunny : Moon" circle @click="userStore.toggleDark" class="!w-10 !h-10 !text-ink dark:!text-gray-300 !border-2 !border-ink dark:!border-[#555] dark:!bg-transparent hover:!bg-ink dark:hover:!bg-[#555] hover:!text-paper dark:hover:!text-white" />
+        <el-button :icon="Headset" circle @click="musicStore.showPlayer++" class="!w-10 !h-10 !text-ink dark:!text-gray-300 !border-2 !border-ink dark:!border-[#555] dark:!bg-transparent hover:!bg-ink dark:hover:!bg-[#555] hover:!text-paper dark:hover:!text-white" />
+        
+        <template v-if="userStore.isLoggedIn">
+          <el-popover placement="right" :width="320" trigger="hover" :show-after="200" popper-class="!bg-paper dark:!bg-[#1a1a1a] !border-2 !border-ink dark:!border-[#555] !rounded-none font-serif">
+            <template #reference>
+              <el-badge :value="totalUnread" :hidden="!totalUnread" :max="99" class="mb-4">
+                <el-button :icon="Bell" circle class="!w-10 !h-10 !text-ink dark:!text-gray-300 !border-2 !border-ink dark:!border-[#555] dark:!bg-transparent hover:!bg-ink dark:hover:!bg-[#555] hover:!text-paper dark:hover:!text-white" />
+              </el-badge>
+            </template>
+            <div class="max-h-80 overflow-y-auto" @wheel.stop>
+              <div class="flex justify-between items-center mb-2 pb-2 border-b-2 border-ink">
+                <span class="font-bold text-ink">消息通知</span>
+                <span class="text-accent cursor-pointer hover:underline text-sm font-bold" @click="router.push('/messages')">进入消息中心 →</span>
+              </div>
+              <div v-if="!notifications.length && !conversations.length" class="text-center py-4 text-gray-500">暂无消息</div>
+              <div v-for="n in notifications.slice(0, 5)" :key="n.id" class="p-2 hover:bg-subtleBlue cursor-pointer transition-colors border-b border-ink/10 last:border-0" @click="handleNotificationClick(n)">
+                <div class="text-sm text-ink">{{ getNotificationText(n) }}</div>
+              </div>
+            </div>
+          </el-popover>
+        </template>
+      </div>
+    </nav>
+
+    <!-- ===== 移动端顶部简化 Header ===== -->
     <header v-if="isMobile" class="mobile-header glass">
       <router-link to="/" class="flex items-center gap-2">
-        <img :src="normalizeUnsafeUrl(config.logo)" alt="站点 logo" class="w-7 h-7 rounded-full" />
+        <img :src="normalizeUnsafeUrl(config.logo)" alt="绔欑偣 logo" class="w-7 h-7 rounded-full" />
         <span class="text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">{{ config.siteName }}</span>
       </router-link>
       <div class="flex items-center gap-2">
@@ -108,7 +141,7 @@
         <button class="mobile-icon-btn" @click="musicStore.showPlayer++" aria-label="音乐">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         </button>
-        <!-- 设置按钮（登录后显示）-->
+        <!-- 设置按钮（登录后显示） -->
         <div v-if="userStore.isLoggedIn" class="mobile-settings-wrap">
           <button class="mobile-icon-btn" @click="showMobileSettings = !showMobileSettings" aria-label="设置">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,6 +153,10 @@
               <button class="mobile-settings-item" @click="router.push(`/user/${userStore.user?.id}`); showMobileSettings = false">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 个人主页
+              </button>
+              <button class="mobile-settings-item" @click="router.push('/quiz'); showMobileSettings = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                模拟刷题
               </button>
               <button class="mobile-settings-item" @click="router.push('/about'); showMobileSettings = false">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -149,11 +186,15 @@
     </header>
 
     <!-- ===== 主内容区 ===== -->
-    <main class="main-content px-2 sm:px-4 max-w-7xl mx-auto" :class="{ 'is-fixed': isFixedLayout }">
+    <main
+      ref="homeContentRef"
+      class="main-content px-2 sm:px-6 w-full"
+      :class="{ 'is-home-content': isHomeRoute }"
+    >
       <router-view />
     </main>
 
-    <!-- ===== 移动端底部 Tab Bar（抖音风格）===== -->
+    <!-- ===== 移动端底部 Tab Bar ===== -->
     <nav v-if="isMobile" class="bottom-tab-bar">
       <!-- 首页 -->
       <button class="tab-item" :class="{ active: activeTab === 'home' }" @click="navigateTo('/', 'home')">
@@ -176,14 +217,14 @@
         <span class="tab-label">树洞</span>
       </button>
 
-      <!-- 发布（中间凸起按钮）-->
+      <!-- 发布（中间凸起按钮） -->
       <button class="tab-item tab-publish" @click="handlePublish" aria-label="发布文章">
         <span class="publish-btn">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </span>
       </button>
 
-      <!-- 消息（私信+通知合并）-->
+      <!-- 消息（私信+通知） -->
       <button class="tab-item" :class="{ active: activeTab === 'inbox' }" @click="handleInboxTab">
         <span class="tab-icon">
           <span class="tab-badge-wrap">
@@ -206,7 +247,7 @@
       </button>
     </nav>
 
-    <!-- ===== 消息 Sheet（私信 + 通知 tabs）===== -->
+    <!-- ===== 消息 Sheet（私信 + 通知 Tabs）===== -->
     <Teleport to="body">
       <Transition name="sheet">
         <div v-if="showInboxSheet" class="sheet-mask" @click.self="showInboxSheet = false">
@@ -296,6 +337,7 @@ import { useMusicStore } from '@/stores/music'
 import { Search, Bell, ChatDotRound, Headset, Sunny, Moon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, getMessageUnreadCount, getConversations } from '@/api/blog'
+import api from '@/api'
 import config from '@/config'
 import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
 const MusicPlayer = defineAsyncComponent(() => import('@/components/MusicPlayer.vue'))
@@ -305,8 +347,10 @@ const route = useRoute()
 const userStore = useUserStore()
 const musicStore = useMusicStore()
 
-const isFixedLayout = computed(() => route.path === '/')
+const isHomeRoute = computed(() => route.path === '/')
 const isMobile = ref(window.innerWidth < 768)
+const heroSectionRef = ref(null)
+const homeContentRef = ref(null)
 const isDark = ref(userStore.isDark)
 const searchQuery = ref('')
 const showSearchDialog = ref(false)
@@ -314,7 +358,6 @@ const showInboxSheet = ref(false)
 const showMobileSettings = ref(false)
 const inboxTab = ref('msg')
 
-// 底部 tab 激活状态
 const activeTab = computed(() => {
   const p = route.path
   if (p === '/') return 'home'
@@ -330,8 +373,17 @@ const msgUnreadCount = ref(0)
 const conversations = ref([])
 const totalUnread = computed(() => unreadCount.value + msgUnreadCount.value)
 
+const HERO_FALLBACK_WALLPAPER = 'https://images.unsplash.com/photo-1542931287-023b922fa89b?q=80&w=2000'
+const HERO_ROTATE_INTERVAL = 8000
+const heroWallpapers = ref([{ url: HERO_FALLBACK_WALLPAPER, title: 'Fallback wallpaper' }])
+const heroWallpaperIndex = ref(0)
+let heroRotationTimer = null
+let heroWallpaperLoaded = false
+let heroRetryTimer = null
+let homeSectionSwitching = false
+
 let ws = null
-let _notifFetched = false  // 只在首次挂载时请求，后续靠 WebSocket 推送更新
+let _notifFetched = false
 const ENTRY_SOURCE_KEY = 'site_entry_source_v1'
 
 const handleResize = () => {
@@ -341,8 +393,102 @@ const handleResize = () => {
 window.addEventListener('resize', handleResize)
 
 const updateHeaderHeight = () => {
-  const h = document.querySelector('header')?.offsetHeight || 56
+  const header = document.querySelector('header')
+  const h = header ? header.offsetHeight : 0
   document.documentElement.style.setProperty('--app-header-height', `${h}px`)
+}
+
+const setHeroWallpapers = (list) => {
+  const safeList = (Array.isArray(list) ? list : [])
+    .filter(item => item && typeof item.url === 'string' && item.url.trim())
+    .map(item => ({ url: item.url.trim(), title: item.title || 'Bing wallpaper' }))
+
+  heroWallpapers.value = safeList.length
+    ? safeList
+    : [{ url: HERO_FALLBACK_WALLPAPER, title: 'Fallback wallpaper' }]
+  heroWallpaperIndex.value = 0
+}
+
+const stopHeroRotation = () => {
+  if (heroRotationTimer) {
+    clearInterval(heroRotationTimer)
+    heroRotationTimer = null
+  }
+  if (heroRetryTimer) {
+    clearTimeout(heroRetryTimer)
+    heroRetryTimer = null
+  }
+}
+
+const startHeroRotation = () => {
+  stopHeroRotation()
+  if (heroWallpapers.value.length <= 1) return
+  heroRotationTimer = setInterval(() => {
+    heroWallpaperIndex.value = (heroWallpaperIndex.value + 1) % heroWallpapers.value.length
+  }, HERO_ROTATE_INTERVAL)
+}
+
+const ensureHeroWallpapers = async () => {
+  if (heroWallpaperLoaded) {
+    startHeroRotation()
+    return
+  }
+  try {
+    const res = await api.get('/wallpaper/bing')
+    if (res?.success && Array.isArray(res.data) && res.data.length) {
+      setHeroWallpapers(res.data)
+      heroWallpaperLoaded = true
+      startHeroRotation()
+      return
+    }
+    throw new Error(res?.message || 'Empty wallpaper list')
+  } catch (error) {
+    console.error('获取首页必应壁纸失败:', error)
+    startHeroRotation()
+    if (!heroRetryTimer && isHomeRoute.value) {
+      heroRetryTimer = setTimeout(() => {
+        heroRetryTimer = null
+        ensureHeroWallpapers().catch(() => {})
+      }, 1800)
+    }
+  }
+}
+
+const scrollToHomeContent = () => {
+  if (!isHomeRoute.value || !homeContentRef.value) return
+  homeSectionSwitching = true
+  window.scrollTo({
+    top: homeContentRef.value.offsetTop,
+    behavior: 'smooth'
+  })
+  setTimeout(() => {
+    homeSectionSwitching = false
+  }, 560)
+}
+
+const scrollToHomeHero = () => {
+  if (!isHomeRoute.value || !heroSectionRef.value) return
+  homeSectionSwitching = true
+  window.scrollTo({
+    top: heroSectionRef.value.offsetTop,
+    behavior: 'smooth'
+  })
+  setTimeout(() => {
+    homeSectionSwitching = false
+  }, 560)
+}
+
+const handleHomeWheel = (event) => {
+  if (!isHomeRoute.value || isMobile.value || homeSectionSwitching) return
+  const delta = event.deltaY || 0
+  if (Math.abs(delta) < 10) return
+  const currentY = window.pageYOffset || document.documentElement.scrollTop
+  const switchThreshold = window.innerHeight * 0.35
+
+  if (delta > 0 && currentY < switchThreshold) {
+    event.preventDefault()
+    scrollToHomeContent()
+  }
 }
 
 const getConvUnread = (conv) => conv.user1Id === userStore.user?.id ? conv.user1Unread : conv.user2Unread
@@ -358,14 +504,14 @@ const fetchNotifications = async () => {
     if (r3.success) msgUnreadCount.value = r3.data
     if (r4.success) conversations.value = r4.data || []
     _notifFetched = true
-  } catch (e) { console.error('获取通知失败', e) }
+  } catch (e) { console.error('鑾峰彇閫氱煡澶辫触', e) }
 }
 
 const connectWebSocket = () => {
   if (!userStore.isLoggedIn) return
   const token = localStorage.getItem('token')
   if (!token) return
-  // 已有连接则不重复创建
+  // 已有连接时不重复创建
   if (ws && ws.readyState === WebSocket.OPEN) return
   ws = new WebSocket(`${config.wsBaseUrl}/ws/notifications?token=${encodeURIComponent(token)}`)
   ws.onmessage = (e) => {
@@ -430,10 +576,39 @@ const handleLogout = () => {
   router.push('/')
 }
 
-// 关闭 sheet 时重置 tab 激活
-watch(showInboxSheet, (v) => { if (!v) activeTab })
+// 关闭消息面板时重置为私信 Tab，避免下次打开停留在通知页
+watch(showInboxSheet, (v) => {
+  if (!v) inboxTab.value = 'msg'
+})
+
+
+// ===== 视差滚动逻辑 =====
+const handleScroll = () => {
+  if (route.path === '/') {
+    const scroll = window.pageYOffset || document.documentElement.scrollTop
+    const bg = document.getElementById('parallaxBg')
+    if (bg) {
+      bg.style.transform = `translateZ(-1px) translateY(${scroll * 0.4}px) scale(1.1)`
+    }
+  }
+}
+
+watch(() => route.path, (path) => {
+  if (path === '/') {
+    ensureHeroWallpapers().catch(() => {})
+    handleScroll()
+    return
+  }
+  stopHeroRotation()
+})
 
 onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+  window.addEventListener('wheel', handleHomeWheel, { passive: false })
+  if (route.path === '/') {
+    ensureHeroWallpapers().catch(() => {})
+  }
+
   if (!sessionStorage.getItem(ENTRY_SOURCE_KEY)) {
     let ext = true
     if (document.referrer) {
@@ -442,7 +617,6 @@ onMounted(() => {
     sessionStorage.setItem(ENTRY_SOURCE_KEY, ext ? 'external' : 'internal')
   }
   if (userStore.isLoggedIn) {
-    // 只在首次挂载时拉取通知，避免路由切换重复请求
     if (!_notifFetched) fetchNotifications()
     connectWebSocket()
   }
@@ -453,31 +627,134 @@ onMounted(() => {
     if (wrap && !wrap.contains(e.target)) showMobileSettings.value = false
   })
 })
+
 onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('wheel', handleHomeWheel)
+  stopHeroRotation()
+
   ws?.close()
   window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <style scoped>
+/* ===== 视差背景 ===== */
+.hero-viewport {
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero-illustration {
+  position: absolute;
+  top: 0; left: 0; width: 110%; height: 110%;
+  z-index: -2;
+  overflow: hidden;
+  transform: translateZ(-1px) scale(1.1);
+  filter: sepia(0.2) contrast(0.9);
+}
+
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.hero-slide.active {
+  opacity: 1;
+}
+
+.hero-slide-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.hero-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(180deg, rgba(253,250,242,0) 60%, var(--paper) 100%);
+  z-index: -1;
+}
+
+.hero-next-btn {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.hero-next-btn span {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.hero-next-btn:hover {
+  transform: translateX(-50%) translateY(3px);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.main-title-box {
+  text-align: center;
+  z-index: 10;
+}
+
+.site-logo {
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 6rem;
+  color: var(--ink);
+  text-shadow: 4px 4px 0px rgba(211, 84, 0, 0.2);
+  line-height: 1;
+}
+
+.site-subtitle {
+  font-size: 1.2rem;
+  letter-spacing: 0.8em;
+  margin-top: 20px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.vertical-text {
+  writing-mode: vertical-rl;
+}
+
 /* ===== 基础布局 ===== */
-.layout-root { min-height: 100dvh; }
+.layout-root { min-height: 100dvh; display: flex; flex-direction: column; }
 .mobile-hide { display: none !important; }
 
+/* PC 端主内容区让出左侧导航空间 */
 .main-content {
-  padding-top: calc(var(--app-header-height, 64px) + 1rem);
-  min-height: 100vh;
+  flex: 1;
   box-sizing: border-box;
+  padding-top: 0;
 }
-@media (min-width: 640px) {
-  .main-content { padding-top: calc(var(--app-header-height, 64px) + 1.5rem); }
-}
-.main-content.is-fixed {
-  padding-top: var(--app-header-height, 64px);
-  height: 100vh; min-height: unset; overflow: hidden; padding-bottom: 0;
+@media (min-width: 768px) {
+  .main-content { 
+    padding-left: 104px; /* 预留左侧 96px 导航 + 少量间距 */
+    padding-top: 0;
+  }
 }
 
-/* ===== 移动端顶部 header ===== */
+
+/* ===== 移动端顶部 Header ===== */
 .mobile-header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
   height: 52px;
@@ -494,6 +771,8 @@ onUnmounted(() => {
 }
 .mobile-icon-btn:active { background: rgba(0,0,0,0.06); }
 
+.dark .mobile-icon-btn:active { background: rgba(255,255,255,0.1); }
+
 /* 移动端设置菜单 */
 .mobile-settings-wrap { position: relative; }
 .mobile-settings-menu {
@@ -507,6 +786,13 @@ onUnmounted(() => {
   overflow: hidden;
   z-index: 200;
 }
+
+.dark .mobile-settings-menu {
+  background: rgba(30, 41, 59, 0.97);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
 .mobile-settings-item {
   display: flex; align-items: center; gap: 10px;
   width: 100%; padding: 13px 16px;
@@ -518,13 +804,19 @@ onUnmounted(() => {
 }
 .mobile-settings-item:active { background: rgba(0,0,0,0.05); }
 .mobile-settings-item--danger { color: #f5576c; }
+
+.dark .mobile-settings-item { color: #e2e8f0; }
+.dark .mobile-settings-item:active { background: rgba(255,255,255,0.08); }
+.dark .mobile-settings-item--danger { color: #f87171; }
 .mobile-settings-divider { height: 1px; background: rgba(0,0,0,0.07); margin: 2px 0; }
+
+.dark .mobile-settings-divider { background: rgba(255,255,255,0.1); }
 .settings-drop-enter-active { transition: opacity 0.18s ease, transform 0.18s ease; }
 .settings-drop-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .settings-drop-enter-from { opacity: 0; transform: translateY(-6px) scale(0.97); }
 .settings-drop-leave-to { opacity: 0; transform: translateY(-6px) scale(0.97); }
 
-/* 移动端 main 内容区底部留出 tab bar 高度 */
+/* 移动端 main 内容底部预留 Tab Bar 高度 */
 @media (max-width: 767px) {
   .main-content {
     padding-top: calc(52px + 0.75rem);
@@ -533,8 +825,8 @@ onUnmounted(() => {
     height: auto;
     min-height: 100dvh;
   }
-  /* 移动端首页：不锁 overflow，正常滚动 */
-  .main-content.is-fixed {
+  /* 移动端首页：不锁定 overflow，保持自然滚动 */
+  .main-content.is-home-content {
     padding-top: 52px;
     padding-bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
     height: auto;
@@ -555,6 +847,14 @@ onUnmounted(() => {
   border-top: 1px solid rgba(0,0,0,0.06);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
 }
+
+.dark .bottom-tab-bar {
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+}
 .tab-item {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 3px;
@@ -566,18 +866,21 @@ onUnmounted(() => {
   position: relative;
 }
 .tab-item.active { color: #1a1a2e; }
+
+.dark .tab-item { color: #64748b; }
+.dark .tab-item.active { color: #38bdf8; }
 .tab-icon { display: flex; align-items: center; justify-content: center; position: relative; }
 .tab-label { font-size: 10px; font-weight: 500; line-height: 1; }
 .tab-item.active .tab-label { font-weight: 700; }
 
-/* 头像 tab */
+/* 头像 Tab */
 .tab-avatar {
   border: 2px solid transparent;
   transition: border-color 0.2s;
 }
 .tab-item.active .tab-avatar { border-color: #1a1a2e; }
 
-/* 未读 badge */
+/* 未读徽标 */
 .tab-badge-wrap { position: relative; display: inline-flex; }
 .tab-badge {
   position: absolute; top: -6px; right: -10px;
@@ -589,7 +892,7 @@ onUnmounted(() => {
   line-height: 1;
 }
 
-/* 发布按钮（中间凸起）*/
+/* 发布按钮（中间凸起） */
 .tab-publish { flex: 1.2; }
 .publish-btn {
   width: 48px; height: 48px; border-radius: 14px;
@@ -721,8 +1024,5 @@ onUnmounted(() => {
 .sheet-leave-to .inbox-sheet { transform: translateY(100%); }
 .sheet-enter-to .inbox-sheet, .sheet-leave-from .inbox-sheet { transform: translateY(0); }
 
-/* 移动端隐藏 MusicPlayer 悬浮触发按钮 */
-@media (max-width: 767px) {
-  :global(.player-trigger) { display: none !important; }
-}
 </style>
+

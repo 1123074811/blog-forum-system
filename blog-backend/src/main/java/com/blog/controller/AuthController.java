@@ -299,6 +299,23 @@ public class AuthController {
         return ApiResponse.success(newToken);
     }
 
+    @GetMapping("/me")
+    public ApiResponse<Map<String, Object>> me() {
+        Long userId = BaseContext.getCurrentId();
+        if (userId == null) {
+            return ApiResponse.success(Map.of("authenticated", false));
+        }
+        User user = userService.getById(userId);
+        if (user == null) {
+            return ApiResponse.success(Map.of("authenticated", false));
+        }
+        return ApiResponse.success(Map.of(
+                "authenticated", true,
+                "role", user.getRole() != null ? user.getRole() : "USER",
+                "id", user.getId()
+        ));
+    }
+
     @PostMapping("/logout")
     public ApiResponse<String> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {

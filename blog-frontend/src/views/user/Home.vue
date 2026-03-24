@@ -3,38 +3,36 @@
     <!-- 左侧边栏 -->
     <aside class="left-sidebar hidden lg:block">
       <!-- 用户卡片 -->
-      <div v-if="userStore.isLoggedIn" class="glass-card p-4 mb-4 card-enter">
+      <div v-if="userStore.isLoggedIn" class="sidebar-widget p-4 mb-4 card-enter">
         <div class="flex items-center gap-3 mb-4">
-          <el-avatar :src="toAvatarThumb(userStore.user?.avatar, 96)" :size="48" class="ring-2 ring-primary-200 dark:ring-primary-800">{{ (userStore.user?.nickname || userStore.user?.username)?.[0] }}</el-avatar>
+          <el-avatar :src="toAvatarThumb(userStore.user?.avatar, 96)" :size="48" class="ring-2 ring-ink dark:ring-gray-700">{{ (userStore.user?.nickname || userStore.user?.username)?.[0] }}</el-avatar>
           <div>
             <div class="font-semibold dark:text-white">{{ userStore.user?.nickname || userStore.user?.username }}</div>
             <div class="text-sm text-gray-500">{{ userStore.user?.bio || '暂无简介' }}</div>
           </div>
         </div>
-        <el-button type="primary" class="w-full" @click="router.push('/write')">
+        <el-button type="primary" class="w-full !bg-ink !text-paper hover:!bg-accent !border-none !rounded-none !shadow-[4px_4px_0px_#d35400] transition-all" @click="router.push('/write')">
           <el-icon class="mr-1"><Edit /></el-icon>发布文章
         </el-button>
       </div>
 
       <!-- 分类 -->
-      <div class="glass-card p-4 mb-4 card-enter" style="animation-delay: 0.1s">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <span class="w-1 h-4 bg-gradient-to-b from-primary-400 to-primary-600 rounded-full"></span>
+      <div class="sidebar-widget p-4 mb-4 card-enter" style="animation-delay: 0.1s">
+        <h3 class="widget-title dark:text-white flex items-center gap-2">
           分类
         </h3>
-        <div class="space-y-2">
+        <div class="space-y-2 font-serif">
           <div class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
                :class="{ 'bg-gradient-to-r from-primary-200 to-primary-50 dark:from-gray-700 dark:to-gray-800 shadow-sm': selectedCategory === 'all' }"
                @click="selectCategory('all')">
             <span class="dark:text-gray-300 font-medium">全部</span>
           </div>
-          <!-- 只在登录后显示关注分类 -->
+          <!-- 仅登录后显示关注分类 -->
           <div v-if="userStore.isLoggedIn"
                class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
                :class="{ 'bg-gradient-to-r from-primary-200 to-primary-50 dark:from-gray-700 dark:to-gray-800 shadow-sm': selectedCategory === 'following' }"
                @click="selectCategory('following')">
             <span class="dark:text-gray-300 font-medium flex items-center gap-1">
-              <el-icon><Star /></el-icon>
               关注
             </span>
           </div>
@@ -48,76 +46,48 @@
       </div>
 
       <!-- 热门标签 -->
-      <div class="glass-card p-4 card-enter" style="animation-delay: 0.2s">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <span class="w-1 h-4 bg-gradient-to-b from-primary-400 to-primary-600 rounded-full"></span>
+      <div class="sidebar-widget p-4 card-enter" style="animation-delay: 0.2s">
+        <h3 class="widget-title dark:text-white flex items-center gap-2">
           热门标签
         </h3>
         <div class="flex flex-wrap gap-2">
-          <el-tag v-for="tag in tags" :key="tag.id" class="cursor-pointer" effect="plain">
+          <span v-for="tag in tags" :key="tag.id" class="cursor-pointer px-3 py-1 border border-ink text-sm hover:bg-ink hover:text-paper transition-colors">
             {{ tag.name }}
-          </el-tag>
+          </span>
         </div>
       </div>
     </aside>
 
-    <!-- 中间内容区 -->
-    <div class="main-content" ref="mainContentRef">
-      <!-- 必应壁纸轮播图 -->
-      <div v-if="shouldShowWallpaper" class="glass-card mb-4 overflow-hidden card-enter">
-        <div v-if="wallpaperLoading" class="h-[200px] flex items-center justify-center">
-          <el-icon class="is-loading text-2xl text-primary-500"><Loading /></el-icon>
-          <span class="ml-2 text-gray-500">正在加载壁纸...</span>
-        </div>
-        <el-carousel v-else-if="wallpapers.length" height="200px" :interval="5000" indicator-position="none">
-          <el-carousel-item v-for="(wp, idx) in wallpapers" :key="idx">
-            <div class="relative w-full h-full group">
-              <img
-                :src="normalizeUnsafeUrl(wp.url)"
-                :alt="wp.title || 'Bing wallpaper'"
-                :loading="idx === 0 ? 'eager' : 'lazy'"
-                :fetchpriority="idx === 0 ? 'high' : 'low'"
-                decoding="async"
-                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div class="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                <p class="text-sm font-medium">{{ wp.title }}</p>
-              </div>
-            </div>
-          </el-carousel-item>
-        </el-carousel>
-      </div>
-
-      <!-- 文章列表 -->
-      <div class="space-y-4">
+    <!-- 中间内容区（幽灵滚动层） -->
+    <div class="home-main-col" ref="mainContentRef">
+      <div class="home-main-col-inner">
+        <!-- 文章列表 -->
+        <div class="space-y-12">
         <div v-for="(article, index) in articles" :key="article.id"
-             class="glass-card p-3 sm:p-5 cursor-pointer card-enter group"
+             class="post-card article-post-card cursor-pointer group"
              :style="`animation-delay: ${index * 0.05}s`"
              @click="router.push(`/article/${article.id}`)">
-          <div class="flex items-center gap-2 mb-3">
-            <el-avatar :src="toAvatarThumb(article.authorAvatar, 72)" :size="36" class="ring-2 ring-primary-100 dark:ring-primary-900">
-              {{ article.authorName?.[0] || 'U' }}
-            </el-avatar>
-            <div class="flex-1">
-              <span class="text-sm font-medium dark:text-gray-300">{{ article.authorName || '匿名用户' }}</span>
-              <span class="text-sm text-gray-400 ml-2">{{ article.createdAt }}</span>
-            </div>
+          <div class="flex items-center gap-2 mb-4 text-accent text-sm font-medium">
+            <span class="stamp">记</span>
+            <span>{{ article.createdAt }}</span>
+            <span class="ml-auto text-gray-500 flex items-center gap-2">
+               <el-icon><View /></el-icon> {{ article.viewCount }}
+            </span>
           </div>
-          <h2 class="text-lg font-bold mb-2 dark:text-white group-hover:text-primary-500 transition-colors duration-300">
+          <h2 class="text-2xl font-bold mb-4 dark:text-white group-hover:text-accent transition-colors duration-300 font-serif">
             {{ article.title }}
           </h2>
-          <p class="text-gray-600 dark:text-gray-400 line-clamp-2 mb-4 leading-relaxed">
+          
+          <!-- 文章封面图（有封面则显示） -->
+          <div v-if="article.cover" class="w-full h-48 bg-subtleBlue mb-4 overflow-hidden rounded-md border-2 border-[#333]">
+            <img :src="normalizeUnsafeUrl(article.cover)" class="w-full h-full object-cover filter grayscale-[30%] group-hover:grayscale-0 transition-all duration-500" />
+          </div>
+
+          <p class="text-gray-600 dark:text-gray-400 line-clamp-3 mb-6 leading-loose font-serif">
             {{ stripMd(article.content) }}
           </p>
-          <div class="flex items-center gap-6 text-sm text-gray-500">
-            <span class="flex items-center gap-1 hover:text-primary-500 transition-colors">
-              <el-icon><View /></el-icon> {{ article.viewCount }}
-            </span>
-            <span class="flex items-center gap-1 transition-colors"
-                  :class="article.liked ? 'text-red-500' : 'hover:text-red-400'">
-              {{ article.liked ? '❤️' : '🤍' }} {{ article.likeCount || 0 }}
-            </span>
+          <div class="text-accent font-bold text-sm">
+            [ 继续阅读 -> ]
           </div>
         </div>
 
@@ -129,23 +99,23 @@
         <div v-else class="text-center py-8 text-gray-500">暂无文章</div>
       </div>
     </div>
+  </div>
 
     <!-- 右侧边栏 -->
     <aside class="right-sidebar hidden lg:block">
       <!-- 抖音热榜 -->
-      <div v-if="douyinHot.length" class="glass-card p-4 mb-4 card-enter">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <img src="https://www.douyin.com/favicon.ico" alt="" loading="lazy" decoding="async" aria-hidden="true" class="w-5 h-5" />
+      <div v-if="douyinHot.length" class="sidebar-widget p-4 mb-4 card-enter">
+        <h3 class="widget-title dark:text-white flex items-center gap-2">
           <span class="text-red-500">抖音热榜</span>
         </h3>
-        <div class="space-y-1">
+        <div class="space-y-2">
           <div v-for="(item, index) in douyinHot" :key="index"
-               class="flex gap-1 text-sm p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-300 group">
+               class="flex gap-2 text-sm p-1 hover:text-accent transition-all duration-300 group">
             <span class="font-bold w-6 text-center flex-shrink-0"
                   :class="index < 3 ? 'text-red-500' : 'text-gray-400'">
               {{ index + 1 }}
             </span>
-            <span class="line-clamp-1 dark:text-gray-300 cursor-pointer group-hover:text-primary-500 transition-colors"
+            <span class="line-clamp-1 dark:text-gray-300 cursor-pointer"
                   @click="searchDouyin(item.title)">
               {{ item.title }}
             </span>
@@ -154,9 +124,8 @@
       </div>
 
       <!-- 天气卡片 -->
-      <div class="glass-card p-4 mb-4 card-enter" style="animation-delay: 0.1s">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <span class="text-xl">🌤️</span>
+      <div class="sidebar-widget p-4 mb-4 card-enter" style="animation-delay: 0.1s">
+        <h3 class="widget-title dark:text-white flex items-center gap-2">
           天气
         </h3>
         <div v-if="weather">
@@ -167,7 +136,7 @@
             <span class="text-sm text-gray-500 dark:text-gray-400">{{ weather.date }}</span>
           </div>
           <div class="flex items-center justify-between">
-            <div class="text-4xl font-bold gradient-text">{{ weather.temp }}°C</div>
+            <div class="text-4xl font-bold font-serif">{{ weather.temp }}°C</div>
             <div class="text-right text-sm text-gray-500 dark:text-gray-400 space-y-1">
               <div class="font-medium">{{ weather.desc }}</div>
               <div>体感 {{ weather.feelsLike }}°C</div>
@@ -182,14 +151,13 @@
       </div>
 
       <!-- 每日一言 -->
-      <div class="glass-card p-4 mb-4 card-enter" style="animation-delay: 0.2s">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <span class="text-xl">💭</span>
+      <div class="sidebar-widget p-4 mb-4 card-enter" style="animation-delay: 0.2s">
+        <h3 class="widget-title dark:text-white flex items-center gap-2">
           每日一言
         </h3>
-        <div v-if="hitokoto" class="text-sm">
-          <p class="dark:text-gray-300 italic leading-relaxed mb-3 text-base">
-            「{{ hitokoto.hitokoto }}」
+        <div v-if="hitokoto" class="text-sm font-serif">
+          <p class="dark:text-gray-300 italic leading-loose mb-3 text-base">
+            {{ hitokoto.hitokoto }}
           </p>
           <p class="text-right text-gray-400 text-xs">—— {{ hitokoto.from }}</p>
         </div>
@@ -200,19 +168,18 @@
       </div>
 
       <!-- 热门文章 -->
-      <div class="glass-card p-4 card-enter" style="animation-delay: 0.3s">
-        <h3 class="font-semibold mb-3 dark:text-white flex items-center gap-2">
-          <span class="text-xl">🔥</span>
+      <div class="sidebar-widget p-4 card-enter" style="animation-delay: 0.3s">
+        <h3 class="widget-title dark:text-white flex items-center gap-2">
           热门文章
         </h3>
-        <div class="space-y-3">
+        <div class="space-y-3 font-serif">
           <div v-for="(article, index) in hotArticles" :key="article.id"
-               class="flex gap-2 cursor-pointer p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 transition-all duration-300 group"
+               class="flex gap-2 cursor-pointer p-1 hover:text-accent transition-all duration-300 group"
                @click="router.push(`/article/${article.id}`)">
             <span class="font-bold w-6 text-center flex-shrink-0" :style="getHotRankStyle(index)">
               {{ index + 1 }}
             </span>
-            <span class="line-clamp-1 dark:text-gray-300 group-hover:text-primary-500 transition-colors">
+            <span class="line-clamp-1 dark:text-gray-300">
               {{ article.title }}
             </span>
           </div>
@@ -241,7 +208,7 @@
       <div class="flex justify-end items-center gap-3 sm:gap-4">
         <el-checkbox v-model="dontShowToday" label="今日不再提示" />
         <el-button type="primary" size="small" @click="closeAnnouncement">
-          我已知晓
+          我知道了
         </el-button>
       </div>
     </template>
@@ -260,7 +227,7 @@ import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
 const router = useRouter()
 const userStore = useUserStore()
 
-// 去除Markdown标记
+// 去除 Markdown 标记
 const stripMd = (text) => {
   if (!text) return ''
   return text.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '').replace(/#{1,6}\s?/g, '').replace(/\*\*|__/g, '').replace(/\*|_/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/!\[.*?\]\(.*?\)/g, '').replace(/>\s?/g, '').replace(/-\s/g, '').replace(/\n+/g, ' ').trim().substring(0, 200)
@@ -270,8 +237,6 @@ const articles = ref([])
 const categories = ref([])
 const tags = ref([])
 const hotArticles = ref([])
-const wallpapers = ref([])
-const wallpaperLoading = ref(false)
 const douyinHot = ref([])
 const weather = ref(null)
 const hitokoto = ref(null)
@@ -290,13 +255,7 @@ let observer = null
 const ENTRY_SOURCE_KEY = 'site_entry_source_v1'
 const HOME_ANNOUNCEMENT_CONSUMED_KEY = 'home_announcement_consumed_v1'
 const isDesktop = window.innerWidth >= 1024
-const connection = typeof navigator !== 'undefined'
-  ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection)
-  : null
-const effectiveType = String(connection?.effectiveType || '').toLowerCase()
-const isDataSaver = Boolean(connection?.saveData || effectiveType.includes('2g'))
-const shouldShowWallpaper = isDesktop && !isDataSaver
-
+let scrollContainer = null
 const setupObserver = () => {
   if (observer) observer.disconnect()
   observer = new IntersectionObserver((entries) => {
@@ -353,16 +312,6 @@ const fetchAnnouncements = async () => {
   }
 }
 
-const fetchWallpapers = () => {
-  if (!shouldShowWallpaper) return
-  wallpaperLoading.value = true
-  api.get('/wallpaper/bing').then(res => {
-    if (res.success) wallpapers.value = res.data
-  }).catch(() => {}).finally(() => {
-    wallpaperLoading.value = false
-  })
-}
-
 const fetchRightSidebarFeeds = () => {
   api.get('/wallpaper/douyin-hot').then(res => {
     if (res.success) douyinHot.value = res.data
@@ -389,7 +338,7 @@ const fetchArticles = async (reset = false) => {
     let res
     const pageSize = page.value === 1 ? 6 : 10
     if (selectedCategory.value === 'following') {
-      // 未登录时不请求关注的文章
+      // 未登录时不请求关注流文章
       if (!userStore.isLoggedIn) {
         articles.value = []
         hasMore.value = false
@@ -406,7 +355,7 @@ const fetchArticles = async (reset = false) => {
       if (loadMoreRef.value) setupObserver()
     }
   } catch (error) {
-    // 静默处理错误，避免影响页面加载
+    // 静默处理，避免影响页面首次加载
     console.error('获取文章失败:', error)
   } finally {
     loading.value = false
@@ -432,7 +381,7 @@ const searchDouyin = (keyword) => {
   window.open(`https://www.douyin.com/search/${encodeURIComponent(keyword)}`, '_blank')
 }
 
-// 热门文章序号红色渐变样式
+// 热门文章序号颜色样式
 const getHotRankStyle = (index) => {
   const colors = ['#FF4500', '#FF6347', '#FF7F50', '#FFA07A', '#FFB6C1']
   return { color: colors[index] || '#999' }
@@ -444,13 +393,18 @@ const handleRefresh = () => {
 }
 
 const scrollToTop = () => {
-  if (mainContentRef.value) {
+  if (isDesktop && mainContentRef.value) {
     mainContentRef.value.scrollTo({ top: 0, behavior: 'smooth' })
+    return
   }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const handleScroll = () => {
-  showBackTop.value = (mainContentRef.value?.scrollTop || 0) > 300
+  const top = isDesktop && mainContentRef.value
+    ? mainContentRef.value.scrollTop
+    : (window.scrollY || document.documentElement.scrollTop)
+  showBackTop.value = top > 300
 }
 
 const closeAnnouncement = () => {
@@ -463,14 +417,10 @@ const closeAnnouncement = () => {
 }
 
 onMounted(async () => {
-  if (window.innerWidth >= 1024) {
-    document.body.style.overflow = 'hidden'
-  }
-
   await nextTick()
-  if (mainContentRef.value) {
-    mainContentRef.value.addEventListener('scroll', handleScroll)
-  }
+  scrollContainer = isDesktop && mainContentRef.value ? mainContentRef.value : window
+  scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
 
   // Critical path first: feed content.
   fetchArticles(true)
@@ -481,67 +431,97 @@ onMounted(async () => {
   if (isDesktop) {
     runWhenIdle(() => fetchSidebarMeta(), 2000)
     runWhenIdle(() => fetchHotArticles(), 2200)
-    runWhenIdle(() => fetchWallpapers(), 2400)
-    runWhenIdle(() => fetchRightSidebarFeeds(), 2600)
+    runWhenIdle(() => fetchRightSidebarFeeds(), 2400)
   }
 })
 
 onUnmounted(() => {
-  // 离开首页时恢复 body 滚动
-  if (window.innerWidth >= 1024) {
-    document.body.style.overflow = ''
-  }
   if (observer) observer.disconnect()
-  if (mainContentRef.value) {
-    mainContentRef.value.removeEventListener('scroll', handleScroll)
-  }
+  if (scrollContainer) scrollContainer.removeEventListener('scroll', handleScroll)
 })
 </script>
 
 <style scoped>
 .home-container {
-  display: flex;
-  gap: 1.5rem;
-  height: 100%;
-  overflow: hidden;
+  display: flex !important;
+  justify-content: center; /* 整体居中 */
+  gap: 1.5rem; /* 稍微缩窄间隙 */
+  height: calc(100vh - 84px) !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  background: transparent;
 }
 
 @media (max-width: 1023px) {
   .home-container {
-    height: auto;
+    flex-direction: column;
+    height: auto !important;
     overflow: visible;
+    padding-bottom: 60px;
   }
 }
 
 .left-sidebar {
-  width: 280px;
+  width: 240px;
   flex-shrink: 0;
-  height: 100%;
-  overflow-y: auto;
-  padding: 1rem 8px 1rem 0;
+  height: 100% !important;
+  overflow-y: auto !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  z-index: 5;
+  background: transparent;
+  position: relative;
 }
 
-.main-content {
+.left-sidebar::-webkit-scrollbar { display: none; }
+
+.home-main-col {
   flex: 1;
-  height: 100%;
-  overflow-y: auto;
-  min-width: 0;
-  padding: 1rem 0;
+  max-width: 820px; /* 限制容器总宽 */
+  height: 100% !important;
+  overflow-y: auto !important;
+  z-index: 10;
+  scrollbar-width: none; /* 隐藏 Firefox 滚动条 */
+  -ms-overflow-style: none; /* 隐藏 IE/Edge 滚动条 */
+  /* 核心：通过大 Padding 给内部放大腾出位置，而不必使用负 Margin */
+  padding: 24px 40px; 
 }
 
-@media (max-width: 1023px) {
-  .main-content {
-    height: auto;
-    overflow-y: visible;
-  }
+.home-main-col::-webkit-scrollbar { display: none; } /* 隐藏 Chrome/Safari 滚动条 */
+
+.home-main-col-inner {
+  max-width: 700px; /* 缩小文章宽度 */
+  margin: 0 auto;
+}
+
+/* 适配中等屏幕，进一步缩窄侧边栏确保中间够宽 */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .left-sidebar { width: 200px; }
+  .right-sidebar { width: 240px; }
+  .home-container { gap: 1.5rem; }
 }
 
 .right-sidebar {
-  width: 300px;
+  width: 280px;
   flex-shrink: 0;
-  height: 100%;
-  overflow-y: auto;
-  padding: 1rem 0 1rem 8px;
+  height: 100% !important;
+  overflow-y: auto !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  z-index: 5;
+  background: transparent;
+  position: relative;
+}
+
+.right-sidebar::-webkit-scrollbar { display: none; }
+
+@media (max-width: 1023px) {
+  .left-sidebar,
+  .main-content,
+  .right-sidebar {
+    height: auto;
+    overflow: visible;
+  }
 }
 
 /* 公告内容区域样式 */
@@ -571,8 +551,24 @@ onUnmounted(() => {
 }
 
 .left-sidebar::-webkit-scrollbar,
-.main-content::-webkit-scrollbar,
+.home-main-col::-webkit-scrollbar,
 .right-sidebar::-webkit-scrollbar {
   display: none;
 }
+
+/* 首页文章卡片悬浮时提升到最上层，避免边框/阴影被遮挡 */
+.article-post-card {
+  position: relative;
+  z-index: 5;
+}
+
+.article-post-card:hover {
+  z-index: 100 !important; /* 极高层级确保不被侧边栏或其他卡片遮挡 */
+}
+
+.space-y-12 {
+  position: relative;
+  /* 移除 isolation: isolate，允许子元素飞出容器层级 */
+}
 </style>
+

@@ -1,8 +1,8 @@
 <template>
-  <div class="messages-page">
+  <div class="messages-page max-w-4xl mx-auto pt-8 pb-12 px-4 shadow-sm">
     <!-- 顶部标题栏 -->
     <div class="msg-page-header">
-      <span class="msg-page-title">消息</span>
+      <span class="msg-page-title"><span class="stamp">讯</span>消息</span>
       <button v-if="activeTab === 'notif' && unreadCount > 0" class="mark-all-btn" @click="handleMarkAllRead">全部已读</button>
       <button v-if="activeTab === 'chat'" class="mark-all-btn" @click="router.push('/chat')">私信页 →</button>
     </div>
@@ -157,21 +157,30 @@ onMounted(async () => {
 
 <style scoped>
 .messages-page {
-  min-height: 100%;
-  background: var(--bg, #f7f8fa);
+  min-height: 100vh;
+  background: var(--paper);
   display: flex; flex-direction: column;
+}
+.dark .messages-page {
+  background: #111;
 }
 
 /* 顶部标题 */
 .msg-page-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px 8px;
-  background: rgba(255,255,255,0.95);
+  background: rgba(253,250,242,0.95);
   backdrop-filter: blur(12px);
   position: sticky; top: 0; z-index: 10;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 2px solid var(--ink);
 }
-.msg-page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+.dark .msg-page-header {
+  background: rgba(26, 26, 26, 0.95);
+  border-bottom-color: #333;
+}
+.msg-page-title { font-size: 22px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.dark .msg-page-title { color: #eee; }
+.msg-page-title .stamp { margin-right: 0 !important; transform: rotate(-10deg) scale(0.85); }
 .mark-all-btn {
   padding: 6px 14px; border: none;
   background: rgba(102,126,234,0.1); color: #667eea;
@@ -189,6 +198,10 @@ onMounted(async () => {
   border-bottom: 1px solid rgba(0,0,0,0.06);
   position: sticky; top: 53px; z-index: 9;
 }
+.dark .msg-tabs {
+  background: rgba(34, 34, 34, 0.95);
+  border-bottom-color: rgba(255,255,255,0.1);
+}
 .msg-tab {
   display: flex; align-items: center; gap: 6px;
   padding: 12px 20px; border: none; background: transparent;
@@ -198,6 +211,7 @@ onMounted(async () => {
   -webkit-tap-highlight-color: transparent;
 }
 .msg-tab.active { color: #1a1a2e; border-bottom-color: #667eea; font-weight: 700; }
+.dark .msg-tab.active { color: #fff; }
 .tab-badge {
   min-width: 16px; height: 16px; padding: 0 4px;
   background: #f5576c; color: #fff;
@@ -219,12 +233,20 @@ onMounted(async () => {
   background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
   background-size: 200% 100%; animation: shimmer 1.4s infinite;
 }
+.dark .skel-avatar {
+  background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%);
+  background-size: 200% 100%;
+}
 .skel-avatar--sq { border-radius: 12px; }
 .skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .skel-line {
   height: 12px; border-radius: 6px;
   background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
   background-size: 200% 100%; animation: shimmer 1.4s infinite;
+}
+.dark .skel-line {
+  background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%);
+  background-size: 200% 100%;
 }
 .skel-line--name { width: 35%; }
 .skel-line--sub { width: 65%; }
@@ -251,7 +273,9 @@ onMounted(async () => {
   -webkit-tap-highlight-color: transparent; transition: background 0.15s;
 }
 .conv-row:active { background: rgba(0,0,0,0.04); }
+.dark .conv-row:active { background: rgba(255,255,255,0.04); }
 .conv-row--unread { background: rgba(102,126,234,0.04); }
+.dark .conv-row--unread { background: rgba(102,126,234,0.1); }
 .conv-avatar-wrap { position: relative; flex-shrink: 0; }
 .conv-badge {
   position: absolute; top: -3px; right: -3px;
@@ -266,12 +290,14 @@ onMounted(async () => {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
 }
 .conv-name { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+.dark .conv-name { color: #eee; }
 .conv-time { font-size: 11px; color: #c0c4cc; flex-shrink: 0; }
 .conv-sub {
   font-size: 13px; color: #909399;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .conv-sub--unread { color: #1a1a2e; font-weight: 500; }
+.dark .conv-sub--unread { color: #fff; }
 
 /* 通知列表 */
 .notif-list { padding: 4px 0; }
@@ -281,7 +307,9 @@ onMounted(async () => {
   -webkit-tap-highlight-color: transparent; transition: background 0.15s;
 }
 .notif-row:active { background: rgba(0,0,0,0.04); }
+.dark .notif-row:active { background: rgba(255,255,255,0.04); }
 .notif-row--unread { background: rgba(102,126,234,0.04); }
+.dark .notif-row--unread { background: rgba(102,126,234,0.1); }
 .notif-icon-wrap {
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -295,6 +323,7 @@ onMounted(async () => {
   font-size: 14px; font-weight: 500; color: #1a1a2e; line-height: 1.4;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.dark .notif-text { color: #eee; }
 .notif-time { font-size: 12px; color: #c0c4cc; margin-top: 3px; }
 .notif-dot {
   width: 8px; height: 8px; border-radius: 50%;

@@ -30,7 +30,8 @@ public class SecurityEventService {
 
     public void recordUnauthorized(String ip) {
         long count = increment("risk:ip:unauth:" + ip, 300);
-        if (count >= 5) {
+        // 阈值设为 20，避免普通用户因权限检测（如 /admin/ping）被误封
+        if (count >= 20) {
             banIp(ip, "unauthorized_access", Duration.ofHours(1));
         }
     }

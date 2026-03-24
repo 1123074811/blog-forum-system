@@ -30,8 +30,9 @@
       </div>
     </div>
 
-    <div class="input-area glass">
+    <div class="input-area jp-treehole-input">
       <div class="input-box">
+        <span class="stamp jp-treehole-stamp">树</span>
         <el-input
           v-model="content"
           placeholder="说点什么吧..."
@@ -292,23 +293,33 @@ onUnmounted(() => {
   bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 0;
+  padding: 8px 12px;
   border-radius: 30px;
-  background: transparent;
-  backdrop-filter: none;
+  background: rgba(253, 250, 242, 0.82);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: var(--border-sketch);
+  box-shadow: 8px 8px 0px var(--subtle-blue);
   z-index: 2;
   width: auto;
   max-width: 90vw;
+}
+
+.dark .input-area {
+  background: rgba(34, 34, 34, 0.82);
+  border-color: #555;
+  box-shadow: 8px 8px 0px #111;
 }
 
 .input-box {
   position: relative;
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .input-area :deep(.el-input) {
-  width: 320px;
+  width: 280px;
 }
 
 .input-area :deep(.el-input__wrapper) {
@@ -335,15 +346,21 @@ onUnmounted(() => {
   gap: 6px;
 }
 
+.jp-treehole-stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.85);
+  flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
   .input-area {
     /* 底部留出 tab bar 高度(56px) + safe area + 间距 */
     bottom: calc(56px + env(safe-area-inset-bottom) + 12px);
-    padding: 0;
+    padding: 6px 10px;
   }
 
   .input-area :deep(.el-input) {
-    width: 60vw;
+    width: 52vw;
   }
 
   .danmaku {

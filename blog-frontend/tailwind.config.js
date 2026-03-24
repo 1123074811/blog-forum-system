@@ -8,6 +8,10 @@ export default {
   theme: {
     extend: {
       colors: {
+        paper: 'var(--paper)',
+        ink: 'var(--ink)',
+        accent: 'var(--accent)',
+        subtleBlue: 'var(--subtle-blue)',
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -24,13 +28,19 @@ export default {
       backdropBlur: {
         xs: '2px',
       },
+      fontFamily: {
+        serif: ['Noto Serif SC', 'serif'],
+        cursive: ['Ma Shan Zheng', 'cursive'],
+      },
       borderRadius: {
         '2xl': '16px',
         '3xl': '24px',
+        'sketch': '255px 15px 225px 15px / 15px 225px 15px 255px',
       },
       boxShadow: {
         'glass': '0 8px 32px rgba(0, 0, 0, 0.08)',
         'glass-lg': '0 20px 40px rgba(0, 0, 0, 0.12)',
+        'retro': '15px 15px 0px var(--subtle-blue)',
       }
     },
   },

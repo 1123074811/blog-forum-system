@@ -1,19 +1,28 @@
 <template>
-  <div class="max-w-6xl mx-auto">
-    <!-- 移动端垂直布局，PC端水平布局 -->
+  <div class="jp-quiz-page max-w-6xl mx-auto">
+    <!-- 页面标题 -->
+    <div class="jp-quiz-header post-card mb-6">
+      <h1 class="jp-page-title">
+        <span class="stamp">测</span>
+        {{ quiz.title }}
+      </h1>
+      <p class="jp-page-subtitle">在线答题，检验你的学习成果</p>
+    </div>
+    
+    <!-- 移动端垂直布局，PC 端水平布局 -->
     <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
       <!-- 左侧答题区 -->
-      <div class="flex-1 glass rounded-xl p-3 sm:p-6">
+      <div class="flex-1 post-card jp-quiz-answer-area">
         <!-- 顶部标题栏 - 移动端优化 -->
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
           <div class="flex items-center gap-2 sm:gap-3">
             <el-button @click="handleBack" :icon="ArrowLeft" text size="small">返回</el-button>
-            <h2 class="text-base sm:text-xl font-bold dark:text-white truncate">{{ quiz.title }}</h2>
+            <h2 class="jp-quiz-title text-base sm:text-xl font-bold dark:text-white truncate">{{ quiz.title }}</h2>
           </div>
           <div class="flex items-center justify-end gap-1">
-            <div class="text-xs sm:text-sm text-gray-500">
+            <div class="jp-progress-text text-xs sm:text-sm text-gray-500">
               {{ currentIndex + 1 }} / {{ questions.length }}
-              <span v-if="showResult" class="ml-2 sm:ml-4">正确率: {{ correctRate }}%</span>
+              <span v-if="showResult" class="jp-correct-rate ml-2 sm:ml-4">正确率：{{ correctRate }}%</span>
             </div>
             <el-button @click="handleRestart" size="small" type="warning" plain>重新开始</el-button>
             <!-- 移动端显示答题卡按钮 -->
@@ -22,11 +31,11 @@
         </div>
 
         <!-- 题目内容 -->
-        <div v-if="currentQuestion" class="mb-4 sm:mb-6">
+        <div v-if="currentQuestion" class="jp-question-content mb-4 sm:mb-6">
           <div class="mb-3 sm:mb-4">
-            <span class="px-2 py-1 text-xs rounded" :class="typeClass">{{ typeLabel }}</span>
+            <span class="jp-question-type px-2 py-1 text-xs rounded border-2 border-ink" :class="typeClass">{{ typeLabel }}</span>
           </div>
-          <p class="text-sm sm:text-lg dark:text-white mb-3 sm:mb-4">{{ currentIndex + 1 }}. {{ currentQuestion.question }}</p>
+          <p class="jp-question-text text-sm sm:text-lg dark:text-white mb-3 sm:mb-4 font-serif">{{ currentIndex + 1 }}. {{ currentQuestion.question }}</p>
 
           <!-- 单选/多选 -->
           <div v-if="currentQuestion.type === 'single' || currentQuestion.type === 'multiple'" class="space-y-2">
@@ -95,9 +104,9 @@
       </div>
 
       <!-- 右侧题号面板 - PC端显示 -->
-      <div v-if="!isMobile" class="w-64 glass rounded-xl p-4 h-fit sticky top-24">
+      <div v-if="!isMobile" class="w-64 post-card jp-quiz-side p-4 h-fit sticky top-24">
         <div class="flex justify-between items-center mb-3">
-          <span class="text-sm font-medium dark:text-white">答题卡</span>
+          <span class="text-sm font-medium dark:text-white flex items-center gap-1"><span class="stamp">卡</span>答题卡</span>
           <el-switch v-model="categoryMode" size="small" active-text="分类" inactive-text="顺序" />
         </div>
         <!-- 顺序模式 -->
@@ -532,3 +541,14 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 </script>
+
+<style scoped>
+.jp-quiz-side {
+  padding: 14px 14px !important;
+}
+
+.jp-quiz-side .stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.75);
+}
+</style>

@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
  */
 @Data
 public class UserUpdateRequest {
-    @Size(max = 200, message = "头像URL长度不能超过200")
+    @Size(max = 255, message = "头像URL长度不能超过255")
     private String avatar;
 
     @Size(min = 2, max = 50, message = "昵称长度必须在2-50之间")

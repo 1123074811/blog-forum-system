@@ -2,7 +2,7 @@
   <!-- ===== 移动端：会话列表页（抖音风格）===== -->
   <div v-if="isMobile && !currentConv" class="mob-inbox">
     <div class="mob-inbox-header">
-      <span class="mob-inbox-title">消息</span>
+      <span class="mob-inbox-title"><span class="stamp">信</span>消息</span>
       <button class="mob-icon-btn" @click="showFriendsSheet = true" aria-label="好友">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
       </button>
@@ -81,7 +81,7 @@
       <!-- PC 左侧会话列表 -->
       <div v-if="!isMobile" class="sidebar">
         <div class="sidebar-header">
-          <span class="title">私信</span>
+          <span class="title"><span class="stamp">私</span>私信</span>
           <div class="friend-trigger"
                @mouseenter="handleMouseEnter"
                @mouseleave="handleMouseLeave">
@@ -393,18 +393,19 @@ onUnmounted(() => { ws?.close(); window.removeEventListener('resize', handleResi
 /* ===== 移动端消息列表页 ===== */
 .mob-inbox {
   min-height: 100%;
-  background: var(--bg, #f7f8fa);
+  background: var(--paper);
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 .mob-inbox-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px 12px;
   position: sticky; top: 0; z-index: 10;
-  background: rgba(255,255,255,0.9);
+  background: rgba(253,250,242,0.92);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 2px solid var(--ink);
 }
-.mob-inbox-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+.mob-inbox-title { font-size: 20px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.mob-inbox-title .stamp { margin-right: 0 !important; transform: rotate(-10deg) scale(0.85); }
 .mob-icon-btn {
   width: 40px; height: 40px; border-radius: 50%; border: none;
   background: rgba(102,126,234,0.1); color: #667eea;
@@ -544,8 +545,11 @@ onUnmounted(() => { ws?.close(); window.removeEventListener('resize', handleResi
 }
 .chat-wrapper {
   display: flex; height: 100%;
-  background: #fff; border-radius: 16px;
-  overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  background: var(--paper);
+  border-radius: 18px;
+  overflow: hidden;
+  border: var(--border-sketch);
+  box-shadow: 12px 12px 0px var(--subtle-blue);
 }
 
 /* PC 侧边栏 */
@@ -554,7 +558,8 @@ onUnmounted(() => { ws?.close(); window.removeEventListener('resize', handleResi
   display: flex; justify-content: space-between; align-items: center;
   padding: 20px; border-bottom: 1px solid #eee; background: #fff; position: relative;
 }
-.sidebar-header .title { font-size: 18px; font-weight: 600; color: #333; }
+.sidebar-header .title { font-size: 18px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.sidebar-header .title .stamp { margin-right: 0 !important; transform: rotate(-10deg) scale(0.8); }
 .friend-trigger { position: relative; }
 .friend-dropdown {
   position: absolute; top: calc(100% + 8px); right: 0;
@@ -647,6 +652,12 @@ onUnmounted(() => { ws?.close(); window.removeEventListener('resize', handleResi
 .send-btn:not(:disabled):active { transform: scale(0.92); }
 .limit-tip { font-size: 12px; color: #f56c6c; margin-top: 6px; padding-left: 4px; }
 .empty-chat { flex: 1; display: flex; align-items: center; justify-content: center; }
+
+.dark .chat-wrapper {
+  background: #222;
+  border-color: #555;
+  box-shadow: 12px 12px 0px #111;
+}
 
 /* 移动端聊天窗口全屏 */
 @media (max-width: 768px) {

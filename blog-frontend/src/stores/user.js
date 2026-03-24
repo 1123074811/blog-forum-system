@@ -27,9 +27,13 @@ export const useUserStore = defineStore('user', () => {
       return false
     }
     try {
-      await api.get('/admin/ping')
-      isAdmin.value = true
-      return true
+      const res = await api.get('/auth/me')
+      if (res.success && res.data?.authenticated) {
+        isAdmin.value = res.data.role?.toUpperCase() === 'ADMIN'
+        return isAdmin.value
+      }
+      isAdmin.value = false
+      return false
     } catch {
       isAdmin.value = false
       return false

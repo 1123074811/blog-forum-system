@@ -81,7 +81,7 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public String upload(MultipartFile file, String folder) throws Exception {
-        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+        String filename = UUID.randomUUID() + safeExtension(file.getOriginalFilename());
         String objectName = folder.isEmpty() ? filename : folder + "/" + filename;
         String contentType = file.getContentType() == null ? "application/octet-stream" : file.getContentType();
 
@@ -97,6 +97,23 @@ public class MinioStorageService implements StorageService {
         String url = config.getEndpoint() + "/" + config.getBucket() + "/" + objectName;
         log.debug("文件上传成功: {}", url);
         return url;
+    }
+
+    private String safeExtension(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return ".bin";
+        }
+        int dot = originalFilename.lastIndexOf('.');
+        if (dot < 0 || dot == originalFilename.length() - 1) {
+            return ".bin";
+        }
+        String ext = originalFilename.substring(dot).toLowerCase(Locale.ROOT);
+        // 仅保留安全的扩展名字符，避免 URL 编码和注入问题
+        String sanitized = ext.replaceAll("[^a-z0-9.]", "");
+        if (sanitized.length() < 2 || sanitized.length() > 10 || !sanitized.startsWith(".")) {
+            return ".bin";
+        }
+        return sanitized;
     }
 
     @Override

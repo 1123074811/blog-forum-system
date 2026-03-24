@@ -4,7 +4,6 @@ import com.blog.annotation.RateLimit;
 import com.blog.context.BaseContext;
 import com.blog.exception.BusinessException;
 import com.blog.exception.ErrorCode;
-import com.blog.service.SecurityEventService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 public class RateLimitAspect {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final SecurityEventService securityEventService;
 
     @Before("@annotation(rateLimit)")
     public void doBefore(JoinPoint joinPoint, RateLimit rateLimit) {
@@ -48,10 +46,10 @@ public class RateLimitAspect {
         if (count > rateLimit.count()) {
             String ip = getIpAddress();
             log.warn("Rate limit exceeded: key={}, count={}, limit={}, ip={}", key, count, rateLimit.count(), ip);
-            // 只在刚超限时（count == limit+1）记录，避免每次请求都累加封禁计数
-            if (count == rateLimit.count() + 1) {
-                securityEventService.recordRateLimit(ip);
-            }
+            // IP 封禁记录已禁用
+            // if (count == rateLimit.count() + 1) {
+            //     securityEventService.recordRateLimit(ip);
+            // }
             throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED, rateLimit.message());
         }
     }

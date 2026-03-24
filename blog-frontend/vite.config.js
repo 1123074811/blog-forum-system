@@ -55,6 +55,14 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true
       },
+      '/blog': {
+        target: 'http://localhost:9000',
+        changeOrigin: true
+      },
+      '/media': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
       '/music-api': {
         target: 'http://localhost:3000',
         changeOrigin: true,

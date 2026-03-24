@@ -3,35 +3,36 @@ const OSS_HOST_RE = /(?:^|\.)aliyuncs\.com$/i
 
 const isHttpUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim())
 
+const decodeHtmlEntities = (value) => {
+  if (typeof value !== 'string' || !value.includes('&')) return value
+  return value
+    .replace(/&#x2F;/gi, '/')
+    .replace(/&#47;/g, '/')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/gi, "'")
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+}
+
 export const normalizeUnsafeUrl = (value) => {
-  if (!isHttpUrl(value)) return value
-
-  const raw = value.trim()
-  try {
-    const url = new URL(raw)
-    if (typeof window === 'undefined') return raw
-
-    const host = (url.hostname || '').toLowerCase()
-
-    // Data fallback for historical bad data: rewrite localhost URLs to current origin.
-    if (LOCAL_HOSTS.has(host)) {
-      return `${window.location.origin}${url.pathname}${url.search}${url.hash}`
-    }
-
-    // Mixed-content fallback: upgrade known safe hosts in HTTPS context.
-    if (window.location.protocol === 'https:' && url.protocol === 'http:') {
-      const sameHost = host === window.location.hostname
-      const knownCdnHost = OSS_HOST_RE.test(host)
-      if (sameHost || knownCdnHost) {
-        url.protocol = 'https:'
-        return url.toString()
+  if (typeof value !== 'string' || !value) return value
+  const decoded = decodeHtmlEntities(value)
+  if (isHttpUrl(decoded)) {
+    const raw = decoded.trim()
+    try {
+      const url = new URL(raw)
+      if (typeof window === 'undefined') return raw
+      const host = (url.hostname || '').toLowerCase()
+      if (LOCAL_HOSTS.has(host)) {
+        // 无论端口是否相同，都转成相对路径走 Vite 代理
+        return `${url.pathname}${url.search}${url.hash}`
       }
-    }
-
-    return raw
-  } catch {
-    return value
+      return raw
+    } catch { return decoded }
   }
+
+  return decoded
 }
 
 export const normalizeDeepUrls = (value, seen = new WeakSet()) => {

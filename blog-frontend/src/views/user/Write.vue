@@ -4,8 +4,10 @@
       <el-button @click="handleBack" :icon="ArrowLeft" text>返回</el-button>
     </div>
 
-    <div class="compose-card glass rounded-xl p-4 sm:p-6">
-      <h2 class="text-xl font-bold mb-6 dark:text-white">{{ isEdit ? '编辑文章' : '写文章' }}</h2>
+    <div class="compose-card post-card p-4 sm:p-6">
+      <h2 class="jp-write-title text-xl font-bold mb-6 dark:text-white">
+        <span class="stamp">{{ isEdit ? '改' : '写' }}</span>{{ isEdit ? '编辑文章' : '写文章' }}
+      </h2>
 
       <el-form :model="form" label-position="top">
         <el-form-item label="标题">
@@ -213,6 +215,17 @@ onMounted(async () => {
 <style scoped>
 .write-page {
   max-width: 880px;
+}
+
+.jp-write-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jp-write-title .stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.85);
 }
 
 .md-editor-mobile {

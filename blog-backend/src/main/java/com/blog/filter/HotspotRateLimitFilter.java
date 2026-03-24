@@ -105,11 +105,12 @@ public class HotspotRateLimitFilter extends OncePerRequestFilter {
             writeJson(response, HttpStatus.TOO_MANY_REQUESTS,
                     ApiResponse.error(429, "检测到异常高频访问，您的IP已被标记，请立即停止，否则将被封禁"));
         } else {
-            securityEventService.banIp(ip, "hotspot_ddos", java.time.Duration.ofHours(24));
+            // IP 封禁已禁用
+            // securityEventService.banIp(ip, "hotspot_ddos", java.time.Duration.ofHours(24));
             securityEventService.setThreatLevel(ip, 3, THREAT_LEVEL_TTL);
             log.warn("[HOTSPOT] level=3 BANNED ip={} path={} count={}", ip, path, reqCount);
-            writeJson(response, HttpStatus.FORBIDDEN,
-                    ApiResponse.error(403, "IP已因超高频访问被封禁，如有疑问请联系管理员"));
+            writeJson(response, HttpStatus.TOO_MANY_REQUESTS,
+                    ApiResponse.error(429, "请求过于频繁，请稍后再试"));
         }
     }
 

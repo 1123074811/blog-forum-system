@@ -52,6 +52,15 @@ public class UserController extends BaseController {
         }
 
         // 登录用户：缓存不含isFollowing的基础资料，isFollowing单独查
+        // 本人资料优先直读数据库，避免更新后短时间读取到旧缓存
+        if (currentUserId.equals(id)) {
+            UserVO userVO = buildUserVO(id, currentUserId);
+            userVO.setIsFollowing(false);
+            userVO.setEmail(userVO.getEmail());
+            userVO.setIsOnline(chatWebSocketHandler.isOnline(id));
+            return ApiResponse.success(userVO);
+        }
+
         String cacheKey = CACHE_USER_PROFILE + id;
         UserVO userVO;
         UserVO cached = cacheUtil.get(cacheKey);
@@ -107,11 +116,18 @@ public class UserController extends BaseController {
         if (updateData.getNickname() != null) user.setNickname(updateData.getNickname());
         if (updateData.getBio() != null) user.setBio(updateData.getBio());
 
-        userService.updateById(user);
+        boolean updated = userService.updateById(user);
+        if (!updated) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新资料失败，请稍后重试");
+        }
         userService.clearUserCache(user.getId(), user.getUsername());
         // 清除用户资料缓存
         cacheUtil.delete(CACHE_USER_PROFILE + id);
-        return ApiResponse.success(userConverter.toVO(user));
+        User latest = userService.getById(id);
+        if (latest == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        return ApiResponse.success(userConverter.toVO(latest));
     }
 
     @PostMapping("/{id}/follow")

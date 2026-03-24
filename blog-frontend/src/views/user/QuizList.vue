@@ -1,11 +1,11 @@
 <template>
   <div class="max-w-4xl mx-auto">
-    <div class="glass rounded-xl p-3 sm:p-6">
+    <div class="post-card jp-quizlist-shell p-3 sm:p-6">
       <!-- 移动端优化布局 -->
       <div class="space-y-3 sm:space-y-0 mb-4 sm:mb-6">
         <!-- 标题行 -->
         <div class="flex items-center justify-between">
-          <h2 class="text-lg sm:text-xl font-bold dark:text-white">我的题库</h2>
+          <h2 class="jp-quizlist-title text-lg sm:text-xl font-bold dark:text-white"><span class="stamp">题</span>我的题库</h2>
           <el-button v-if="activeTab === 'mine' && isMobile" type="primary" size="small" @click="showActionSheet = true">
             操作
           </el-button>
@@ -37,7 +37,7 @@
       <!-- 题库列表 -->
       <div class="space-y-3 sm:space-y-4">
         <div v-for="quiz in displayList" :key="quiz.id"
-             class="p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+             class="post-card jp-quiz-item p-3 sm:p-4 cursor-pointer"
              @click="handleItemClick(quiz)">
           <!-- 水平布局 -->
           <div class="flex justify-between gap-3 items-center">
@@ -558,3 +558,32 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 </script>
+
+<style scoped>
+.jp-quizlist-shell {
+  padding: 16px 14px !important;
+}
+
+.jp-quizlist-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jp-quizlist-title .stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.8);
+}
+
+.jp-quiz-item {
+  border-radius: 14px !important;
+  padding: 14px 14px !important;
+}
+
+@media (max-width: 768px) {
+  .jp-quiz-item:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+</style>

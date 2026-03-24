@@ -1,17 +1,7 @@
 <template>
   <div style="display:contents">
   <div class="music-player-wrapper">
-    <!-- 桌面端触发器（左下角悬浮按钮，移动端隐藏） -->
-    <div class="player-trigger" :class="{ expanded }" @click="expanded = !expanded">
-      <div class="trigger-icon">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M12 3v9.26c-.5-.17-1-.26-1.5-.26C8 12 6 14 6 16.5S8 21 10.5 21s4.5-2 4.5-4.5V6h4V3h-7z"/>
-        </svg>
-      </div>
-      <div v-if="currentSong" class="trigger-wave" :class="{ playing: musicStore.isPlaying }">
-        <span></span><span></span><span></span>
-      </div>
-    </div>
+    <!-- 桌面端触发器（左下角悬浮按钮，已移除） -->
 
     <!-- 桌面端播放器卡片（左下角展开） -->
     <transition name="slide">
@@ -286,46 +276,6 @@ const getArtists = (song) => {
   bottom: 20px;
   left: 20px;
   z-index: 1000;
-}
-
-.player-trigger {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-}
-.player-trigger:hover { transform: scale(1.1); background: rgba(255,255,255,0.25); }
-.player-trigger.expanded { opacity: 0; pointer-events: none; }
-.trigger-icon { color: var(--el-color-primary, #409eff); }
-.trigger-wave {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  display: flex;
-  gap: 2px;
-}
-.trigger-wave span {
-  width: 3px;
-  height: 8px;
-  background: var(--el-color-primary, #409eff);
-  border-radius: 2px;
-}
-.trigger-wave.playing span {
-  animation: wave 0.6s ease-in-out infinite;
-}
-.trigger-wave.playing span:nth-child(2) { animation-delay: 0.2s; }
-.trigger-wave.playing span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes wave {
-  0%, 100% { height: 4px; }
-  50% { height: 12px; }
 }
 
 .player-card {

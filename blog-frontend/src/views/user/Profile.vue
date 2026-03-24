@@ -16,103 +16,106 @@
       </template>
 
       <template #default>
-        <div v-if="!profile.user" class="profile-empty glass-card">
+        <div v-if="!profile.user" class="profile-empty jp-profile-empty">
           <p>用户信息加载失败，请刷新重试。</p>
           <el-button type="primary" @click="loadPageData">重新加载</el-button>
         </div>
 
         <template v-else>
-          <!-- 抖音风格：封面 + 头像 + 信息 -->
-          <div class="tiktok-profile glass-card">
-            <!-- 封面背景 -->
-            <div class="cover-bg">
-              <div class="cover-gradient"></div>
-            </div>
-
-            <!-- 头像区域 -->
-            <div class="profile-header">
-              <div class="avatar-wrap" :class="{ online: !!profile.user?.isOnline }">
-                <el-avatar :src="avatarUrl" :size="isMobile ? 80 : 96">{{ profile.user?.username?.[0] }}</el-avatar>
+          <div class="flex flex-col md:flex-row gap-6 items-start w-full">
+            <!-- 古朴风格主页：头像 + 信息（左侧栏） -->
+            <div class="vintage-panel jp-profile-main pt-8 w-full md:w-[320px] shrink-0 flex flex-col items-center text-center">
+              <div class="avatar-wrap mb-4" :class="{ online: !!profile.user?.isOnline }">
+                <el-avatar :src="avatarUrl" :size="100">{{ profile.user?.username?.[0] }}</el-avatar>
               </div>
 
-              <!-- 操作按钮 -->
-              <div class="action-area">
-                <template v-if="isSelf">
-                  <button class="btn-edit" @click="showEditDialog = true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                    编辑资料
-                  </button>
-                </template>
-                <template v-else>
-                  <button class="btn-follow" :class="{ followed: isFollowing }" @click="handleFollow">
-                    <svg v-if="!isFollowing" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                    {{ isFollowing ? '已关注' : '关注' }}
-                  </button>
-                  <button class="btn-message" @click="goChat">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    私信
-                  </button>
-                </template>
-              </div>
-            </div>
-
-            <!-- 用户信息 -->
-            <div class="profile-info">
-              <h1 class="display-name">{{ displayName }}</h1>
-              <p class="username">@{{ profile.user?.username }}</p>
-              <p class="profile-bio">{{ profile.user?.bio || '这个人很懒，还没有写简介。' }}</p>
-
-              <!-- 统计数据 -->
-              <div class="stats-row">
-                <div class="stat-item">
-                  <span class="stat-num">{{ profile.followingCount }}</span>
-                  <span class="stat-label">关注</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
-                  <span class="stat-num">{{ profile.followerCount }}</span>
-                  <span class="stat-label">粉丝</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
-                  <span class="stat-num">{{ articles.length }}</span>
-                  <span class="stat-label">文章</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 文章列表 -->
-          <div class="article-board glass-card">
-            <div class="section-title">TA 的文章</div>
-            <div v-if="articlesLoading" class="list-loading">正在加载文章...</div>
-            <div v-else-if="!articles.length" class="list-empty">暂无文章</div>
-            <div v-else class="article-list">
-              <article
-                v-for="article in articles"
-                :key="article.id"
-                class="article-item"
-                @click="openArticle(article.id)"
-              >
-                <div class="article-main">
-                  <h3 class="article-title">{{ article.title }}</h3>
-                  <p class="article-preview">{{ articlePreview(article.content) }}</p>
-                  <div class="article-meta">
-                    <span>{{ article.createdAt }}</span>
-                    <span>浏览 {{ article.viewCount || 0 }}</span>
+              <!-- 信息展示区 -->
+              <div class="w-full mt-2">
+                <h1 class="display-name text-2xl font-bold font-serif mb-2">{{ displayName }}</h1>
+                <div class="user-id-card bg-subtleBlue dark:bg-gray-800/50 p-3 rounded-lg border border-ink/10 mb-5 w-full">
+                  <div class="flex items-center justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-serif">账号</span>
+                    <span class="text-ink dark:text-gray-300 font-mono font-bold">{{ profile.user?.username }}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-400 font-serif">邮箱</span>
+                    <span class="text-ink dark:text-gray-300 font-mono">{{ profile.user?.email || '未公开' }}</span>
                   </div>
                 </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </article>
+                
+                <p class="profile-bio mb-6 text-sm text-gray-700 dark:text-gray-300 italic">" {{ profile.user?.bio || '这家伙很神秘，还没有留下任何墨宝。' }} "</p>
+
+                <!-- 操作按钮 -->
+                <div class="action-area flex flex-col gap-3 mb-6 w-full">
+                  <template v-if="isSelf">
+                    <el-button color="var(--ink)" class="w-full !m-0 !font-serif !font-bold shadow-[2px_2px_0_var(--accent)] hover:-translate-y-0.5 transition-transform" @click="showEditDialog = true">
+                      <el-icon class="mr-1"><Edit /></el-icon>编辑资料
+                    </el-button>
+                  </template>
+                  <template v-else>
+                    <div class="flex gap-2 w-full">
+                      <el-button 
+                        :color="isFollowing ? '#e2e8f0' : 'var(--ink)'"
+                        :style="isFollowing ? { color: '#475569' } : { color: 'var(--paper)' }"
+                        class="flex-1 !m-0 !font-serif !font-bold shadow-[2px_2px_0_var(--accent)] hover:-translate-y-0.5 transition-transform" 
+                        @click="handleFollow"
+                      >
+                        {{ isFollowing ? '已关注' : '关注' }}
+                      </el-button>
+                      <el-button class="flex-1 !m-0 !bg-paper !border-2 !border-ink !text-ink !font-serif !font-bold shadow-[2px_2px_0_var(--ink)] hover:!bg-subtleBlue hover:-translate-y-0.5 transition-transform" @click="goChat">
+                        <el-icon class="mr-1"><ChatDotRound /></el-icon>私信
+                      </el-button>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- 统计数据 -->
+                <div class="stats-row justify-center w-full pb-2 border-t border-dashed border-gray-300 pt-5">
+                  <div class="stat-item flex flex-col items-center">
+                    <span class="stat-num">{{ profile.followingCount }}</span>
+                    <span class="stat-label">关注</span>
+                  </div>
+                  <div class="stat-divider h-10"></div>
+                  <div class="stat-item flex flex-col items-center">
+                    <span class="stat-num">{{ profile.followerCount }}</span>
+                    <span class="stat-label">粉丝</span>
+                  </div>
+                  <div class="stat-divider h-10"></div>
+                  <div class="stat-item flex flex-col items-center">
+                    <span class="stat-num">{{ articles.length }}</span>
+                    <span class="stat-label">文章</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 文章列表（右侧栏） -->
+            <div class="vintage-panel flex-1 w-full !mt-0 min-w-0">
+              <h2 class="text-xl font-bold dark:text-white mb-6 flex items-center gap-2">
+                <span class="stamp">文</span>TA 的文章
+              </h2>
+              <div v-if="articlesLoading" class="list-loading">正在加载文章...</div>
+              <div v-else-if="!articles.length" class="list-empty">暂无文章</div>
+              <div v-else class="article-list">
+                <article
+                  v-for="article in articles"
+                  :key="article.id"
+                  class="article-item"
+                  @click="openArticle(article.id)"
+                >
+                  <div class="article-main">
+                    <h3 class="article-title">{{ article.title }}</h3>
+                    <p class="article-preview">{{ articlePreview(article.content) }}</p>
+                    <div class="article-meta">
+                      <span>{{ article.createdAt }}</span>
+                      <span>浏览 {{ article.viewCount || 0 }}</span>
+                    </div>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </article>
+              </div>
             </div>
           </div>
         </template>
@@ -126,7 +129,7 @@
           <div class="edit-avatar-row">
             <el-avatar :src="toAvatarThumb(editForm.avatar, 120)" :size="62">{{ profile.user?.username?.[0] }}</el-avatar>
             <el-upload :show-file-list="false" :before-upload="handleAvatarUpload" accept="image/*">
-              <el-button size="small">上传头像</el-button>
+              <el-button size="small" :loading="avatarUploading">上传头像</el-button>
             </el-upload>
           </div>
         </el-form-item>
@@ -150,8 +153,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { followUser, getArticles, getUser, unfollowUser, updateUser, uploadFile } from '@/api/blog'
-import { toAvatarThumb } from '@/utils/image'
+import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
 import toast from '@/utils/toast'
+import { Edit, ChatDotRound } from '@element-plus/icons-vue'
 
 const MOBILE_BREAKPOINT = 768
 
@@ -166,6 +170,7 @@ const isMobile = ref(window.innerWidth < MOBILE_BREAKPOINT)
 const profileLoading = ref(false)
 const articlesLoading = ref(false)
 const showEditDialog = ref(false)
+const avatarUploading = ref(false)
 const editForm = ref({ avatar: '', nickname: '', bio: '' })
 const formRef = ref(null)
 
@@ -207,6 +212,21 @@ const articlePreview = (content) => {
   return plain.length > 80 ? `${plain.slice(0, 80)}...` : plain
 }
 
+const sanitizeAvatarForSubmit = (value) => {
+  const raw = String(normalizeUnsafeUrl(value) || '').trim()
+  if (!raw) return ''
+  try {
+    const isAbsolute = /^https?:\/\//i.test(raw)
+    const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+    const parsed = new URL(raw, base)
+    parsed.searchParams.delete('t')
+    if (isAbsolute) return parsed.toString()
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return raw
+  }
+}
+
 const extractArticles = (res) => {
   const payload = res?.data
   if (Array.isArray(payload)) return payload
@@ -240,7 +260,11 @@ const applyUserProfile = (user) => {
     followingCount: Number(user.followingCount || 0)
   }
   isFollowing.value = !!user.isFollowing
-  editForm.value = { avatar: user.avatar || '', nickname: user.nickname || '', bio: user.bio || '' }
+  editForm.value = {
+    avatar: sanitizeAvatarForSubmit(user.avatar || ''),
+    nickname: user.nickname || '',
+    bio: user.bio || ''
+  }
 }
 
 const loadPageData = async () => {
@@ -302,16 +326,50 @@ const handleFollow = async () => {
 }
 
 const handleAvatarUpload = async (file) => {
+  if (!formRef.value || !targetUserId.value || !isSelf.value) return false
+  avatarUploading.value = true
   try {
     const res = await uploadFile(file)
     if (res.success && res.data?.url) {
-      editForm.value.avatar = res.data.url
-      toast('头像上传成功')
+      const newAvatarUrl = res.data.url + (res.data.url.includes('?') ? '&' : '?') + 't=' + Date.now()
+      editForm.value.avatar = sanitizeAvatarForSubmit(res.data.url)
+      const payload = {
+        avatar: sanitizeAvatarForSubmit(res.data.url)
+      }
+      if (editForm.value.nickname) {
+        payload.nickname = editForm.value.nickname
+      }
+      if (editForm.value.bio) {
+        payload.bio = editForm.value.bio
+      }
+      const saveRes = await updateUser(targetUserId.value, payload)
+      if (saveRes.success) {
+        const latestRes = await getUser(targetUserId.value)
+        const sourceUser = latestRes?.success && latestRes?.data ? latestRes.data : saveRes.data
+        if (!sourceUser) {
+          toast('头像保存失败')
+          return false
+        }
+        const updatedUser = { ...sourceUser, avatar: newAvatarUrl }
+        applyUserProfile(updatedUser)
+        if (userStore.user) {
+          userStore.user.avatar = sourceUser.avatar
+          userStore.user.nickname = sourceUser.nickname
+          userStore.user.bio = sourceUser.bio
+          localStorage.setItem('user', JSON.stringify(userStore.user))
+        }
+        toast('头像已更新')
+      } else {
+        toast('头像保存失败')
+      }
     } else {
       toast('头像上传失败')
     }
-  } catch {
-    toast('头像上传失败')
+  } catch (err) {
+    console.error('头像上传失败:', err)
+    toast(err?.response?.data?.message || '操作失败，请稍后重试')
+  } finally {
+    avatarUploading.value = false
   }
   return false
 }
@@ -321,19 +379,34 @@ const handleSaveProfile = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
   try {
-    const res = await updateUser(targetUserId.value, editForm.value)
-    if (!res.success || !res.data) { toast('保存失败，请稍后重试'); return }
-    applyUserProfile(res.data)
+    const updateData = { ...editForm.value }
+    if (updateData.avatar) {
+      updateData.avatar = sanitizeAvatarForSubmit(updateData.avatar)
+    }
+    if (!updateData.avatar) {
+      delete updateData.avatar
+    }
+    const res = await updateUser(targetUserId.value, updateData)
+    if (!res.success) { toast(res.message || '保存失败，请稍后重试'); return }
+    const latestRes = await getUser(targetUserId.value)
+    const sourceUser = latestRes?.success && latestRes?.data ? latestRes.data : res.data
+    if (!sourceUser) { toast('保存失败，请稍后重试'); return }
+    let updatedUser = sourceUser
+    if (updatedUser.avatar) {
+      updatedUser = { ...updatedUser, avatar: updatedUser.avatar + (updatedUser.avatar.includes('?') ? '&' : '?') + 't=' + Date.now() }
+    }
+    applyUserProfile(updatedUser)
     if (userStore.user) {
-      userStore.user.avatar = res.data.avatar
-      userStore.user.nickname = res.data.nickname
-      userStore.user.bio = res.data.bio
+      userStore.user.avatar = sourceUser.avatar
+      userStore.user.nickname = sourceUser.nickname
+      userStore.user.bio = sourceUser.bio
       localStorage.setItem('user', JSON.stringify(userStore.user))
     }
     showEditDialog.value = false
     toast('资料已更新')
-  } catch {
-    toast('保存失败，请稍后重试')
+  } catch (err) {
+    console.error('资料保存失败:', err)
+    toast(err?.response?.data?.message || '保存失败，请稍后重试')
   }
 }
 
@@ -360,12 +433,12 @@ onUnmounted(() => {
 <style scoped>
 .profile-page {
   width: 100%;
-  max-width: 680px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 16px 0 calc(56px + env(safe-area-inset-bottom) + 24px);
+  padding: 32px 16px calc(56px + env(safe-area-inset-bottom) + 24px);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32px;
 }
 
 /* ── 骨架屏 ── */
@@ -377,14 +450,43 @@ onUnmounted(() => {
 .profile-empty {
   display: flex; flex-direction: column; gap: 12px;
   align-items: center; justify-content: center;
-  padding: 32px; border-radius: 16px;
+  padding: 32px;
+  border-radius: 18px;
+  background: var(--paper);
+  border: var(--border-sketch);
+  box-shadow: 8px 8px 0px var(--subtle-blue);
+}
+
+.dark .profile-empty {
+  background: #222;
+  border-color: #555;
+  box-shadow: 8px 8px 0px #111;
 }
 
 /* ── 抖音风格主卡片 ── */
 .tiktok-profile {
-  border-radius: 20px;
+  background: var(--paper);
+  border-radius: 18px;
+  border: var(--border-sketch);
   overflow: hidden;
   position: relative;
+  box-shadow: 6px 6px 0px var(--subtle-blue);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s;
+}
+
+.tiktok-profile:hover {
+  transform: scale(1.01) rotate(0.8deg);
+  box-shadow: 15px 15px 0px var(--subtle-blue);
+}
+
+.dark .tiktok-profile {
+  background: #222;
+  border-color: #555;
+  box-shadow: 6px 6px 0px #111;
+}
+
+.dark .tiktok-profile:hover {
+  box-shadow: 15px 15px 0px #111;
 }
 
 .cover-bg {
@@ -411,12 +513,27 @@ onUnmounted(() => {
 }
 
 .avatar-wrap {
-  border-radius: 999px;
+  width: 106px;
+  height: 106px;
+  min-width: 106px;
+  min-height: 106px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   border: 3px solid #fff;
   background: #fff;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.2);
   position: relative;
   flex-shrink: 0;
+  overflow: visible;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dark .avatar-wrap {
+  border-color: #333;
+  background: #333;
 }
 
 .avatar-wrap::after {
@@ -492,19 +609,19 @@ onUnmounted(() => {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
   line-height: 1.3;
 }
 
 .username {
   margin: 4px 0 0;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 .profile-bio {
   margin: 10px 0 0;
-  color: #334155;
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.65;
 }
@@ -527,7 +644,7 @@ onUnmounted(() => {
 .stat-num {
   font-size: 18px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .stat-label {
@@ -541,11 +658,23 @@ onUnmounted(() => {
   background: #e2e8f0;
   margin: 0 16px;
 }
+.dark .stat-divider {
+  background: #444;
+}
 
 /* ── 文章列表 ── */
 .article-board {
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 16px;
+  background: var(--paper);
+  border: var(--border-sketch);
+  box-shadow: 6px 6px 0px var(--subtle-blue);
+}
+
+.dark .article-board {
+  background: #222;
+  border-color: #555;
+  box-shadow: 6px 6px 0px #111;
 }
 
 .section-title {
@@ -553,6 +682,8 @@ onUnmounted(() => {
   font-weight: 700;
   color: #0f172a;
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
 }
 
 .list-loading,
@@ -582,6 +713,10 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.6);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+.dark .article-item {
+  background: rgba(40, 40, 40, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
 
 .article-item:hover {
   transform: translateY(-2px);
@@ -592,7 +727,7 @@ onUnmounted(() => {
 
 .article-title {
   margin: 0;
-  color: #0f172a;
+  color: var(--ink);
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
@@ -602,11 +737,12 @@ onUnmounted(() => {
 
 .article-preview {
   margin: 6px 0 0;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -633,5 +769,6 @@ onUnmounted(() => {
   .profile-info { padding: 12px 14px 16px; }
   .display-name { font-size: 20px; }
   .btn-edit, .btn-follow, .btn-message { height: 32px; padding: 0 12px; font-size: 12px; }
+  .tiktok-profile:hover { transform: none; box-shadow: none; }
 }
 </style>

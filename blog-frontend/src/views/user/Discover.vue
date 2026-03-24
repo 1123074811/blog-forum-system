@@ -1,8 +1,11 @@
 <template>
   <div class="discover-page">
     <!-- 页面标题 -->
-    <div class="page-header">
-      <h1 class="page-title">发现</h1>
+    <div class="page-header vintage-panel jp-discover-header">
+      <h1 class="page-title">
+        <span class="stamp">见</span>
+        发现
+      </h1>
       <p class="page-subtitle">探索实用工具，提升工作效率</p>
     </div>
 
@@ -14,7 +17,7 @@
           <div class="tool-icon">
             <el-icon size="32" color="#1976d2"><Grid /></el-icon>
           </div>
-          <h3 class="tool-title">ER图工具</h3>
+          <h3 class="tool-title"><span class="stamp">图</span>ER图工具</h3>
           <p class="tool-description">
             快速生成数据库实体关系图，支持SQL文件导入，自动识别表结构和字段关系，提供专业的ER图绘制功能。
           </p>
@@ -25,7 +28,7 @@
           <div class="tool-icon life-simulator-icon">
             <el-icon size="32"><Sunrise /></el-icon>
           </div>
-          <h3 class="tool-title">人生模拟器</h3>
+          <h3 class="tool-title"><span class="stamp">旅</span>人生模拟器</h3>
           <p class="tool-description">
             体验随机人生，分配初始属性，经历各种人生事件，看看你能活到多少岁。
           </p>
@@ -36,7 +39,7 @@
           <div class="tool-icon recitation-icon">
             <el-icon size="32"><Reading /></el-icon>
           </div>
-          <h3 class="tool-title">背书神器</h3>
+          <h3 class="tool-title"><span class="stamp">习</span>背书神器</h3>
           <p class="tool-description">
             导入背诵内容进行打字练习，支持显示原文、隐藏提示、拼音提示三种模式，帮助高效记忆。
           </p>
@@ -47,7 +50,7 @@
           <div class="tool-icon pomodoro-icon">
             <el-icon size="32"><Timer /></el-icon>
           </div>
-          <h3 class="tool-title">番茄时钟</h3>
+          <h3 class="tool-title"><span class="stamp">钟</span>番茄时钟</h3>
           <p class="tool-description">
             专注工作25分钟，休息5分钟。使用番茄工作法提升专注力和工作效率。
           </p>
@@ -58,7 +61,7 @@
           <div class="tool-icon coming-soon-icon">
             <el-icon size="32"><ChatDotRound /></el-icon>
           </div>
-          <h3 class="tool-title">更多功能敬请期待</h3>
+          <h3 class="tool-title"><span class="stamp">待</span>更多功能敬请期待</h3>
           <p class="tool-description">
             如果你有什么好的想法，可以和管理员联系。
           </p>
@@ -93,29 +96,31 @@ function goToPomodoro() {
 
 <style scoped>
 .discover-page {
-  min-height: calc(100vh - 112px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 40px 20px;
+  padding: 32px 0 24px;
   box-sizing: border-box;
-  overflow-y: auto;
 }
 
 .page-header {
   text-align: center;
-  margin-bottom: 50px;
+  margin-bottom: 28px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .page-title {
-  font-size: 48px;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 16px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .page-subtitle {
   font-size: 18px;
-  color: #7f8c8d;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -133,35 +138,31 @@ function goToPomodoro() {
 
 .tool-card {
   background: white;
-  border-radius: 16px;
-  padding: 32px 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: var(--border-sketch);
+  padding: 24px 20px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s;
+}
+
+.dark .tool-card {
+  background: #222;
+  border-color: #555;
 }
 
 .tool-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
+  display: none;
 }
 
 .tool-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02) rotate(1deg);
+  box-shadow: 15px 15px 0px var(--subtle-blue);
 }
 
-.tool-card:hover::before {
-  transform: scaleX(1);
+.dark .tool-card:hover {
+  box-shadow: 15px 15px 0px #111;
 }
 
 .tool-icon {
@@ -170,40 +171,41 @@ function goToPomodoro() {
   justify-content: center;
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  background: var(--subtle-blue);
+  border-radius: 18px;
+  margin-bottom: 14px;
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0px var(--subtle-blue);
 }
 
 .tool-icon .el-icon {
-  color: white !important;
+  color: var(--accent) !important;
 }
 
 .tool-title {
   font-size: 20px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 12px;
-  line-height: 1.3;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 10px;
+  line-height: 1.25;
 }
 
 .tool-description {
   font-size: 14px;
-  color: #7f8c8d;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin: 0;
 }
 
 .coming-soon-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 2px dashed #dee2e6;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px dashed rgba(0, 0, 0, 0.25);
   cursor: default;
 }
 
 .coming-soon-card:hover {
   transform: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 .coming-soon-card::before {
@@ -211,8 +213,8 @@ function goToPomodoro() {
 }
 
 .coming-soon-icon {
-  background: linear-gradient(135deg, #adb5bd 0%, #868e96 100%);
-  box-shadow: 0 4px 16px rgba(134, 142, 150, 0.3);
+  background: #eef2f7;
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.04);
 }
 
 .life-simulator-card::before {
@@ -258,15 +260,15 @@ function goToPomodoro() {
 
 @media (max-width: 768px) {
   .discover-page {
-    padding: 20px 15px;
+    padding: 8px 0 20px;
   }
 
   .page-header {
-    margin-bottom: 24px;
+    margin-bottom: 18px;
   }
 
   .page-title {
-    font-size: 36px;
+    font-size: 32px;
   }
 
   .page-subtitle {
@@ -279,7 +281,12 @@ function goToPomodoro() {
   }
 
   .tool-card {
-    padding: 24px 20px;
+    padding: 20px 16px;
+  }
+
+  .tool-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 
   .tool-icon {
@@ -306,7 +313,7 @@ function goToPomodoro() {
   }
 
   .tool-card {
-    padding: 20px 16px;
+    padding: 18px 14px;
   }
 }
 </style>

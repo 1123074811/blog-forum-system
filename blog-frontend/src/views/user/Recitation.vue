@@ -3,7 +3,8 @@
     <!-- 主内容区 -->
     <div class="main-content">
       <!-- 输入区 -->
-      <div v-if="!practicing" class="input-section">
+      <div v-if="!practicing" class="input-section post-card">
+        <h2 class="jp-recitation-title"><span class="stamp">诵</span>背书练习</h2>
         <el-input v-model="title" placeholder="标题（可选）" class="title-input" />
         <el-input v-model="content" type="textarea" :rows="8" placeholder="粘贴要背诵的内容..." class="content-input" />
         <div class="actions">
@@ -13,9 +14,9 @@
       </div>
 
       <!-- 练习区 -->
-      <div v-else class="practice-section">
+      <div v-else class="practice-section post-card">
         <div class="practice-header">
-          <span class="title">{{ currentRecord?.title || '背诵练习' }}</span>
+          <span class="title"><span class="stamp">练</span>{{ currentRecord?.title || '背诵练习' }}</span>
           <div class="controls">
             <el-switch v-model="timingEnabled" active-text="计时" @change="toggleTiming" />
             <span v-if="timingEnabled" class="timer">{{ formatTime(duration) }}</span>
@@ -721,12 +722,25 @@ watch(showHistory, (val) => { if (val) loadHistory() })
   padding: 20px;
 }
 
+.jp-recitation-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.jp-recitation-title .stamp,
+.practice-header .title .stamp {
+  margin-right: 0 !important;
+  transform: rotate(-10deg) scale(0.8);
+}
+
 /* 表单区域 */
 .input-section, .practice-section {
-  background: var(--el-bg-color);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
 }
 
 .title-input { 
@@ -750,6 +764,9 @@ watch(showHistory, (val) => { if (val) loadHistory() })
 }
 
 .practice-header .title { 
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 18px; 
   font-weight: 600; 
 }
