@@ -20,7 +20,7 @@ public class StorageConfig {
     
     @Value("${storage.type:minio}")
     private String storageType;
-    
+
     @Value("${storage.init-fail-fast:true}")
     private boolean initFailFast;
 

@@ -642,7 +642,7 @@ SyslogIdentifier=blog-backend
 WantedBy=multi-user.target
 SYSTEMDEOF
     fi
-    
+
     if [ ! -f "/opt/blog/application-prod.yml" ]; then
     cat > /opt/blog/application-prod.yml << PRODYML
 server:
@@ -720,7 +720,7 @@ oauth:
     redirect-uri: $OAUTH_GITEE_REDIRECT_URI
 PRODYML
     fi
-    
+
     systemctl daemon-reload
     systemctl start blog-backend
     systemctl enable blog-backend
@@ -766,14 +766,14 @@ if [ "$IS_UPGRADE" = "false" ]; then
         echo "  ping yourdomain.com"
         echo "  ping www.yourdomain.com"
         echo ""
-        
+
         read -p "请输入主域名（例如：example.com）: " DOMAIN_NAME
-        
+
         if [[ -z "$DOMAIN_NAME" ]]; then
             log_error "域名不能为空"
             exit 1
         fi
-        
+
         echo ""
         log_info "正在验证域名解析..."
         if ping -c 1 -W 1 "$DOMAIN_NAME" >/dev/null 2>&1; then
@@ -787,14 +787,14 @@ if [ "$IS_UPGRADE" = "false" ]; then
                 DOMAIN_NAME=""
             fi
         fi
-        
+
         if [[ -n "$DOMAIN_NAME" ]]; then
             log_info "正在安装 Certbot..."
             apt-get install -y certbot python3-certbot-nginx
-            
+
             log_info "正在申请 SSL 证书..."
             certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
-            
+
             log_info "SSL 证书申请完成！"
             if [ -f "$SECURE_NGINX_TEMPLATE" ]; then
                 log_info "应用安全版 Nginx 配置模板..."
@@ -826,11 +826,11 @@ gzip_types text/plain text/css text/xml text/javascript
 server {
     listen 80;
     server_name $DOMAIN_NAME www.$DOMAIN_NAME;
-    
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
-    
+
     location / {
         return 301 https://\$server_name\$request_uri;
     }
@@ -839,10 +839,10 @@ server {
 server {
     listen 443 ssl http2;
     server_name $DOMAIN_NAME www.$DOMAIN_NAME;
-    
+
     ssl_certificate /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem;
-    
+
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
@@ -893,7 +893,7 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
         add_header Pragma "no-cache";
     }
-    
+
     # 后端 API 代理
     location /api/ {
         proxy_pass http://127.0.0.1:$SERVER_PORT;
@@ -917,14 +917,14 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 3600s;
     }
-    
+
     # 文件上传
     location /uploads/ {
         alias /opt/blog/uploads/;
         add_header Cache-Control "public, max-age=604800";
         expires 7d;
     }
-    
+
     # 音乐API代理
     location /music-api/ {
         proxy_pass http://127.0.0.1:3000;
@@ -933,7 +933,7 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
-    
+
     # 酷狗搜索API代理
     location /kugou-api/ {
         proxy_pass http://mobilecdn.kugou.com;
@@ -942,7 +942,7 @@ server {
         proxy_set_header Referer http://m.kugou.com/;
         proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15";
     }
-    
+
     # 酷狗播放URL获取接口
     location /kugou-play/ {
         proxy_pass http://m.kugou.com;
@@ -951,7 +951,7 @@ server {
         proxy_set_header Referer http://m.kugou.com/;
         proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
     }
-    
+
     # QQ音乐API代理
     location /qq-api/ {
         proxy_pass https://c.y.qq.com;
@@ -960,7 +960,7 @@ server {
         proxy_set_header Referer https://y.qq.com/;
         proxy_set_header Origin https://y.qq.com;
     }
-    
+
     # QQ音乐播放URL代理
     location /qq-play/ {
         proxy_pass https://u.y.qq.com;
@@ -998,11 +998,11 @@ server {
 server {
     listen 443 ssl http2;
     server_name _;
-    
+
     # 自签名 SSL 证书（用于 IP 访问）
     ssl_certificate /etc/nginx/ssl/server.crt;
     ssl_certificate_key /etc/nginx/ssl/server.key;
-    
+
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
@@ -1077,13 +1077,13 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 3600s;
     }
-    
+
     location /uploads/ {
         alias /opt/blog/uploads/;
         add_header Cache-Control "public, max-age=604800";
         expires 7d;
     }
-    
+
     # 音乐API代理
     location /music-api/ {
         proxy_pass http://127.0.0.1:3000;
@@ -1092,7 +1092,7 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
-    
+
     # 酷狗搜索API代理
     location /kugou-api/ {
         proxy_pass http://mobilecdn.kugou.com;
@@ -1101,7 +1101,7 @@ server {
         proxy_set_header Referer http://m.kugou.com/;
         proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15";
     }
-    
+
     # 酷狗播放URL获取接口
     location /kugou-play/ {
         proxy_pass http://m.kugou.com;
@@ -1110,7 +1110,7 @@ server {
         proxy_set_header Referer http://m.kugou.com/;
         proxy_set_header User-Agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
     }
-    
+
     # QQ音乐API代理
     location /qq-api/ {
         proxy_pass https://c.y.qq.com;
@@ -1119,7 +1119,7 @@ server {
         proxy_set_header Referer https://y.qq.com/;
         proxy_set_header Origin https://y.qq.com;
     }
-    
+
     # QQ音乐播放URL代理
     location /qq-play/ {
         proxy_pass https://u.y.qq.com;
