@@ -27,34 +27,34 @@ CREATE TABLE users (
 -- Categories table
 CREATE TABLE categories (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
-    description TEXT,
-    created_at VARCHAR(30)
-);
+    name VARCHAR(50) NOT NULL COMMENT '分类名称',
+    description TEXT COMMENT '描述',
+    created_at VARCHAR(30) COMMENT '创建时间'
+) COMMENT='文章分类表';
 
 -- Tags table
 CREATE TABLE tags (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
-    created_at VARCHAR(30)
-);
+    name VARCHAR(50) NOT NULL UNIQUE COMMENT '标签名称',
+    created_at VARCHAR(30) COMMENT '创建时间'
+) COMMENT='文章标签表';
 
 -- Articles table
 CREATE TABLE articles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    content LONGTEXT,
-    category_id BIGINT,
-    status VARCHAR(20) DEFAULT 'draft',
-    view_count INT DEFAULT 0,
-    created_at VARCHAR(30),
-    updated_at VARCHAR(30),
+    user_id BIGINT NOT NULL COMMENT '作者ID',
+    title VARCHAR(255) NOT NULL COMMENT '文章标题',
+    content LONGTEXT COMMENT '文章内容 (Markdown)',
+    category_id BIGINT COMMENT '分类ID',
+    status VARCHAR(20) DEFAULT 'draft' COMMENT '文章状态 (draft: 草稿, published: 已发布)',
+    view_count INT DEFAULT 0 COMMENT '浏览量',
+    created_at VARCHAR(30) COMMENT '创建时间',
+    updated_at VARCHAR(30) COMMENT '更新时间',
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
     INDEX idx_articles_created_at (created_at),
     INDEX idx_articles_status (status)
-);
+) COMMENT='文章表';
 
 -- Article-Tags relation table
 CREATE TABLE article_tags (
@@ -202,14 +202,14 @@ CREATE TABLE IF NOT EXISTS media (
 -- Site visits statistics table
 CREATE TABLE IF NOT EXISTS site_visits (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    visit_date VARCHAR(10) NOT NULL UNIQUE,
-    pv INT DEFAULT 0,
-    uv INT DEFAULT 0,
-    new_users INT DEFAULT 0,
-    new_articles INT DEFAULT 0,
-    new_comments INT DEFAULT 0,
+    visit_date VARCHAR(10) NOT NULL UNIQUE COMMENT '访问日期 yyyy-MM-dd',
+    pv INT DEFAULT 0 COMMENT '页面浏览量 (Page Views)',
+    uv INT DEFAULT 0 COMMENT '独立访客数 (Unique Visitors)',
+    new_users INT DEFAULT 0 COMMENT '今日新增用户数',
+    new_articles INT DEFAULT 0 COMMENT '今日新增文章数',
+    new_comments INT DEFAULT 0 COMMENT '今日新增评论数',
     INDEX idx_visit_date (visit_date)
-);
+) COMMENT='网站访问统计表';
 
 -- Conversations table (私信会话)
 CREATE TABLE IF NOT EXISTS conversations (
@@ -273,20 +273,20 @@ CREATE TABLE IF NOT EXISTS site_info (
 -- Announcements table (公告板)
 CREATE TABLE IF NOT EXISTS announcements (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    content LONGTEXT NOT NULL,
-    type VARCHAR(20) DEFAULT 'info',
-    is_pinned TINYINT(1) DEFAULT 0,
-    is_active TINYINT(1) DEFAULT 1,
-    sort_order INT DEFAULT 0,
-    created_by BIGINT NOT NULL,
-    created_at VARCHAR(30),
-    updated_at VARCHAR(30),
+    title VARCHAR(255) NOT NULL COMMENT '公告标题',
+    content LONGTEXT NOT NULL COMMENT '公告内容',
+    type VARCHAR(20) DEFAULT 'info' COMMENT '公告类型 (info, success, warning, error)',
+    is_pinned TINYINT(1) DEFAULT 0 COMMENT '是否置顶',
+    is_active TINYINT(1) DEFAULT 1 COMMENT '是否生效',
+    sort_order INT DEFAULT 0 COMMENT '排序权重 (越小越靠前)',
+    created_by BIGINT NOT NULL COMMENT '创建者用户ID',
+    created_at VARCHAR(30) COMMENT '创建时间',
+    updated_at VARCHAR(30) COMMENT '更新时间',
     INDEX idx_announcement_active (is_active),
     INDEX idx_announcement_pinned (is_pinned),
     INDEX idx_announcement_sort (sort_order),
     INDEX idx_announcement_created_by (created_by)
-);
+) COMMENT='网站公告表';
 
 -- Insert default site info
 INSERT INTO site_info (site_name, site_description, site_keywords, contact_email, created_at, updated_at) VALUES

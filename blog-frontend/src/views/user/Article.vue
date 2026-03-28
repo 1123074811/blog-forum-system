@@ -127,6 +127,16 @@
                     <span v-else class="cursor-pointer flex items-center gap-1 hover:text-primary-500" @click="replyTo = comment.id">
                       <el-icon><ChatLineRound /></el-icon>回复
                     </span>
+                    <el-button
+                      v-if="isOwnComment(comment)"
+                      link
+                      type="danger"
+                      size="small"
+                      class="!p-0"
+                      @click="handleDeleteComment(comment.id)"
+                    >
+                      删除
+                    </el-button>
                   </div>
 
                   <!-- 回复输入框 -->
@@ -149,6 +159,7 @@
                         <div class="flex-1">
                           <div class="flex items-center gap-2">
                             <span class="font-medium text-sm dark:text-white cursor-pointer hover:text-primary-500 transition-colors" @click="router.push(`/user/${reply.userId}`)">{{ reply.username }}</span>
+                            <span class="text-xs text-gray-500">回复 {{ getReplyParentName(reply) }}</span>
                             <span class="text-xs text-gray-500">{{ reply.createdAt }}</span>
                           </div>
                           <p class="text-sm text-gray-700 dark:text-gray-300 break-all">{{ reply.content }}</p>
@@ -173,6 +184,16 @@
                             <span v-else class="cursor-pointer flex items-center gap-1 hover:text-primary-500" @click="replyTo = reply.id">
                               <el-icon><ChatLineRound /></el-icon>回复
                             </span>
+                            <el-button
+                              v-if="isOwnComment(reply)"
+                              link
+                              type="danger"
+                              size="small"
+                              class="!p-0"
+                              @click="handleDeleteComment(reply.id)"
+                            >
+                              删除
+                            </el-button>
                           </div>
 
                           <!-- 子评论的回复输入框 -->
@@ -181,7 +202,7 @@
                               <el-input v-model="replyContent" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" placeholder="回复..." size="small" />
                               <div class="input-actions">
                                 <EmojiPicker @select="e => replyContent += e" />
-                                <el-button size="small" type="primary" @click="submitReply(comment.id)">回复</el-button>
+                                <el-button size="small" type="primary" @click="submitReply(reply.id)">回复</el-button>
                                 <el-button size="small" @click="replyTo = null">取消</el-button>
                               </div>
                             </div>
@@ -241,7 +262,7 @@
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getArticle, getComments, createComment, likeComment, unlikeComment, deleteArticle } from '@/api/blog'
+import { getArticle, getComments, createComment, likeComment, unlikeComment, deleteArticle, deleteComment } from '@/api/blog'
 import api from '@/api'
 import { View, ChatLineRound, ArrowLeft, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
@@ -281,7 +302,7 @@ const articleCardRef = ref(null)
 const editorId = 'article-preview'
 const scrollElement = document.documentElement
 
-// 计算��录位置
+// 计算目录位置
 const updateCatalogPosition = () => {
   const mainContent = mainContentRef.value
   const articleCard = articleCardRef.value
@@ -352,7 +373,7 @@ const handleBack = () => {
     const referrer = document.referrer
     const currentOrigin = window.location.origin
 
-    // 如��� referrer 是站内页面，使用 back
+    // 如果 referrer 是站内页面，使用 back
     if (referrer && referrer.startsWith(currentOrigin)) {
       router.back()
     } else {
@@ -402,7 +423,18 @@ const handleDelete = async () => {
 }
 
 const topLevelComments = computed(() => comments.value.filter(c => !c.parentId))
-const getReplies = (parentId) => comments.value.filter(c => c.parentId === parentId)
+const commentMap = computed(() => new Map(comments.value.map(c => [c.id, c])))
+const getRootParentId = (comment) => {
+  let current = comment
+  while (current?.parentId) {
+    const parent = commentMap.value.get(current.parentId)
+    if (!parent) break
+    current = parent
+  }
+  return current?.id
+}
+const getReplies = (topLevelId) => comments.value.filter(c => c.parentId && getRootParentId(c) === topLevelId)
+const getReplyParentName = (reply) => commentMap.value.get(reply?.parentId)?.username || '该用户'
 
 const fetchData = async () => {
   try {
@@ -457,11 +489,20 @@ const toggleFavorite = async () => {
   }
 }
 
+const isOwnComment = (comment) => Number(comment?.userId) === Number(userStore.user?.id)
+
+const normalizeCreatedComment = (comment) => ({
+  ...comment,
+  username: comment?.username || userStore.user?.nickname || userStore.user?.username || '匿名用户',
+  avatar: comment?.avatar || userStore.user?.avatar || '',
+  likeCount: comment?.likeCount ?? 0
+})
+
 const submitComment = async () => {
   if (!newComment.value.trim()) return
   const res = await createComment({ articleId: Number(route.params.id), content: newComment.value })
   if (res.success) {
-    comments.value.push(res.data)
+    comments.value.push(normalizeCreatedComment(res.data))
     newComment.value = ''
     toast('评论成功')
   }
@@ -471,10 +512,49 @@ const submitReply = async (parentId) => {
   if (!replyContent.value.trim()) return
   const res = await createComment({ articleId: Number(route.params.id), parentId: Number(parentId), content: replyContent.value })
   if (res.success) {
-    comments.value.push(res.data)
+    comments.value.push(normalizeCreatedComment(res.data))
     replyContent.value = ''
     replyTo.value = null
     toast('回复成功')
+  }
+}
+
+const handleDeleteComment = async (commentId) => {
+  try {
+    await ElMessageBox.confirm('确定删除这条评论吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('确认框错误:', error)
+    }
+    return
+  }
+
+  try {
+    const res = await deleteComment(commentId)
+    if (res.success) {
+      const idsToRemove = new Set([commentId])
+      let changed = true
+      while (changed) {
+        changed = false
+        comments.value.forEach((comment) => {
+          if (!idsToRemove.has(comment.id) && idsToRemove.has(comment.parentId)) {
+            idsToRemove.add(comment.id)
+            changed = true
+          }
+        })
+      }
+      comments.value = comments.value.filter(c => !idsToRemove.has(c.id))
+      toast('删除评论成功')
+    } else {
+      toast(res.message || '删除评论失败', 'error')
+    }
+  } catch (error) {
+    console.error('删除评论失败:', error)
+    toast('删除评论失败，请重试', 'error')
   }
 }
 

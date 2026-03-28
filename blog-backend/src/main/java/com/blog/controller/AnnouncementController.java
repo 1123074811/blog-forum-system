@@ -49,6 +49,7 @@ public class AnnouncementController {
             announcement.setSortOrder(0);
         }
         announcementService.save(announcement);
+        announcementService.clearCache();
         return ApiResponse.success(announcement);
     }
 
@@ -58,6 +59,7 @@ public class AnnouncementController {
         announcement.setId(id);
         announcement.setUpdatedAt(DateUtil.getCurrentDateTime());
         announcementService.updateById(announcement);
+        announcementService.clearCache();
         return ApiResponse.success(announcement);
     }
 
@@ -65,6 +67,7 @@ public class AnnouncementController {
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> deleteAnnouncement(@PathVariable Long id) {
         announcementService.removeById(id);
+        announcementService.clearCache();
         return ApiResponse.success("删除成功", null);
     }
 }

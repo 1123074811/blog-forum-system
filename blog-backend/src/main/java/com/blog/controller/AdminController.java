@@ -3,7 +3,6 @@ package com.blog.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.blog.annotation.AuditLog;
-import com.blog.constant.AppConstants;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.*;
 import com.blog.service.*;
@@ -40,6 +39,7 @@ public class AdminController {
     private final CommentService commentService;
     private final CategoryService categoryService;
     private final TagService tagService;
+    private final SiteVisitService siteVisitService;
     private final com.blog.mapper.ArticleFavoriteMapper articleFavoriteMapper;
     private final ChatWebSocketHandler chatWebSocketHandler;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -72,6 +72,13 @@ public class AdminController {
         stats.put("totalUsers", userService.count());
         stats.put("totalComments", commentService.count());
         stats.put("totalOnlineUsers", chatWebSocketHandler.getOnlineUserCount());
+
+        // Visitor Statistics
+        String todayStr = DateUtil.now().substring(0, 10);
+        SiteVisit todayVisit = siteVisitService.getOne(new LambdaQueryWrapper<SiteVisit>().eq(SiteVisit::getVisitDate, todayStr));
+        int totalVisitors = siteVisitService.list().stream().mapToInt(SiteVisit::getUv).sum();
+        stats.put("totalVisitors", totalVisitors);
+        stats.put("todayVisitors", todayVisit != null ? todayVisit.getUv() : 0);
 
         List<Article> topArticles = articleService.list(new LambdaQueryWrapper<Article>()
                 .orderByDesc(Article::getViewCount).last("LIMIT 10"));
@@ -481,7 +488,6 @@ public class AdminController {
                 .collect(Collectors.toList());
     }
 
-    @SuppressWarnings("unchecked")
     private List<Long> toIdList(Object rawIds) {
         if (!(rawIds instanceof List<?> list)) {
             return List.of();

@@ -3,6 +3,7 @@ package com.blog.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.TreeHole;
+import com.blog.service.SensitiveWordFilterService;
 import com.blog.service.TreeHoleService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class TreeHoleController {
 
     private final TreeHoleService treeHoleService;
+    private final SensitiveWordFilterService sensitiveWordFilterService;
 
     @GetMapping
     public ApiResponse<List<TreeHole>> list() {
@@ -30,7 +32,7 @@ public class TreeHoleController {
     @PostMapping
     public ApiResponse<TreeHole> create(@RequestBody Map<String, String> body) {
         TreeHole hole = new TreeHole();
-        hole.setContent(body.get("content"));
+        hole.setContent(sensitiveWordFilterService.filter(body.get("content")));
         hole.setColor(body.get("color"));
         hole.setCreatedAt(DateUtil.now());
         treeHoleService.save(hole);

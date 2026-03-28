@@ -709,7 +709,7 @@ zhipu:
   api-key: $ZHIPU_API_KEY
 
 oauth:
-  frontend-redirect-base: ${OAUTH_FRONTEND_REDIRECT_BASE:https://oujincong.xyz}
+  frontend-redirect-base: ${OAUTH_FRONTEND_REDIRECT_BASE:-https://oujincong.xyz}
   github:
     client-id: $OAUTH_GITHUB_CLIENT_ID
     client-secret: $OAUTH_GITHUB_CLIENT_SECRET

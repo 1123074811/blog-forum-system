@@ -6,7 +6,10 @@ import com.blog.exception.ErrorCode;
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.dto.CommentRequest;
 import com.blog.pojo.entity.Comment;
+import com.blog.pojo.entity.User;
 import com.blog.service.CommentService;
+import com.blog.service.SensitiveWordFilterService;
+import com.blog.service.UserService;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -24,6 +27,8 @@ public class CommentController extends BaseController {
 
     private final CommentService commentService;
     private final com.blog.service.HotArticleService hotArticleService;
+    private final SensitiveWordFilterService sensitiveWordFilterService;
+    private final UserService userService;
 
     @GetMapping("/articles/{articleId}/comments")
     public ApiResponse<List<Comment>> getComments(@PathVariable Long articleId) {
@@ -39,12 +44,20 @@ public class CommentController extends BaseController {
         comment.setArticleId(request.getArticleId());
         comment.setUserId(userId);
         comment.setParentId(request.getParentId());
-        comment.setContent(request.getContent());
+        comment.setContent(sensitiveWordFilterService.filter(request.getContent()));
         comment.setLikeCount(0);
         comment.setCreatedAt(DateUtil.now());
         comment.setUpdatedAt(DateUtil.now());
 
         commentService.save(comment);
+        User user = userService.getById(userId);
+        if (user != null) {
+            String displayName = (user.getNickname() != null && !user.getNickname().isBlank())
+                    ? user.getNickname()
+                    : user.getUsername();
+            comment.setUsername(displayName);
+            comment.setAvatar(user.getAvatar());
+        }
         // 更新文章热度分数
         hotArticleService.updateArticleHotScore(request.getArticleId());
         return ApiResponse.success(comment);
@@ -61,7 +74,7 @@ public class CommentController extends BaseController {
         
         checkPermission(comment.getUserId(), userId);
 
-        comment.setContent(request.getContent());
+        comment.setContent(sensitiveWordFilterService.filter(request.getContent()));
         comment.setUpdatedAt(DateUtil.now());
         commentService.updateById(comment);
 

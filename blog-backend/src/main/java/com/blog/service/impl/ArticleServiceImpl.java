@@ -12,6 +12,7 @@ import com.blog.pojo.dto.ArticleRequest;
 import com.blog.pojo.entity.*;
 import com.blog.service.ArticleService;
 import com.blog.service.HotArticleService;
+import com.blog.service.SensitiveWordFilterService;
 import com.blog.util.CacheUtil;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final FollowMapper followMapper;
     private final CacheUtil cacheUtil;
     private final HotArticleService hotArticleService;
+    private final SensitiveWordFilterService sensitiveWordFilterService;
     private final ApplicationEventPublisher eventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -237,8 +239,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public Article createArticle(ArticleRequest request, Long userId) {
         Article article = new Article();
         article.setUserId(userId);
-        article.setTitle(request.getTitle());
-        article.setContent(request.getContent());
+        article.setTitle(sensitiveWordFilterService.filter(request.getTitle()));
+        article.setContent(sensitiveWordFilterService.filter(request.getContent()));
         article.setCategoryId(request.getCategoryId());
         article.setStatus(request.getStatus() != null ? request.getStatus() : "draft");
         article.setViewCount(0);
@@ -281,8 +283,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         // 记录旧状�?
         String oldStatus = article.getStatus();
 
-        if (request.getTitle() != null) article.setTitle(request.getTitle());
-        if (request.getContent() != null) article.setContent(request.getContent());
+        if (request.getTitle() != null) article.setTitle(sensitiveWordFilterService.filter(request.getTitle()));
+        if (request.getContent() != null) article.setContent(sensitiveWordFilterService.filter(request.getContent()));
         if (request.getCategoryId() != null) article.setCategoryId(request.getCategoryId());
         if (request.getStatus() != null) article.setStatus(request.getStatus());
         article.setUpdatedAt(DateUtil.now());

@@ -24,6 +24,7 @@ public class MessageService {
     private final ConversationMapper conversationMapper;
     private final UserService userService;
     private final FollowService followService;
+    private final SensitiveWordFilterService sensitiveWordFilterService;
     private final ChatWebSocketHandler chatWebSocketHandler;
 
     private String now() {
@@ -60,6 +61,7 @@ public class MessageService {
 
     // 发送消息
     public Message sendMessage(Long senderId, Long receiverId, String content, String type, String fileUrl, String fileName) {
+        String filteredContent = sensitiveWordFilterService.filter(content);
         boolean mutual = isMutualFollow(senderId, receiverId);
         Conversation conv = getOrCreateConversation(senderId, receiverId);
 
@@ -79,7 +81,7 @@ public class MessageService {
         msg.setConversationId(conv.getId());
         msg.setSenderId(senderId);
         msg.setReceiverId(receiverId);
-        msg.setContent(content);
+        msg.setContent(filteredContent);
         msg.setType(type != null ? type : "text");
         msg.setFileUrl(fileUrl);
         msg.setFileName(fileName);

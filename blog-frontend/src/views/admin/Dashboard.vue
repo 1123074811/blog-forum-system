@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <h2 class="text-xl sm:text-2xl font-bold mb-4 dark:text-white">仪表盘</h2>
 
@@ -21,8 +21,13 @@
     </div>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-      <div class="glass rounded-xl p-4" v-for="item in statCards" :key="item.key">
-        <div class="text-2xl sm:text-3xl font-bold" :class="item.color">{{ item.value }}</div>
+      <div class="glass rounded-xl p-4 relative overflow-hidden" v-for="item in statCards" :key="item.key">
+        <div class="flex items-baseline gap-2">
+          <div class="text-2xl sm:text-3xl font-bold" :class="item.color">{{ item.value }}</div>
+          <div v-if="item.increase > 0" class="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[10px] font-bold animate-bounce-subtle">
+            +{{ item.increase }}
+          </div>
+        </div>
         <div class="text-gray-500 text-sm mt-1">{{ item.label }}</div>
       </div>
     </div>
@@ -80,6 +85,8 @@ const stats = ref({
   totalUsers: 0,
   totalOnlineUsers: 0,
   totalComments: 0,
+  totalVisitors: 0,
+  todayVisitors: 0,
   viewRanking: [],
   trend: { labels: [], articleCounts: [], commentCounts: [] },
   articleStatusDistribution: [],
@@ -104,7 +111,7 @@ const statCards = computed(() => [
   { key: 'a', label: '文章总数', value: stats.value.totalArticles, color: 'text-primary-500' },
   { key: 'u', label: '用户总数', value: stats.value.totalUsers, color: 'text-sky-500' },
   { key: 'c', label: '在线用户', value: stats.value.totalOnlineUsers, color: 'text-emerald-500' },
-  { key: 'm', label: '评论总数', value: stats.value.totalComments, color: 'text-purple-500' }
+  { key: 'v', label: '访客总数', value: stats.value.totalVisitors, increase: stats.value.todayVisitors, color: 'text-purple-500' }
 ])
 
 const quickEntries = [
@@ -221,6 +228,8 @@ const fetchStats = async () => {
       totalUsers: res.data.totalUsers || 0,
       totalOnlineUsers: res.data.totalOnlineUsers || 0,
       totalComments: res.data.totalComments || 0,
+      totalVisitors: res.data.totalVisitors || 0,
+      todayVisitors: res.data.todayVisitors || 0,
       viewRanking: res.data.viewRanking || [],
       trend: res.data.trend || { labels: [], articleCounts: [], commentCounts: [] },
       articleStatusDistribution: res.data.articleStatusDistribution || [],
@@ -273,5 +282,13 @@ onUnmounted(() => {
   font-size: 12px;
   color: #334155;
   background: rgba(14, 165, 233, 0.1);
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s infinite ease-in-out;
 }
 </style>

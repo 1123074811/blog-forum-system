@@ -300,15 +300,15 @@ const fetchAnnouncements = async () => {
       const entrySource = sessionStorage.getItem(ENTRY_SOURCE_KEY) || 'external'
       const consumed = sessionStorage.getItem(HOME_ANNOUNCEMENT_CONSUMED_KEY) === 'true'
 
-      if (entrySource === 'external' && !consumed && !localStorage.getItem(storageKey)) {
+      // 只要今日未隐藏且本会话未弹出过，就显示（取消仅限外部来源进入的限制，以免内部跳转后不显示）
+      if (!consumed && !localStorage.getItem(storageKey)) {
         currentAnnouncement.value = announcement
         showAnnouncement.value = true
+        sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
       }
     }
   } catch (error) {
     console.error('Failed to process announcement:', error)
-  } finally {
-    sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
   }
 }
 
