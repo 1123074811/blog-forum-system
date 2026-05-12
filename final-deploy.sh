@@ -166,7 +166,7 @@ server {
     }
 
     location /music-api/ {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3000/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -608,7 +608,7 @@ SYSTEMDEOF
 fi
 
 systemctl daemon-reload
-systemctl start blog-music-api
+systemctl restart blog-music-api
 systemctl enable blog-music-api
 
 if [ "$IS_UPGRADE" = "true" ]; then
@@ -927,7 +927,7 @@ server {
 
     # 音乐API代理
     location /music-api/ {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3000/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -1086,7 +1086,7 @@ server {
 
     # 音乐API代理
     location /music-api/ {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3000/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
