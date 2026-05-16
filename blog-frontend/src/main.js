@@ -10,6 +10,7 @@ import config from '@/config'
 const styleReady = config.layoutStyle === 'modern'
   ? import('./assets/main-modern.css')
   : import('./assets/main-classic.css')
+styleReady.catch(() => {})
 
 const mountApp = () => {
   document.documentElement.dataset.layoutStyle = config.layoutStyle
@@ -29,4 +30,4 @@ const mountApp = () => {
   app.mount('#app')
 }
 
-styleReady.then(mountApp)
+mountApp()

@@ -61,11 +61,12 @@ export const useUserStore = defineStore('user', () => {
         }
       }
 
-      if (token.value) {
-        await checkAdminStatus()
-      }
     } finally {
       resolveSessionReady?.()
+    }
+
+    if (token.value) {
+      checkAdminStatus()
     }
   }
 

@@ -3,35 +3,50 @@ import { useUserStore } from '@/stores/user'
 import config from '@/config'
 import { toast } from '@/utils/toast'
 
-// 预加载最常访问的页面组件
-const HomeComp = () => import('@/views/user/Home.vue')
-const ArticleComp = () => import('@/views/user/Article.vue')
-const LayoutComp = () => import('@/views/user/Layout.vue')
+const pickStyleComponent = (classicLoader, modernLoader) => config.layoutStyle === 'modern' ? modernLoader : classicLoader
+
+const UserLayoutComp = pickStyleComponent(() => import('@/views/user/LayoutClassic.vue'), () => import('@/views/user/LayoutModern.vue'))
+const HomeComp = pickStyleComponent(() => import('@/views/user/HomeClassic.vue'), () => import('@/views/user/HomeModern.vue'))
+const ArticleComp = pickStyleComponent(() => import('@/views/user/ArticleClassic.vue'), () => import('@/views/user/ArticleModern.vue'))
+const UserProfileComp = pickStyleComponent(() => import('@/views/user/ProfileClassic.vue'), () => import('@/views/user/ProfileModern.vue'))
+const WriteComp = pickStyleComponent(() => import('@/views/user/WriteClassic.vue'), () => import('@/views/user/WriteModern.vue'))
+const SearchComp = pickStyleComponent(() => import('@/views/user/SearchClassic.vue'), () => import('@/views/user/SearchModern.vue'))
+const DiscoverComp = pickStyleComponent(() => import('@/views/user/DiscoverClassic.vue'), () => import('@/views/user/DiscoverModern.vue'))
+const QuizListComp = pickStyleComponent(() => import('@/views/user/QuizListClassic.vue'), () => import('@/views/user/QuizListModern.vue'))
+const QuizComp = pickStyleComponent(() => import('@/views/user/QuizClassic.vue'), () => import('@/views/user/QuizModern.vue'))
+const AlbumComp = pickStyleComponent(() => import('@/views/user/AlbumClassic.vue'), () => import('@/views/user/AlbumModern.vue'))
+const CommunityComp = pickStyleComponent(() => import('@/views/user/CommunityClassic.vue'), () => import('@/views/user/CommunityModern.vue'))
+const FavoritesComp = pickStyleComponent(() => import('@/views/user/FavoritesClassic.vue'), () => import('@/views/user/FavoritesModern.vue'))
+const TreeHoleComp = pickStyleComponent(() => import('@/views/user/TreeHoleClassic.vue'), () => import('@/views/user/TreeHoleModern.vue'))
+const ChatComp = pickStyleComponent(() => import('@/views/user/ChatClassic.vue'), () => import('@/views/user/ChatModern.vue'))
+const MessagesComp = pickStyleComponent(() => import('@/views/user/MessagesClassic.vue'), () => import('@/views/user/MessagesModern.vue'))
+const AboutComp = pickStyleComponent(() => import('@/views/user/AboutClassic.vue'), () => import('@/views/user/AboutModern.vue'))
+const RecitationComp = pickStyleComponent(() => import('@/views/user/RecitationClassic.vue'), () => import('@/views/user/RecitationModern.vue'))
 
 const routes = [
   {
     path: '/',
-    component: LayoutComp,
+    component: UserLayoutComp,
     children: [
       { path: '', name: 'Home', component: HomeComp, meta: { title: '墨香阁' } },
       { path: 'article/:id', name: 'Article', component: ArticleComp, meta: { title: '品文轩' } },
-      { path: 'user/:id', name: 'UserProfile', component: () => import('@/views/user/Profile.vue'), meta: { title: '访客苑' } },
-      { path: 'write', name: 'Write', component: () => import('@/views/user/Write.vue'), meta: { requiresAuth: true, title: '挥墨斋' } },
-      { path: 'edit/:id', name: 'Edit', component: () => import('@/views/user/Write.vue'), meta: { requiresAuth: true, title: '润笔阁' } },
-      { path: 'search', name: 'Search', component: () => import('@/views/user/Search.vue'), meta: { title: '寻迹处' } },
-      { path: 'discover', name: 'Discover', component: () => import('@/views/user/Discover.vue'), meta: { title: '发现' } },
+      { path: 'user/:id', name: 'UserProfile', component: UserProfileComp, meta: { title: '访客苑' } },
+      { path: 'write', name: 'Write', component: WriteComp, meta: { requiresAuth: true, title: '挥墨斋' } },
+      { path: 'edit/:id', name: 'Edit', component: WriteComp, meta: { requiresAuth: true, title: '润笔阁' } },
+      { path: 'search', name: 'Search', component: SearchComp, meta: { title: '寻迹处' } },
+      { path: 'discover', name: 'Discover', component: DiscoverComp, meta: { title: '发现' } },
       { path: 'er-diagram', name: 'ERDiagram', component: () => import('@/views/user/ERDiagram.vue'), meta: { title: 'ER图工具' } },
-      { path: 'quiz', name: 'QuizList', component: () => import('@/views/user/QuizList.vue'), meta: { requiresAuth: true, title: '问学堂' } },
-      { path: 'quiz/:id', name: 'Quiz', component: () => import('@/views/user/Quiz.vue'), meta: { requiresAuth: true, title: '答卷间' } },
-      { path: 'album', name: 'Album', component: () => import('@/views/user/Album.vue'), meta: { requiresAuth: true, title: '藏影阁' } },
-      { path: 'community', name: 'Community', component: () => import('@/views/user/Community.vue'), meta: { title: '览影廊' } },
-      { path: 'favorites', name: 'Favorites', component: () => import('@/views/user/Favorites.vue'), meta: { requiresAuth: true, title: '珍藏阁' } },
-      { path: 'tree-hole', name: 'TreeHole', component: () => import('@/views/user/TreeHole.vue'), meta: { title: '听风谷' } },
-      { path: 'chat', name: 'Chat', component: () => import('@/views/user/Chat.vue'), meta: { requiresAuth: true, title: '私信' } },
-      { path: 'messages', name: 'Messages', component: () => import('@/views/user/Messages.vue'), meta: { requiresAuth: true, title: '消息' } },
-      { path: 'about', name: 'About', component: () => import('@/views/user/About.vue'), meta: { title: '关于我们' } },
+      { path: 'quiz', name: 'QuizList', component: QuizListComp, meta: { requiresAuth: true, title: '问学堂' } },
+      { path: 'quiz/:id', name: 'Quiz', component: QuizComp, meta: { requiresAuth: true, title: '答卷间' } },
+      { path: 'album', name: 'Album', component: AlbumComp, meta: { requiresAuth: true, title: '藏影阁' } },
+      { path: 'community', name: 'Community', component: CommunityComp, meta: { title: '览影廊' } },
+      { path: 'favorites', name: 'Favorites', component: FavoritesComp, meta: { requiresAuth: true, title: '珍藏阁' } },
+      { path: 'tree-hole', name: 'TreeHole', component: TreeHoleComp, meta: { title: '听风谷' } },
+      { path: 'chat', name: 'Chat', component: ChatComp, meta: { requiresAuth: true, title: '私信' } },
+      { path: 'messages', name: 'Messages', component: MessagesComp, meta: { requiresAuth: true, title: '消息' } },
+      { path: 'about', name: 'About', component: AboutComp, meta: { title: '关于我们' } },
       { path: 'life-simulator', name: 'LifeSimulator', component: () => import('@/views/user/LifeSimulator.vue'), meta: { title: '人生模拟器' } },
-      { path: 'recitation', name: 'Recitation', component: () => import('@/views/user/Recitation.vue'), meta: { requiresAuth: true, title: '背书神器' } },
+      { path: 'recitation', name: 'Recitation', component: RecitationComp, meta: { requiresAuth: true, title: '背书神器' } },
       { path: 'pomodoro', name: 'Pomodoro', component: () => import('@/views/user/Pomodoro.vue'), meta: { title: '番茄时钟' } },
     ]
   },
@@ -110,8 +125,9 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // 需要鉴权的页面，等待 session 初始化完成（只有第一次导航需要等待，之后立即返回）
-  const needsSession = !!(to.meta.requiresAuth || to.meta.requiresAdmin)
+  // 仅在需要刷新 access token 或访问管理员页面时等待 session，避免普通页面首跳被 /auth/me 阻塞
+  const hasRefreshToken = !!localStorage.getItem('refreshToken')
+  const needsSession = !!to.meta.requiresAdmin || (!userStore.isLoggedIn && hasRefreshToken && !!to.meta.requiresAuth)
   if (needsSession) {
     await userStore.sessionReady()
   }
@@ -122,10 +138,10 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
-    // isAdmin 可能因为 initSession 时后端冷启动失败而未正确设置，重试一次
     if (userStore.isLoggedIn) {
       await userStore.checkAdminStatus()
     }
+
     if (!userStore.isAdmin) {
       toast('需要管理员权限才能访问')
       next('/')
