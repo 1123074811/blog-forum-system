@@ -5,6 +5,7 @@ import com.aliyun.oss.model.CannedAccessControlList;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.blog.config.OssConfig;
+import com.blog.util.FileValidationUtil;
 import com.blog.util.UrlSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,8 @@ public class OssStorageService implements StorageService {
 
     @Override
     public String upload(MultipartFile file, String folder) throws Exception {
-        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+        FileValidationUtil.validate(file);
+        String filename = UUID.randomUUID() + safeExtension(file.getOriginalFilename());
         String objectName = folder.isEmpty() ? filename : folder + "/" + filename;
 
         ObjectMetadata metadata = new ObjectMetadata();
@@ -149,6 +151,22 @@ public class OssStorageService implements StorageService {
             return "https://" + config.getCustomDomain() + "/" + objectName;
         }
         return "https://" + config.getBucket() + "." + config.getEndpoint() + "/" + objectName;
+    }
+
+    private String safeExtension(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return ".bin";
+        }
+        int dot = originalFilename.lastIndexOf('.');
+        if (dot < 0 || dot == originalFilename.length() - 1) {
+            return ".bin";
+        }
+        String ext = originalFilename.substring(dot).toLowerCase(Locale.ROOT);
+        String sanitized = ext.replaceAll("[^a-z0-9.]", "");
+        if (sanitized.length() < 2 || sanitized.length() > 10 || !sanitized.startsWith(".")) {
+            return ".bin";
+        }
+        return sanitized;
     }
 
     private String normalizeContentType(String contentType, String filename) {

@@ -1,6 +1,7 @@
 package com.blog.service.storage;
 
 import com.blog.config.MinioConfig;
+import com.blog.util.FileValidationUtil;
 import com.blog.util.UrlSecurityUtil;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
@@ -81,6 +82,7 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public String upload(MultipartFile file, String folder) throws Exception {
+        FileValidationUtil.validate(file);
         String filename = UUID.randomUUID() + safeExtension(file.getOriginalFilename());
         String objectName = folder.isEmpty() ? filename : folder + "/" + filename;
         String contentType = file.getContentType() == null ? "application/octet-stream" : file.getContentType();
