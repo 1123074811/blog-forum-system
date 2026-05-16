@@ -561,12 +561,12 @@ if [ "$IS_UPGRADE" = "true" ]; then
     log_info "升级模式：重新打包前端项目"
 fi
 cd /opt/blog/blog-frontend
-npm install --registry=https://registry.npmmirror.com
-# 确保压缩插件已安装
-npm install vite-plugin-compression --save-dev --registry=https://registry.npmmirror.com
+npm ci --registry=https://registry.npmmirror.com
 cat > .env.production << ENVEOF
 VITE_API_BASE_URL=/api
 VITE_UPLOAD_BASE_URL=/
+VITE_WS_BASE_URL=
+VITE_LAYOUT_STYLE=${VITE_LAYOUT_STYLE:-classic}
 ENVEOF
 npm run build
 mkdir -p /var/www/blog
