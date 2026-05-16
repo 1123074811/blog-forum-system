@@ -227,6 +227,19 @@ npm run preview
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | API 请求基础路径 | `/api` |
 | `VITE_WS_BASE_URL` | WebSocket 基础地址 | 根据当前站点协议和域名推导 |
+| `VITE_LAYOUT_STYLE` | 前端用户端风格，支持 `classic`/`modern`；`classic` 为顶部横向导航风格，`modern` 为 `003c02bee539708fbb0ce6a87ce59c0a2bc46dea` 引入的全屏 Hero 与左侧竖排导航风格 | `classic` |
+
+前端风格可在 `blog-frontend/.env.development` 和 `blog-frontend/.env.production` 中分别配置：
+
+```env
+VITE_LAYOUT_STYLE=classic
+```
+
+或：
+
+```env
+VITE_LAYOUT_STYLE=modern
+```
 
 ## 生产部署
 
@@ -267,6 +280,7 @@ java -jar blog-backend.jar --spring.profiles.active=prod
 
 - 开发环境默认启用 `dev` Profile。
 - 前端开发环境通过 Vite Proxy 转发 `/api`、`/ws`、`/uploads`、`/media`、`/music-api`。
+- 修改前端 `.env.development` 或 `.env.production` 后，需要重启 Vite 开发服务或重新构建前端；仅刷新浏览器不会重新读取环境变量。
 - 文件上传大小默认上限为 `100MB`。
 - 生产环境需要设置强随机 `JWT_SECRET`，并妥善保管所有密钥。
 - 使用 OSS、OAuth、邮件、地图、AI 翻译等功能前，需要先配置对应第三方服务凭据。
