@@ -7,12 +7,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import config from '@/config'
-import ClassicComponent from './LayoutClassic.vue'
-import ModernComponent from './LayoutModern.vue'
 
 defineOptions({ inheritAttrs: false })
 
-const styleComponent = computed(() => config.layoutStyle === 'modern' ? ModernComponent : ClassicComponent)
+const styleComponent = defineAsyncComponent(() => config.layoutStyle === 'modern'
+  ? import('./LayoutModern.vue')
+  : import('./LayoutClassic.vue')
+)
 </script>
