@@ -38,6 +38,22 @@ public class SecurityEventService {
         }
     }
 
+    public long incrementWithTtl(String key, long ttlSeconds) {
+        return increment(key, ttlSeconds);
+    }
+
+    public int getThreatLevel(String ip) {
+        Object value = redis.opsForValue().get("risk:ip:threat:" + ip);
+        if (value == null) {
+            return 0;
+        }
+        return Integer.parseInt(value.toString());
+    }
+
+    public void setThreatLevel(String ip, int level, long ttlSeconds) {
+        redis.opsForValue().set("risk:ip:threat:" + ip, level, ttlSeconds, TimeUnit.SECONDS);
+    }
+
     public void banIp(String ip, String reason, Duration ttl) {
         if (ip == null || ip.isBlank()) {
             return;

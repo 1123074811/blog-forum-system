@@ -109,6 +109,26 @@ public class OssStorageService implements StorageService {
     }
 
     @Override
+    public String uploadBytes(byte[] data, String objectName, String contentType) throws Exception {
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType(contentType);
+        metadata.setContentLength(data.length);
+
+        PutObjectRequest putObjectRequest = new PutObjectRequest(
+                config.getBucket(),
+                objectName,
+                new ByteArrayInputStream(data),
+                metadata
+        );
+
+        ossClient.putObject(putObjectRequest);
+
+        String fileUrl = getFileUrl(objectName);
+        log.debug("字节数组上传成功: {}", fileUrl);
+        return fileUrl;
+    }
+
+    @Override
     public void delete(String filename) {
         if (filename.startsWith("http")) {
             String bucketDomain = config.getCustomDomain() != null
