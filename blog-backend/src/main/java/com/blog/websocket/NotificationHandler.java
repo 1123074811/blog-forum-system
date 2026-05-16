@@ -17,6 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class NotificationHandler extends TextWebSocketHandler {
 
+    private static final int MAX_TEXT_MESSAGE_BYTES = 1024;
+
     private final JwtUtil jwtUtil;
     private final Map<Long, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -34,12 +36,22 @@ public class NotificationHandler extends TextWebSocketHandler {
             closeSilently(session, CloseStatus.NOT_ACCEPTABLE.withReason("Invalid user"));
             return;
         }
-        sessions.put(userId, session);
+        WebSocketSession oldSession = sessions.put(userId, session);
+        if (oldSession != null && oldSession.isOpen() && oldSession != session) {
+            closeSilently(oldSession, CloseStatus.NORMAL.withReason("Replaced by new connection"));
+        }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        sessions.values().remove(session);
+        sessions.entrySet().removeIf(entry -> entry.getValue() == session);
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        if (message.getPayloadLength() > MAX_TEXT_MESSAGE_BYTES) {
+            closeSilently(session, CloseStatus.TOO_BIG_TO_PROCESS.withReason("Message too large"));
+        }
     }
 
     public void sendNotification(Long userId, Object notification) {

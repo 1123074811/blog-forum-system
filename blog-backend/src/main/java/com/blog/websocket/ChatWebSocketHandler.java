@@ -17,6 +17,8 @@ import java.util.HashMap;
 @RequiredArgsConstructor
 public class ChatWebSocketHandler extends TextWebSocketHandler {
 
+    private static final int MAX_TEXT_MESSAGE_BYTES = 4096;
+
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -26,16 +28,31 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String token = getTokenFromSession(session);
-        if (token != null && jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
-            Long userId = jwtUtil.getUserIdFromToken(token);
-            sessions.put(userId, session);
-            log.debug("WS connected: userId={}", userId);
-            broadcastPresence(userId, true);
+        if (token == null || !jwtUtil.validateToken(token) || !jwtUtil.isAccessToken(token)) {
+            closeSilently(session, CloseStatus.NOT_ACCEPTABLE.withReason("Invalid token"));
+            return;
         }
+
+        Long userId = jwtUtil.getUserIdFromToken(token);
+        if (userId == null) {
+            closeSilently(session, CloseStatus.NOT_ACCEPTABLE.withReason("Invalid user"));
+            return;
+        }
+
+        WebSocketSession oldSession = sessions.put(userId, session);
+        if (oldSession != null && oldSession.isOpen() && oldSession != session) {
+            closeSilently(oldSession, CloseStatus.NORMAL.withReason("Replaced by new connection"));
+        }
+        log.debug("WS connected: userId={}", userId);
+        broadcastPresence(userId, true);
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        if (message.getPayloadLength() > MAX_TEXT_MESSAGE_BYTES) {
+            closeSilently(session, CloseStatus.TOO_BIG_TO_PROCESS.withReason("Message too large"));
+            return;
+        }
         // 心跳检测
         if ("ping".equals(message.getPayload())) {
             session.sendMessage(new TextMessage("pong"));
@@ -47,7 +64,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String token = getTokenFromSession(session);
         if (token != null && jwtUtil.validateToken(token) && jwtUtil.isAccessToken(token)) {
             Long userId = jwtUtil.getUserIdFromToken(token);
-            sessions.remove(userId);
+            sessions.remove(userId, session);
             log.debug("WS disconnected: userId={}", userId);
             broadcastPresence(userId, false);
         }
@@ -107,5 +124,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             }
         }
         return null;
+    }
+
+    private void closeSilently(WebSocketSession session, CloseStatus status) {
+        try {
+            session.close(status);
+        } catch (Exception ignored) {
+        }
     }
 }
