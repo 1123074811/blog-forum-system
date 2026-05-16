@@ -11,6 +11,7 @@ export const getCaptcha = () => api.get('/auth/captcha')
 export const forgotPassword = (username) => api.post('/auth/forgot-password', { username })
 export const verifyCode = (data) => api.post('/auth/verify-code', data)
 export const resetPassword = (data) => api.post('/auth/reset-password', data)
+export const exchangeOAuthTicket = (ticket) => api.post('/auth/exchange-ticket', { ticket })
 
 export const getArticles = (params) => api.get('/articles', { params })
 export const getArticle = (id) => api.get(`/articles/${id}`)

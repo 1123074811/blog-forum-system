@@ -12,7 +12,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getUser } from '@/api/blog'
+import { getUser, exchangeOAuthTicket } from '@/api/blog'
 import { Loading, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -34,24 +34,25 @@ const errorMessages = {
   save_user_failed: '保存用户信息失败',
   query_user_failed: '查询用户信息失败',
   json_parse_error: '数据解析失败',
-  github_failed: 'GitHub 登录失败，请重试'
+  github_failed: 'GitHub 登录失败，请重试',
+  invalid_state: '安全校验失败，请重新登录'
 }
 
 onMounted(async () => {
-  const { token, refreshToken, userId, error: errorCode, message: errorMsg } = route.query
+  const { ticket, error: errorCode } = route.query
+  const oauthTicket = Array.isArray(ticket) ? ticket[0] : ticket
 
   // 处理错误
   if (errorCode) {
     error.value = true
-    const text = errorMessages[String(errorCode)] || '登录失败'
-    message.value = errorMsg ? `${text} ${String(errorMsg)}` : text
+    message.value = errorMessages[String(errorCode)] || '登录失败'
     ElMessage.error(message.value)
     setTimeout(() => router.replace('/login'), 3000)
     return
   }
 
-  // 处理成功
-  if (!(token && refreshToken && userId)) {
+  // 处理成功 - 用 ticket 换取 token
+  if (!oauthTicket) {
     error.value = true
     message.value = '登录参数缺失'
     ElMessage.error(message.value)
@@ -60,26 +61,32 @@ onMounted(async () => {
   }
 
   try {
+    message.value = '正在获取登录凭证...'
+    const exchangeRes = await exchangeOAuthTicket(oauthTicket)
+    if (!exchangeRes.success) {
+      throw new Error(exchangeRes.message || '换取凭证失败')
+    }
+
+    const { token, refreshToken, userId } = exchangeRes
+
     message.value = '正在获取用户信息...'
     const res = await getUser(userId)
     if (!res.success) {
       throw new Error(res.message || '获取用户信息失败')
     }
 
-    userStore.setUser(res.data, token, refreshToken)
-    await userStore.checkAdminStatus()
+    await userStore.setUser(res.data, token, refreshToken)
 
     message.value = '登录成功，正在跳转...'
     ElMessage.success('登录成功')
 
-    // 返回之前的页面
     const redirect = sessionStorage.getItem('oauth_redirect') || '/'
     sessionStorage.removeItem('oauth_redirect')
     setTimeout(() => router.replace(redirect), 500)
   } catch (err) {
     console.error('登录处理失败:', err)
     error.value = true
-    message.value = '登录处理失败'
+    message.value = err.message || '登录处理失败'
     ElMessage.error(message.value)
     setTimeout(() => router.replace('/login'), 3000)
   }

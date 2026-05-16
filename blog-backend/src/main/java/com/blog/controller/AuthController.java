@@ -33,9 +33,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -52,6 +51,8 @@ public class AuthController {
     private final RateLimitService rateLimitService;
     private final TokenService tokenService;
     private final SecurityEventService securityEventService;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final HttpServletRequest httpServletRequest;
 
@@ -77,37 +78,37 @@ public class AuthController {
     public ApiResponse<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         String username = request.getUsername();
         if (username == null || username.isBlank()) {
-            return ApiResponse.error("账号不能为空");
+            return ApiResponse.success("如果账号存在且已绑定邮箱，验证码已发送");
         }
         User user = userService.findByUsername(username);
         if (user == null) {
-            return ApiResponse.error("账号不存在");
+            log.info("Forgot password request for non-existent user: {}", username);
+            return ApiResponse.success("如果账号存在且已绑定邮箱，验证码已发送");
         }
 
         String email = user.getEmail();
         if (email == null || email.trim().isEmpty()) {
-            return ApiResponse.error("用户未绑定邮箱地址，无法重置密码");
+            log.info("User {} has no email bound", username);
+            return ApiResponse.success("如果账号存在且已绑定邮箱，验证码已发送");
         }
 
-        // 验证邮箱格式
         if (!PasswordUtil.isValidEmail(email)) {
             log.warn("Invalid email format for user {}: {}", username, email);
-            return ApiResponse.error("用户邮箱地址格式不正确，无法发送邮件");
+            return ApiResponse.success("如果账号存在且已绑定邮箱，验证码已发送");
         }
 
-        String code = String.format("%06d", new Random().nextInt(1000000));
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1000000));
         try {
             emailService.sendResetPasswordEmail(email, user.getUsername(), code);
-            // 存储验证码到Redis
             emailService.storeResetCode(email, code);
         } catch (MailException e) {
             log.error("Failed to send reset password mail", e);
-            return ApiResponse.error("邮件发送失败: " + e.getMessage());
+            return ApiResponse.error("邮件发送失败，请稍后再试");
         } catch (MessagingException e) {
             log.error("Failed to send reset password mail", e);
-            return ApiResponse.error("邮件发送失败: " + e.getMessage());
+            return ApiResponse.error("邮件发送失败，请稍后再试");
         }
-        return ApiResponse.success("验证码已发送到邮箱");
+        return ApiResponse.success("如果账号存在且已绑定邮箱，验证码已发送");
     }
 
     @PostMapping("/verify-code")
@@ -115,11 +116,11 @@ public class AuthController {
         String username = request.getUsername();
         String code = request.getCode();
         if (username == null || username.isBlank() || code == null || code.isBlank()) {
-            return ApiResponse.error("参数不能为空");
+            return ApiResponse.error("验证码错误或已过期");
         }
         User user = userService.findByUsername(username);
-        if (user == null) {
-            return ApiResponse.error("账号不存在");
+        if (user == null || user.getEmail() == null) {
+            return ApiResponse.error("验证码错误或已过期");
         }
         String email = user.getEmail();
         if (!emailService.validateResetCode(email, code)) {
@@ -140,8 +141,8 @@ public class AuthController {
         }
 
         User user = userService.findByUsername(username);
-        if (user == null) {
-            return ApiResponse.error("用户不存在");
+        if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            return ApiResponse.error("验证码已过期，请重新获取");
         }
 
         String email = user.getEmail();
@@ -194,7 +195,7 @@ public class AuthController {
             log.warn("Global register rate limit exceeded");
             return ApiResponse.error("系统繁忙，请稍后再试");
         }
-        String code = String.format("%06d", new Random().nextInt(1000000));
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1000000));
         try {
             emailService.storeRegisterCode(email, code);
             emailService.sendRegisterCode(email, code);
@@ -346,7 +347,7 @@ public class AuthController {
         }
 
         String operation = sanitizeOperation(request.getOperation());
-        String opToken = UUID.randomUUID().toString();
+        String opToken = generateSecureToken();
         String key = "stepup:token:" + userId + ":" + operation;
         redisTemplate.opsForValue().set(key, opToken, 5, TimeUnit.MINUTES);
         return ApiResponse.success(opToken);
@@ -361,6 +362,16 @@ public class AuthController {
             return "generic";
         }
         return normalized;
+    }
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private String getClientIp(HttpServletRequest request) {

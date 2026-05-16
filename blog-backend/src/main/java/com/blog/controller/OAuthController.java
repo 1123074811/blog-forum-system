@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -20,9 +21,18 @@ import org.springframework.stereotype.Controller;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.client.RestTemplate;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Controller
@@ -30,10 +40,17 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class OAuthController {
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String OAUTH_STATE_PREFIX = "oauth:state:";
+    private static final String OAUTH_TICKET_PREFIX = "oauth:ticket:";
+    private static final long STATE_TTL_MINUTES = 5;
+    private static final long TICKET_TTL_SECONDS = 60;
+
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final TokenService tokenService;
     private final RestTemplate restTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${jwt.expiration}")
@@ -60,41 +77,94 @@ public class OAuthController {
 
     @GetMapping("/github")
     public String githubLogin() {
-        return "redirect:https://github.com/login/oauth/authorize?client_id=" + githubClientId + "&redirect_uri=" + githubRedirectUri + "&scope=user";
+        String state = generateState("github");
+        return "redirect:https://github.com/login/oauth/authorize?client_id=" + encodeUrlParam(githubClientId)
+                + "&redirect_uri=" + encodeUrlParam(githubRedirectUri)
+                + "&scope=user"
+                + "&state=" + encodeUrlParam(state);
     }
 
     @GetMapping("/github/callback")
-    public String githubCallback(@RequestParam String code) {
+    public String githubCallback(@RequestParam String code, @RequestParam(required = false) String state) {
+        if (!validateState("github", state)) {
+            log.warn("GitHub OAuth state validation failed");
+            return buildOAuthErrorRedirect("invalid_state");
+        }
         try {
             String accessToken = fetchGithubToken(code);
             JsonNode userInfo = fetchGithubUser(accessToken);
             User user = upsertGithubUser(userInfo);
-            return buildOAuthSuccessRedirect(user);
+            return buildOAuthTicketRedirect(user);
         } catch (Exception e) {
             log.error("GitHub oauth failed", e);
-            return buildOAuthErrorRedirect("github_failed", e.getMessage());
+            return buildOAuthErrorRedirect("github_failed");
         }
     }
 
     @GetMapping("/gitee")
     public String giteeLogin() {
-        String authUrl = "https://gitee.com/oauth/authorize?client_id=" + giteeClientId
-                + "&redirect_uri=" + giteeRedirectUri
-                + "&response_type=code";
+        String state = generateState("gitee");
+        String authUrl = "https://gitee.com/oauth/authorize?client_id=" + encodeUrlParam(giteeClientId)
+                + "&redirect_uri=" + encodeUrlParam(giteeRedirectUri)
+                + "&response_type=code"
+                + "&state=" + encodeUrlParam(state);
         return "redirect:" + authUrl;
     }
 
     @GetMapping("/gitee/callback")
-    public String giteeCallback(@RequestParam String code) {
+    public String giteeCallback(@RequestParam String code, @RequestParam(required = false) String state) {
+        if (!validateState("gitee", state)) {
+            log.warn("Gitee OAuth state validation failed");
+            return buildOAuthErrorRedirect("invalid_state");
+        }
         try {
             String accessToken = fetchGiteeToken(code);
             JsonNode userInfo = fetchGiteeUser(accessToken);
             User user = upsertGiteeUser(userInfo);
-            return buildOAuthSuccessRedirect(user);
+            return buildOAuthTicketRedirect(user);
         } catch (Exception e) {
             log.error("Gitee oauth failed", e);
-            return buildOAuthErrorRedirect("gitee_failed", e.getMessage());
+            return buildOAuthErrorRedirect("gitee_failed");
         }
+    }
+
+    @PostMapping("/exchange-ticket")
+    @com.blog.annotation.RateLimit(key = "oauth_exchange_ticket", count = 10, time = 60, limitType = com.blog.annotation.RateLimit.LimitType.IP, message = "请求过于频繁，请稍后再试")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> exchangeTicket(@RequestBody Map<String, String> body) {
+        if (body == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Invalid ticket"));
+        }
+        String ticket = body.get("ticket");
+        if (ticket == null || !ticket.matches("[a-f0-9]{64}")) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Invalid ticket"));
+        }
+
+        String key = OAUTH_TICKET_PREFIX + ticket;
+        Object userIdObj = redisTemplate.opsForValue().get(key);
+        if (userIdObj == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Ticket expired or invalid"));
+        }
+        redisTemplate.delete(key);
+
+        Long userId = Long.valueOf(userIdObj.toString());
+        User user = userService.getById(userId);
+        if (user == null || Boolean.TRUE.equals(user.getBanned())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "User not found"));
+        }
+
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername(), user.getRole());
+        tokenService.saveToken(token, user.getId(), tokenExpiration);
+        tokenService.saveToken(refreshToken, user.getId(), refreshTokenExpiration);
+        userService.cacheUserRole(user.getId(), user.getRole());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "token", token,
+                "refreshToken", refreshToken,
+                "userId", user.getId()
+        ));
     }
 
     private String fetchGithubToken(String code) throws Exception {
@@ -199,15 +269,52 @@ public class OAuthController {
         return user;
     }
 
-    private String buildOAuthSuccessRedirect(User user) {
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername(), user.getRole());
-        tokenService.saveToken(token, user.getId(), tokenExpiration);
-        tokenService.saveToken(refreshToken, user.getId(), refreshTokenExpiration);
-        return "redirect:" + frontendRedirectBase + "/oauth-callback?token=" + token + "&refreshToken=" + refreshToken + "&userId=" + user.getId();
+    private String generateState(String provider) {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        String state = sb.toString();
+        redisTemplate.opsForValue().set(OAUTH_STATE_PREFIX + provider + ":" + state, "1", STATE_TTL_MINUTES, TimeUnit.MINUTES);
+        return state;
     }
 
-    private String buildOAuthErrorRedirect(String error, String message) {
-        return "redirect:" + frontendRedirectBase + "/login?error=" + error + "&message=" + (message == null ? "" : message);
+    private boolean validateState(String provider, String state) {
+        if (state == null || state.isBlank()) {
+            return false;
+        }
+        String key = OAUTH_STATE_PREFIX + provider + ":" + state;
+        Boolean hasKey = redisTemplate.hasKey(key);
+        if (Boolean.TRUE.equals(hasKey)) {
+            redisTemplate.delete(key);
+            return true;
+        }
+        return false;
+    }
+
+    private String buildOAuthTicketRedirect(User user) {
+        String ticket = generateSecureToken();
+        redisTemplate.opsForValue().set(OAUTH_TICKET_PREFIX + ticket, user.getId(), TICKET_TTL_SECONDS, TimeUnit.SECONDS);
+        return "redirect:" + frontendRedirectBase + "/oauth-callback?ticket=" + encodeUrlParam(ticket);
+    }
+
+    private String buildOAuthErrorRedirect(String error) {
+        return "redirect:" + frontendRedirectBase + "/oauth-callback?error=" + encodeUrlParam(error);
+    }
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    private String encodeUrlParam(String value) {
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 }
