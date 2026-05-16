@@ -8,6 +8,18 @@ export const useUserStore = defineStore('user', () => {
   const isDark = ref(localStorage.getItem('isDark') === 'true')
   const isAdmin = ref(false)
 
+  let sessionReadyPromise = null
+  let resolveSessionReady = null
+
+  const sessionReady = () => {
+    if (!sessionReadyPromise) {
+      sessionReadyPromise = new Promise(resolve => {
+        resolveSessionReady = resolve
+      })
+    }
+    return sessionReadyPromise
+  }
+
   const isLoggedIn = computed(() => !!token.value)
 
   async function checkAdminStatus() {
@@ -16,9 +28,13 @@ export const useUserStore = defineStore('user', () => {
       return false
     }
     try {
-      await api.get('/admin/ping')
-      isAdmin.value = true
-      return true
+      const res = await api.get('/auth/me')
+      if (res.success && res.data?.authenticated) {
+        isAdmin.value = String(res.data.role || '').toUpperCase() === 'ADMIN'
+        return isAdmin.value
+      }
+      isAdmin.value = false
+      return false
     } catch {
       isAdmin.value = false
       return false
@@ -26,24 +42,30 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function initSession() {
-    if (!token.value) {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        try {
-          const res = await api.post('/auth/refresh', null, {
-            headers: { Authorization: `Bearer ${refreshToken}` }
-          })
-          if (res.success && res.data) {
-            setToken(res.data)
+    sessionReady()
+
+    try {
+      if (!token.value) {
+        const refreshToken = localStorage.getItem('refreshToken')
+        if (refreshToken) {
+          try {
+            const res = await api.post('/auth/refresh', null, {
+              headers: { Authorization: `Bearer ${refreshToken}` }
+            })
+            if (res.success && res.data) {
+              setToken(res.data)
+            }
+          } catch {
+            localStorage.removeItem('refreshToken')
           }
-        } catch {
-          localStorage.removeItem('refreshToken')
         }
       }
-    }
 
-    if (token.value) {
-      await checkAdminStatus()
+      if (token.value) {
+        await checkAdminStatus()
+      }
+    } finally {
+      resolveSessionReady?.()
     }
   }
 
@@ -56,7 +78,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  function setUser(userData, tokenData, refreshToken) {
+  async function setUser(userData, tokenData, refreshToken) {
     const safeUser = userData
       ? {
           id: userData.id,
@@ -79,7 +101,9 @@ export const useUserStore = defineStore('user', () => {
       localStorage.setItem('refreshToken', refreshToken)
     }
 
-    checkAdminStatus()
+    sessionReady()
+    await checkAdminStatus()
+    resolveSessionReady?.()
   }
 
   async function logout() {
@@ -94,6 +118,8 @@ export const useUserStore = defineStore('user', () => {
     isAdmin.value = false
     localStorage.removeItem('user')
     localStorage.removeItem('refreshToken')
+    sessionReadyPromise = null
+    resolveSessionReady = null
   }
 
   function toggleDark() {
@@ -112,6 +138,7 @@ export const useUserStore = defineStore('user', () => {
     logout,
     toggleDark,
     checkAdminStatus,
-    initSession
+    initSession,
+    sessionReady
   }
 })

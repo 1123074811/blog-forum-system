@@ -149,8 +149,7 @@ const handleLogin = async () => {
   try {
     const res = await login(form.value)
     if (res.success) {
-      userStore.setUser(res.data.user, res.data.token, res.data.refreshToken)
-      await userStore.checkAdminStatus()
+      await userStore.setUser(res.data.user, res.data.token, res.data.refreshToken)
       ElMessage.success('登录成功')
       router.push(userStore.isAdmin ? '/admin' : '/')
       return
