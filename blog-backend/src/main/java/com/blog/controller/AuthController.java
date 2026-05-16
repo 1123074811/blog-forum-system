@@ -17,6 +17,7 @@ import com.blog.service.RateLimitService;
 import com.blog.service.SecurityEventService;
 import com.blog.service.TokenService;
 import com.blog.service.UserService;
+import com.blog.util.ClientIpResolver;
 import com.blog.util.JwtUtil;
 import com.blog.util.PasswordUtil;
 import jakarta.mail.MessagingException;
@@ -51,6 +52,7 @@ public class AuthController {
     private final RateLimitService rateLimitService;
     private final TokenService tokenService;
     private final SecurityEventService securityEventService;
+    private final ClientIpResolver clientIpResolver;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
@@ -225,7 +227,7 @@ public class AuthController {
         if (!emailService.validateRegisterCode(request.getEmail(), request.getEmailCode())) {
             return ApiResponse.error("邮箱验证码错误或已过期");
         }
-        String ip = getClientIp(requestContext);
+        String ip = clientIpResolver.resolve(requestContext);
         if (!rateLimitService.isRegisterAllowed(ip)) {
             return ApiResponse.error("注册过于频繁，请1小时后再试");
         }
@@ -261,7 +263,7 @@ public class AuthController {
             user = userService.findByEmail(request.getUsername());
         }
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            securityEventService.recordLoginFail(getClientIp(httpServletRequest), request.getUsername());
+            securityEventService.recordLoginFail(clientIpResolver.resolve(httpServletRequest), request.getUsername());
             return ApiResponse.error("账号或密码错误");
         }
         if (Boolean.TRUE.equals(user.getBanned())) {
@@ -342,7 +344,7 @@ public class AuthController {
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            securityEventService.recordLoginFail(getClientIp(httpServletRequest), user.getUsername());
+            securityEventService.recordLoginFail(clientIpResolver.resolve(httpServletRequest), user.getUsername());
             return ApiResponse.error("密码错误");
         }
 
@@ -374,17 +376,4 @@ public class AuthController {
         return sb.toString();
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
-    }
 }

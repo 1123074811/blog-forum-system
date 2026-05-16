@@ -3,6 +3,7 @@ package com.blog.interceptor;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.blog.pojo.entity.SiteVisit;
 import com.blog.service.SiteVisitService;
+import com.blog.util.ClientIpResolver;
 import com.blog.util.DateUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,13 +18,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class VisitInterceptor implements HandlerInterceptor {
 
     private final SiteVisitService siteVisitService;
+    private final ClientIpResolver clientIpResolver;
     private static final ConcurrentHashMap<String, Boolean> todayUvMap = new ConcurrentHashMap<>();
     private static String currentDate = "";
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String today = DateUtil.now().substring(0, 10);
-        String ip = getClientIp(request);
+        String ip = clientIpResolver.resolve(request);
 
         // 日期变化时清空UV缓存
         if (!today.equals(currentDate)) {
@@ -58,10 +60,4 @@ public class VisitInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty()) ip = request.getHeader("X-Real-IP");
-        if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
-        return ip.split(",")[0].trim();
-    }
 }

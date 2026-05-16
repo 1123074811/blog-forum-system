@@ -5,6 +5,7 @@ import com.blog.pojo.dto.ApiResponse;
 import com.blog.pojo.entity.Media;
 import com.blog.mapper.MediaMapper;
 import com.blog.service.MinioService;
+import com.blog.util.ClientIpResolver;
 import com.blog.util.DateUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +39,7 @@ public class WallpaperController {
     private final MediaMapper mediaMapper;
     private final MinioService minioService;
     private final StringRedisTemplate stringRedisTemplate;
+    private final ClientIpResolver clientIpResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final AtomicBoolean bingFetching = new AtomicBoolean(false);
 
@@ -165,7 +167,7 @@ public class WallpaperController {
     public ApiResponse<Map<String, Object>> getWeather(HttpServletRequest request,
                                                        @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean debug) {
         try {
-            String ip = getClientIp(request);
+            String ip = clientIpResolver.resolve(request);
             boolean isLocalIp = ip.startsWith("127.") || ip.startsWith("0:");
             if (isLocalIp) {
                 String publicIp = getPublicIp();
@@ -302,17 +304,6 @@ public class WallpaperController {
         return null;
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        // 只信任 X-Real-IP（由 Nginx 注入的真实 IP），不信任客户端可伪造的 X-Forwarded-For
-        String ip = request.getHeader("X-Real-IP");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("CF-Connecting-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip == null ? "" : ip.trim();
-    }
 
     private String getPublicIp() {
         try {

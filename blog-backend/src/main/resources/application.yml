@@ -43,8 +43,8 @@ management:
   endpoints:
     web:
       exposure:
-        # 暴露的端点：health, info
-        include: health,info
+        # 暴露的端点：health, info, metrics, prometheus
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
@@ -81,6 +81,7 @@ app:
   security:
     cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
     websocket-allowed-origins: ${WS_ALLOWED_ORIGINS:http://localhost:5173}
+    trusted-proxy-ips: ${TRUSTED_PROXY_IPS:127.0.0.1,0:0:0:0:0:0:0:1,::1}
 
 alert:
   webhook: ${ALERT_WEBHOOK:}

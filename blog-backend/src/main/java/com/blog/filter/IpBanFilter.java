@@ -2,6 +2,7 @@ package com.blog.filter;
 
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.service.SecurityEventService;
+import com.blog.util.ClientIpResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,11 +22,12 @@ public class IpBanFilter extends OncePerRequestFilter {
 
     private final SecurityEventService securityEventService;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIpResolver;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String ip = extractIp(request);
+        String ip = clientIpResolver.resolve(request);
         if (securityEventService.isIpBanned(ip)) {
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -36,15 +38,4 @@ public class IpBanFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private String extractIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isBlank()) {
-            return ip;
-        }
-        ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank()) {
-            return ip.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

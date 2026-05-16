@@ -2,6 +2,7 @@ package com.blog.security;
 
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.service.SecurityEventService;
+import com.blog.util.ClientIpResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,25 +21,15 @@ public class SecurityAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
     private final SecurityEventService securityEventService;
+    private final ClientIpResolver clientIpResolver;
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
-        securityEventService.recordUnauthorized(extractIp(request));
+        securityEventService.recordUnauthorized(clientIpResolver.resolve(request));
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(403, "权限不足")));
     }
 
-    private String extractIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isBlank()) {
-            return ip;
-        }
-        ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank()) {
-            return ip.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

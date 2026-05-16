@@ -5,6 +5,7 @@ import com.blog.context.BaseContext;
 import com.blog.mapper.SecurityEventMapper;
 import com.blog.pojo.entity.SecurityEvent;
 import com.blog.service.AlertService;
+import com.blog.util.ClientIpResolver;
 import com.blog.util.DateUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,7 @@ public class AuditLogAspect {
     private final ObjectMapper objectMapper;
     private final SecurityEventMapper securityEventMapper;
     private final AlertService alertService;
+    private final ClientIpResolver clientIpResolver;
 
     @Around("@annotation(auditLog)")
     public Object around(ProceedingJoinPoint joinPoint, AuditLog auditLog) throws Throwable {
@@ -58,7 +60,7 @@ public class AuditLogAspect {
         if (request != null) {
             auditInfo.put("requestMethod", request.getMethod());
             auditInfo.put("requestUrl", request.getRequestURI());
-            auditInfo.put("ip", getClientIp(request));
+            auditInfo.put("ip", clientIpResolver.resolve(request));
             auditInfo.put("userAgent", request.getHeader("User-Agent"));
         }
 
@@ -139,23 +141,6 @@ public class AuditLogAspect {
         }
     }
 
-    /**
-     * 获取客户端IP
-     */
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // 处理多个IP的情况，取第一个
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
-    }
 
     /**
      * 敏感信息脱敏

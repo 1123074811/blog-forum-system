@@ -2,6 +2,7 @@ package com.blog.filter;
 
 import com.blog.pojo.dto.ApiResponse;
 import com.blog.service.SecurityEventService;
+import com.blog.util.ClientIpResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
@@ -30,6 +31,7 @@ public class HotspotRateLimitFilter extends OncePerRequestFilter {
 
     private final SecurityEventService securityEventService;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIpResolver;
 
     @Value("${app.security.hotspot-whitelist-enabled:false}")
     private boolean hotspotWhitelistEnabled;
@@ -71,7 +73,7 @@ public class HotspotRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String ip = extractIp(request);
+        String ip = clientIpResolver.resolve(request);
         if (hotspotWhitelistEnabled && whitelistIps.contains(ip)) {
             filterChain.doFilter(request, response);
             return;
@@ -130,17 +132,6 @@ public class HotspotRateLimitFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 
-    private String extractIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-            return ip;
-        }
-        ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-            return ip.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 
     private record PathRule(String prefix, long windowSeconds, long maxRequests) {
     }

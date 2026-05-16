@@ -5,6 +5,7 @@ import com.blog.context.BaseContext;
 import com.blog.exception.BusinessException;
 import com.blog.exception.ErrorCode;
 import com.blog.service.SecurityEventService;
+import com.blog.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class RateLimitAspect {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final SecurityEventService securityEventService;
+    private final ClientIpResolver clientIpResolver;
 
     @Before("@annotation(rateLimit)")
     public void doBefore(JoinPoint joinPoint, RateLimit rateLimit) {
@@ -84,19 +86,6 @@ public class RateLimitAspect {
         if (attributes == null) {
             return "unknown";
         }
-
-        HttpServletRequest request = attributes.getRequest();
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // 处理多级代理的情况
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
+        return clientIpResolver.resolve(attributes.getRequest());
     }
 }
