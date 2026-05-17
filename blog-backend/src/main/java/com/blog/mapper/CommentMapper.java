@@ -22,4 +22,19 @@ public interface CommentMapper extends BaseMapper<Comment> {
             "GROUP BY article_id" +
             "</script>")
     List<Map<String, Object>> batchCountByArticleIds(@Param("articleIds") List<Long> articleIds);
+
+    @Select("SELECT LEFT(created_at, 10) AS dateKey, COUNT(*) AS cnt " +
+            "FROM comments WHERE created_at >= #{start} AND created_at < #{end} " +
+            "GROUP BY dateKey ORDER BY dateKey")
+    List<Map<String, Object>> countByDateRange(@Param("start") String start, @Param("end") String end);
+
+    @Select("SELECT LEFT(created_at, 7) AS dateKey, COUNT(*) AS cnt " +
+            "FROM comments WHERE created_at >= #{start} AND created_at < #{end} " +
+            "GROUP BY dateKey ORDER BY dateKey")
+    List<Map<String, Object>> countByMonthRange(@Param("start") String start, @Param("end") String end);
+
+    @Select("SELECT LEFT(created_at, 4) AS dateKey, COUNT(*) AS cnt " +
+            "FROM comments WHERE created_at >= #{start} AND created_at < #{end} " +
+            "GROUP BY dateKey ORDER BY dateKey")
+    List<Map<String, Object>> countByYearRange(@Param("start") String start, @Param("end") String end);
 }

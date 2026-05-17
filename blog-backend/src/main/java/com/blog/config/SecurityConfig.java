@@ -67,6 +67,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/quiz/*/questions").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/site-info").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/announcements").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/home").permitAll()
                 .requestMatchers("/api/tree-hole/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()

@@ -20,15 +20,13 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-      <div class="glass rounded-xl p-4 relative overflow-hidden" v-for="item in statCards" :key="item.key">
-        <div class="flex items-baseline gap-2">
-          <div class="text-2xl sm:text-3xl font-bold" :class="item.color">{{ item.value }}</div>
-          <div v-if="item.increase > 0" class="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[10px] font-bold animate-bounce-subtle">
-            +{{ item.increase }}
-          </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-4">
+      <div class="glass rounded-xl p-3 sm:p-4 relative overflow-hidden" v-for="item in statCards" :key="item.key">
+        <div class="flex items-baseline gap-1 sm:gap-2">
+          <div class="text-xl sm:text-2xl font-bold" :class="item.color">{{ item.value }}</div>
+          <div v-if="item.suffix" class="text-xs text-slate-400">{{ item.suffix }}</div>
         </div>
-        <div class="text-gray-500 text-sm mt-1">{{ item.label }}</div>
+        <div class="text-gray-500 text-xs sm:text-sm mt-1">{{ item.label }}</div>
       </div>
     </div>
 
@@ -47,6 +45,10 @@
         <div ref="trendChartRef" :style="{ height: chartHeight + 'px' }"></div>
       </div>
       <div class="glass rounded-xl p-4">
+        <h3 class="text-base sm:text-lg font-semibold mb-3 dark:text-white">新用户注册趋势</h3>
+        <div ref="regChartRef" :style="{ height: chartHeight + 'px' }"></div>
+      </div>
+      <div class="glass rounded-xl p-4">
         <h3 class="text-base sm:text-lg font-semibold mb-3 dark:text-white">文章状态分布</h3>
         <div ref="statusChartRef" :style="{ height: chartHeight + 'px' }"></div>
       </div>
@@ -58,13 +60,24 @@
         <h3 class="text-base sm:text-lg font-semibold mb-3 dark:text-white">活跃作者（Top 5）</h3>
         <div ref="authorChartRef" :style="{ height: chartHeight + 'px' }"></div>
       </div>
+      <div class="glass rounded-xl p-4">
+        <h3 class="text-base sm:text-lg font-semibold mb-3 dark:text-white">运营概览</h3>
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between"><span class="text-slate-500">今日新增用户</span><span class="font-semibold">{{ stats.todayNewUsers || 0 }}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">今日新增文章</span><span class="font-semibold">{{ stats.todayNewArticles || 0 }}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">IP 封禁数</span><span class="font-semibold text-orange-500">{{ stats.activeIpBans || 0 }}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">在线用户</span><span class="font-semibold text-emerald-500">{{ stats.totalOnlineUsers || 0 }}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">媒体文件数</span><span class="font-semibold">{{ stats.totalMedia || 0 }}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">上传文件数</span><span class="font-semibold">{{ stats.totalFiles || 0 }}</span></div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick, onUnmounted, computed } from 'vue'
-import { getStatistics } from '@/api/blog'
+import { getStatistics, getOnlineStatus } from '@/api/blog'
 import { useIsMobile } from '@/composables/useIsMobile'
 
 // echarts 按需异步加载
@@ -87,19 +100,27 @@ const stats = ref({
   totalComments: 0,
   totalVisitors: 0,
   todayVisitors: 0,
+  totalMedia: 0,
+  totalFiles: 0,
+  todayNewUsers: 0,
+  todayNewArticles: 0,
+  activeIpBans: 0,
   viewRanking: [],
   trend: { labels: [], articleCounts: [], commentCounts: [] },
+  registrationTrend: { labels: [], values: [] },
   articleStatusDistribution: [],
   activeAuthors: []
 })
 const selectedRange = ref('30d')
 const selectedGranularity = ref('day')
 const trendChartRef = ref(null)
+const regChartRef = ref(null)
 const statusChartRef = ref(null)
 const viewChartRef = ref(null)
 const authorChartRef = ref(null)
 const { isMobile } = useIsMobile()
 let trendChart = null
+let regChart = null
 let statusChart = null
 let viewChart = null
 let authorChart = null
@@ -110,8 +131,10 @@ const chartHeight = computed(() => (isMobile.value ? 240 : 300))
 const statCards = computed(() => [
   { key: 'a', label: '文章总数', value: stats.value.totalArticles, color: 'text-primary-500' },
   { key: 'u', label: '用户总数', value: stats.value.totalUsers, color: 'text-sky-500' },
-  { key: 'c', label: '在线用户', value: stats.value.totalOnlineUsers, color: 'text-emerald-500' },
-  { key: 'v', label: '访客总数', value: stats.value.totalVisitors, increase: stats.value.todayVisitors, color: 'text-purple-500' }
+  { key: 'm', label: '媒体文件', value: stats.value.totalMedia, color: 'text-amber-500' },
+  { key: 'f', label: '上传文件', value: stats.value.totalFiles, color: 'text-indigo-500' },
+  { key: 'c', label: '评论总数', value: stats.value.totalComments, color: 'text-emerald-500' },
+  { key: 'v', label: '访客总数', value: stats.value.totalVisitors, suffix: '今日+' + (stats.value.todayVisitors || 0), color: 'text-purple-500' }
 ])
 
 const quickEntries = [
@@ -213,8 +236,32 @@ const initAuthorChart = async () => {
   })
 }
 
+const initRegChart = async () => {
+  if (!regChartRef.value) return
+  const ec = await loadEcharts()
+  regChart?.dispose()
+  regChart = ec.init(regChartRef.value)
+  regChart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: (stats.value.registrationTrend?.labels || []).map(formatTrendLabel),
+      axisLabel: { fontSize: isMobile.value ? 10 : 12, rotate: isMobile.value ? 30 : 0 }
+    },
+    yAxis: { type: 'value' },
+    series: [{
+      name: '新注册用户', type: 'bar',
+      data: stats.value.registrationTrend?.values || [],
+      itemStyle: { color: '#22c55e', borderRadius: [4, 4, 0, 0] },
+      barMaxWidth: isMobile.value ? 24 : 40
+    }]
+  })
+}
+
 const initAllCharts = () => {
   initTrendChart()
+  initRegChart()
   initStatusChart()
   initViewChart()
   initAuthorChart()
@@ -223,26 +270,38 @@ const initAllCharts = () => {
 const fetchStats = async () => {
   const res = await getStatistics({ range: selectedRange.value, granularity: selectedGranularity.value })
   if (res.success) {
+    const d = res.data
     stats.value = {
-      totalArticles: res.data.totalArticles || 0,
-      totalUsers: res.data.totalUsers || 0,
-      totalOnlineUsers: res.data.totalOnlineUsers || 0,
-      totalComments: res.data.totalComments || 0,
-      totalVisitors: res.data.totalVisitors || 0,
-      todayVisitors: res.data.todayVisitors || 0,
-      viewRanking: res.data.viewRanking || [],
-      trend: res.data.trend || { labels: [], articleCounts: [], commentCounts: [] },
-      articleStatusDistribution: res.data.articleStatusDistribution || [],
-      activeAuthors: res.data.activeAuthors || []
+      totalArticles: d.totalArticles || 0,
+      totalUsers: d.totalUsers || 0,
+      totalOnlineUsers: d.totalOnlineUsers || 0,
+      totalComments: d.totalComments || 0,
+      totalVisitors: d.totalVisitors || 0,
+      todayVisitors: d.todayVisitors || 0,
+      totalMedia: d.totalMedia || 0,
+      totalFiles: d.totalFiles || 0,
+      todayNewUsers: d.todayNewUsers || 0,
+      todayNewArticles: d.todayNewArticles || 0,
+      activeIpBans: d.activeIpBans || 0,
+      viewRanking: d.viewRanking || [],
+      trend: d.trend || { labels: [], articleCounts: [], commentCounts: [] },
+      registrationTrend: d.registrationTrend || { labels: [], values: [] },
+      articleStatusDistribution: d.articleStatusDistribution || [],
+      activeAuthors: d.activeAuthors || []
     }
     await nextTick()
     setTimeout(initAllCharts, 80)
   }
 }
 
-const refreshOnlineUsers = async () => {
-  const res = await getStatistics({ range: selectedRange.value, granularity: selectedGranularity.value })
-  if (res.success) stats.value.totalOnlineUsers = res.data.totalOnlineUsers || 0
+const refreshOnlineStatus = async () => {
+  const res = await getOnlineStatus()
+  if (res.success) {
+    stats.value.totalOnlineUsers = res.data.totalOnlineUsers || 0
+    stats.value.todayNewUsers = res.data.todayNewUsers || 0
+    stats.value.todayNewArticles = res.data.todayNewArticles || 0
+    stats.value.activeIpBans = res.data.activeIpBans || 0
+  }
 }
 
 const handleFilterChange = () => {
@@ -251,6 +310,7 @@ const handleFilterChange = () => {
 
 const handleResize = () => {
   trendChart?.resize()
+  regChart?.resize()
   statusChart?.resize()
   viewChart?.resize()
   authorChart?.resize()
@@ -259,13 +319,14 @@ const handleResize = () => {
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
   await fetchStats()
-  onlineTimer = setInterval(refreshOnlineUsers, 15000)
+  onlineTimer = setInterval(refreshOnlineStatus, 15000)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   if (onlineTimer) clearInterval(onlineTimer)
   trendChart?.dispose()
+  regChart?.dispose()
   statusChart?.dispose()
   viewChart?.dispose()
   authorChart?.dispose()

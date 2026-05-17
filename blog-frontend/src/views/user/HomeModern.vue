@@ -219,7 +219,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getArticles, getCategories, getTags, getAnnouncements } from '@/api/blog'
+import { getHomeData, getArticles } from '@/api/blog'
 import api from '@/api'
 import { View, Loading, Location, Top, Edit, Star } from '@element-plus/icons-vue'
 import { normalizeUnsafeUrl, toAvatarThumb } from '@/utils/image'
@@ -278,37 +278,30 @@ const runWhenIdle = (task, timeout = 2000) => {
   }
 }
 
-const fetchSidebarMeta = async () => {
+const fetchSidebarData = async () => {
   try {
-    const [catRes, tagRes] = await Promise.all([getCategories(), getTags()])
-    if (catRes.success) categories.value = catRes.data
-    if (tagRes.success) tags.value = tagRes.data
-  } catch (error) {
-    console.error('Failed to load sidebar meta:', error)
-  }
-}
-
-const fetchAnnouncements = async () => {
-  try {
-    const annRes = await getAnnouncements()
-    if (annRes.success && annRes.data && annRes.data.length > 0) {
-      const announcement = annRes.data[0]
-      const today = new Date().toISOString().split('T')[0]
-      const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
-      const storageKey = `hide_announcement_${userId}_${announcement.id}_${today}`
-
-      const entrySource = sessionStorage.getItem(ENTRY_SOURCE_KEY) || 'external'
-      const consumed = sessionStorage.getItem(HOME_ANNOUNCEMENT_CONSUMED_KEY) === 'true'
-
-      if (entrySource === 'external' && !consumed && !localStorage.getItem(storageKey)) {
-        currentAnnouncement.value = announcement
-        showAnnouncement.value = true
+    const res = await getHomeData({ page: 1, limit: 1 })
+    if (res.success && res.data) {
+      const data = res.data
+      if (data.categories) categories.value = data.categories
+      if (data.tags) tags.value = data.tags
+      if (data.hotArticles) hotArticles.value = data.hotArticles
+      if (data.announcements && data.announcements.length > 0) {
+        const announcement = data.announcements[0]
+        const today = new Date().toISOString().split('T')[0]
+        const userId = userStore.isLoggedIn ? userStore.user?.id : 'guest'
+        const storageKey = `hide_announcement_${userId}_${announcement.id}_${today}`
+        const entrySource = sessionStorage.getItem(ENTRY_SOURCE_KEY) || 'external'
+        const consumed = sessionStorage.getItem(HOME_ANNOUNCEMENT_CONSUMED_KEY) === 'true'
+        if (entrySource === 'external' && !consumed && !localStorage.getItem(storageKey)) {
+          currentAnnouncement.value = announcement
+          showAnnouncement.value = true
+        }
       }
+      sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
     }
   } catch (error) {
-    console.error('Failed to process announcement:', error)
-  } finally {
-    sessionStorage.setItem(HOME_ANNOUNCEMENT_CONSUMED_KEY, 'true')
+    console.error('Failed to load sidebar data:', error)
   }
 }
 
@@ -362,11 +355,6 @@ const fetchArticles = async (reset = false) => {
   }
 }
 
-const fetchHotArticles = async () => {
-  const res = await getArticles({ page: 1, limit: 5, sort: 'popular' })
-  if (res.success) hotArticles.value = res.data.data
-}
-
 const selectCategory = (id) => {
   selectedCategory.value = id
   fetchArticles(true)
@@ -389,7 +377,7 @@ const getHotRankStyle = (index) => {
 
 const handleRefresh = () => {
   fetchArticles(true)
-  fetchHotArticles()
+  fetchSidebarData()
 }
 
 const scrollToTop = () => {
@@ -425,13 +413,12 @@ onMounted(async () => {
   // Critical path first: feed content.
   fetchArticles(true)
 
-  // Delay non-critical requests to protect first-screen rendering.
-  runWhenIdle(() => fetchAnnouncements(), 2200)
-
+  // Aggregated sidebar data (categories, tags, hot articles, announcements) in one request.
   if (isDesktop) {
-    runWhenIdle(() => fetchSidebarMeta(), 2000)
-    runWhenIdle(() => fetchHotArticles(), 2200)
+    runWhenIdle(() => fetchSidebarData(), 2000)
     runWhenIdle(() => fetchRightSidebarFeeds(), 2400)
+  } else {
+    runWhenIdle(() => fetchSidebarData(), 2200)
   }
 })
 

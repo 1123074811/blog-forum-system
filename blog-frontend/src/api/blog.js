@@ -13,6 +13,7 @@ export const verifyCode = (data) => api.post('/auth/verify-code', data)
 export const resetPassword = (data) => api.post('/auth/reset-password', data)
 export const exchangeOAuthTicket = (ticket) => api.post('/auth/exchange-ticket', { ticket })
 
+export const getHomeData = (params) => api.get('/home', { params })
 export const getArticles = (params) => api.get('/articles', { params })
 export const getArticle = (id) => api.get(`/articles/${id}`)
 export const createArticle = (data) => api.post('/articles', data)
@@ -49,6 +50,7 @@ export const uploadFile = (file) => {
 
 // Admin APIs
 export const getStatistics = (params) => api.get('/admin/statistics', { params })
+export const getOnlineStatus = () => api.get('/admin/online-status')
 export const getAdminUsers = () => api.get('/admin/users')
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`)
 export const getAdminArticles = () => api.get('/admin/articles')
@@ -171,3 +173,8 @@ export const uploadMessageFile = (file) => {
 export const getMessageUnreadCount = () => api.get('/messages/unread')
 export const getFriends = () => api.get('/messages/friends')
 export const checkMutualFollow = (userId) => api.get(`/messages/check-mutual/${userId}`)
+
+// Report APIs
+export const createReport = (data) => api.post('/reports', data)
+export const getAdminReports = (params) => api.get('/admin/reports', { params })
+export const handleReport = (id, data) => api.put(`/admin/reports/${id}`, data)
