@@ -8,6 +8,7 @@ blog-backend/target/
 # Frontend - Node.js/Vite
 blog-frontend/node_modules/
 blog-frontend/dist/
+blog-frontend/vite.config.js.timestamp-*.mjs
 
 # IDE
 .idea/
