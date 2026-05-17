@@ -96,7 +96,7 @@ public class MinioStorageService implements StorageService {
                         .build()
         );
 
-        String url = config.getEndpoint() + "/" + config.getBucket() + "/" + objectName;
+        String url = buildUrl(objectName);
         log.debug("文件上传成功: {}", url);
         return url;
     }
@@ -139,7 +139,7 @@ public class MinioStorageService implements StorageService {
                             .build()
             );
 
-            String fileUrl = config.getEndpoint() + "/" + config.getBucket() + "/" + filename;
+            String fileUrl = buildUrl(filename);
             log.debug("URL上传文件成功: {}", fileUrl);
             return fileUrl;
         }
@@ -155,15 +155,29 @@ public class MinioStorageService implements StorageService {
                         .contentType(contentType)
                         .build()
         );
-        String url = config.getEndpoint() + "/" + config.getBucket() + "/" + objectName;
+        String url = buildUrl(objectName);
         log.debug("字节数组上传成功: {}", url);
         return url;
+    }
+
+    private String buildUrl(String objectName) {
+        if (config.getCustomDomain() != null && !config.getCustomDomain().isBlank()) {
+            String domain = config.getCustomDomain().replaceAll("/+$", "");
+            String protocol = domain.startsWith("http") ? "" : "https://";
+            return protocol + domain + "/" + objectName;
+        }
+        return config.getEndpoint() + "/" + config.getBucket() + "/" + objectName;
     }
 
     @Override
     public void delete(String filename) throws Exception {
         if (filename.startsWith("http")) {
-            filename = filename.substring(filename.lastIndexOf("/") + 1);
+            String prefix = config.getEndpoint() + "/" + config.getBucket() + "/";
+            if (filename.startsWith(prefix)) {
+                filename = filename.substring(prefix.length());
+            } else {
+                filename = filename.substring(filename.lastIndexOf("/") + 1);
+            }
         }
 
         minioClient.removeObject(
