@@ -117,6 +117,57 @@
   border-color: var(--accent-primary);
 }
 
+.sketch-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  min-height: 34px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.sketch-menu-item > span {
+  flex: 1;
+  text-align: center;
+}
+
+.sketch-menu-item:hover {
+  background: rgba(211, 84, 0, 0.08);
+  border-color: var(--ink);
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+.sketch-menu-item.is-active {
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  color: var(--accent);
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+.dark .sketch-menu-item {
+  color: var(--text-primary);
+}
+
+.dark .sketch-menu-item:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.dark .sketch-menu-item.is-active {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  box-shadow: 3px 3px 0 rgba(56, 189, 248, 0.45);
+}
+
 body {
   font-family: 'Noto Serif SC', 'Outfit', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', serif;
   min-height: 100vh;

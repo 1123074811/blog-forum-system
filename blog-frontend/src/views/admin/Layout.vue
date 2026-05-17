@@ -1,15 +1,15 @@
 ﻿<template>
   <div v-if="!isMobile" class="flex min-h-screen">
-    <aside class="w-64 glass fixed left-0 top-0 bottom-0 p-4">
-      <div class="text-xl font-bold text-primary-600 mb-8">管理后台</div>
+    <aside class="admin-sidebar w-64 glass fixed left-0 top-0 bottom-0 p-4">
+      <div class="admin-brand">管理后台</div>
       <nav class="space-y-2">
-        <router-link v-for="item in fullMenus" :key="item.path" :to="item.path" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700" :class="{ 'bg-primary-100 dark:bg-gray-700': route.path === item.path }">
+        <router-link v-for="item in fullMenus" :key="item.path" :to="item.path" class="sketch-menu-item admin-menu-link" :class="{ 'is-active': route.path === item.path }">
           <el-icon><component :is="item.icon" /></el-icon>
-          <span class="dark:text-white">{{ item.label }}</span>
+          <span>{{ item.label }}</span>
         </router-link>
       </nav>
       <div class="absolute bottom-4 left-4 right-4">
-        <router-link to="/" class="flex items-center gap-2 p-3 text-gray-600 hover:text-primary-500 dark:text-gray-400">
+        <router-link to="/" class="admin-back-link">
           <el-icon><Back /></el-icon>
           <span>返回前台</span>
         </router-link>
@@ -139,6 +139,46 @@ const goTab = (tab) => {
 </script>
 
 <style scoped>
+.admin-sidebar {
+  color: var(--text-primary);
+}
+
+.admin-brand {
+  margin-bottom: 2rem;
+  color: var(--accent-primary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.admin-menu-link {
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.admin-menu-link :deep(.el-icon) {
+  position: absolute;
+  left: 0.75rem;
+  flex: 0 0 1em;
+}
+
+.admin-back-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  color: var(--text-secondary);
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.admin-back-link:hover {
+  background: var(--subtle-blue, var(--glass-bg-light));
+  color: var(--accent-primary);
+  transform: translateX(-2px);
+}
+
 .mobile-admin-shell {
   min-height: 100vh;
   padding-bottom: calc(66px + env(safe-area-inset-bottom));
@@ -158,7 +198,7 @@ const goTab = (tab) => {
 .mobile-admin-title {
   font-size: 16px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .mobile-admin-main {
@@ -188,13 +228,13 @@ const goTab = (tab) => {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
 .mobile-tab.active {
-  color: #0ea5e9;
-  background: rgba(14, 165, 233, 0.12);
+  color: var(--accent-primary);
+  background: var(--subtle-blue, var(--glass-bg-light));
 }
 
 .mobile-menu-groups {
@@ -204,7 +244,7 @@ const goTab = (tab) => {
 }
 
 .mobile-menu-title {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 13px;
   margin-bottom: 8px;
 }
@@ -216,18 +256,23 @@ const goTab = (tab) => {
   height: 42px;
   border-radius: 10px;
   padding: 0 10px;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .mobile-menu-item:hover {
-  background: rgba(14, 165, 233, 0.12);
+  background: var(--subtle-blue, var(--glass-bg-light));
+  color: var(--accent-primary);
 }
 
 .mobile-back-link {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 14px;
+}
+
+.mobile-back-link:hover {
+  color: var(--accent-primary);
 }
 </style>

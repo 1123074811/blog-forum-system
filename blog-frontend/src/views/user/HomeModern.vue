@@ -22,25 +22,25 @@
           分类
         </h3>
         <div class="space-y-2 font-serif">
-          <div class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
-               :class="{ 'bg-gradient-to-r from-primary-200 to-primary-50 dark:from-gray-700 dark:to-gray-800 shadow-sm': selectedCategory === 'all' }"
+          <div class="sketch-menu-item"
+               :class="{ 'is-active': selectedCategory === 'all' }"
                @click="selectCategory('all')">
-            <span class="dark:text-gray-300 font-medium">全部</span>
+            <span>全部</span>
           </div>
           <!-- 仅登录后显示关注分类 -->
           <div v-if="userStore.isLoggedIn"
-               class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
-               :class="{ 'bg-gradient-to-r from-primary-200 to-primary-50 dark:from-gray-700 dark:to-gray-800 shadow-sm': selectedCategory === 'following' }"
+               class="sketch-menu-item"
+               :class="{ 'is-active': selectedCategory === 'following' }"
                @click="selectCategory('following')">
-            <span class="dark:text-gray-300 font-medium flex items-center gap-1">
+            <span>
               关注
             </span>
           </div>
           <div v-for="cat in categories" :key="cat.id"
-               class="flex items-center justify-between p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-300"
-               :class="{ 'bg-gradient-to-r from-primary-200 to-primary-50 dark:from-gray-700 dark:to-gray-800 shadow-sm': selectedCategory === cat.id }"
+               class="sketch-menu-item"
+               :class="{ 'is-active': selectedCategory === cat.id }"
                @click="selectCategory(cat.id)">
-            <span class="dark:text-gray-300 font-medium">{{ cat.name }}</span>
+            <span>{{ cat.name }}</span>
           </div>
         </div>
       </div>
