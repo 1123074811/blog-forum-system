@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-4xl mx-auto">
-    <div class="post-card jp-quizlist-shell p-3 sm:p-6">
+    <div class="jp-study-card jp-quizlist-shell p-3 sm:p-6">
       <!-- 移动端优化布局 -->
       <div class="space-y-3 sm:space-y-0 mb-4 sm:mb-6">
         <!-- 标题行 -->
@@ -37,7 +37,7 @@
       <!-- 题库列表 -->
       <div class="space-y-3 sm:space-y-4">
         <div v-for="quiz in displayList" :key="quiz.id"
-             class="post-card jp-quiz-item p-3 sm:p-4 cursor-pointer"
+             class="jp-quiz-item p-3 sm:p-4 cursor-pointer"
              @click="handleItemClick(quiz)">
           <!-- 水平布局 -->
           <div class="flex justify-between gap-3 items-center">
@@ -576,14 +576,27 @@ onUnmounted(() => {
 }
 
 .jp-quiz-item {
-  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px dashed rgba(44, 62, 80, 0.34);
+  border-radius: 0 !important;
   padding: 14px 14px !important;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-@media (max-width: 768px) {
-  .jp-quiz-item:hover {
-    transform: none;
-    box-shadow: none;
-  }
+.jp-quiz-item:hover {
+  background: rgba(211, 84, 0, 0.06);
+  border-color: var(--ink);
+  transform: none;
+  box-shadow: none;
+}
+
+.dark .jp-quiz-item {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+.dark .jp-quiz-item:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--accent-primary);
 }
 </style>

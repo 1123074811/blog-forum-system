@@ -1,7 +1,7 @@
 <template>
   <div class="jp-quiz-page max-w-6xl mx-auto">
     <!-- 页面标题 -->
-    <div class="jp-quiz-header post-card mb-6">
+    <div class="jp-quiz-header jp-study-card mb-6">
       <h1 class="jp-page-title">
         <span class="stamp">测</span>
         {{ quiz.title }}
@@ -10,9 +10,9 @@
     </div>
     
     <!-- 移动端垂直布局，PC 端水平布局 -->
-    <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
+    <div class="jp-quiz-layout flex flex-col lg:flex-row gap-4 lg:gap-6">
       <!-- 左侧答题区 -->
-      <div class="flex-1 post-card jp-quiz-answer-area">
+      <div class="flex-1 jp-study-card jp-quiz-answer-area">
         <!-- 顶部标题栏 - 移动端优化 -->
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
           <div class="flex items-center gap-2 sm:gap-3">
@@ -40,7 +40,7 @@
           <!-- 单选/多选 -->
           <div v-if="currentQuestion.type === 'single' || currentQuestion.type === 'multiple'" class="space-y-2">
             <div v-for="(opt, idx) in parsedOptions" :key="idx"
-                 class="p-2 sm:p-3 border rounded-lg cursor-pointer transition-colors text-sm sm:text-base"
+                 class="jp-answer-option p-2 sm:p-3 border cursor-pointer transition-colors text-sm sm:text-base"
                  :class="optionClass(opt)"
                  @click="selectOption(opt)">
               {{ String.fromCharCode(65 + idx) }}. {{ opt }}
@@ -49,11 +49,11 @@
 
           <!-- 判断题 -->
           <div v-else-if="currentQuestion.type === 'judge'" class="flex gap-3 sm:gap-4">
-            <div class="flex-1 p-3 sm:p-4 border rounded-lg cursor-pointer text-center transition-colors text-sm sm:text-base" 
-                 :class="judgeClass(true)" 
+            <div class="jp-answer-option flex-1 p-3 sm:p-4 border cursor-pointer text-center transition-colors text-sm sm:text-base"
+                 :class="judgeClass(true)"
                  @click="selectJudge(true)">正确</div>
-            <div class="flex-1 p-3 sm:p-4 border rounded-lg cursor-pointer text-center transition-colors text-sm sm:text-base" 
-                 :class="judgeClass(false)" 
+            <div class="jp-answer-option flex-1 p-3 sm:p-4 border cursor-pointer text-center transition-colors text-sm sm:text-base"
+                 :class="judgeClass(false)"
                  @click="selectJudge(false)">错误</div>
           </div>
 
@@ -67,9 +67,9 @@
           </div>
 
           <!-- 答案解析 -->
-          <div v-if="answered" 
-               class="mt-4 sm:mt-6 p-3 sm:p-4 rounded-lg text-sm sm:text-base" 
-               :class="currentQuestion.type === 'short' ? 'bg-blue-50 dark:bg-blue-900/20' : (isCorrect ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20')">
+          <div v-if="answered"
+               class="jp-answer-result mt-4 sm:mt-6 p-3 sm:p-4 text-sm sm:text-base"
+               :class="resultClass">
             <p v-if="currentQuestion.type !== 'short'" class="font-medium" :class="isCorrect ? 'text-green-600' : 'text-red-600'">
               {{ isCorrect ? '回答正确!' : '回答错误' }}
             </p>
@@ -104,7 +104,7 @@
       </div>
 
       <!-- 右侧题号面板 - PC端显示 -->
-      <div v-if="!isMobile" class="w-64 post-card jp-quiz-side p-4 h-fit sticky top-24">
+      <div v-if="!isMobile" class="w-64 jp-study-card jp-quiz-side p-4 h-fit sticky top-0">
         <div class="flex justify-between items-center mb-3">
           <span class="text-sm font-medium dark:text-white flex items-center gap-1"><span class="stamp">卡</span>答题卡</span>
           <el-switch v-model="categoryMode" size="small" active-text="分类" inactive-text="顺序" />
@@ -112,7 +112,7 @@
         <!-- 顺序模式 -->
         <div v-if="!categoryMode" class="grid grid-cols-5 gap-2">
           <div v-for="(q, idx) in questions" :key="idx"
-            class="w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer text-sm font-medium transition-all"
+            class="jp-question-index w-10 h-10 flex items-center justify-center cursor-pointer text-sm font-medium transition-all"
             :class="getQuestionStatusClass(idx)"
             @click="goToQuestion(idx)">
             {{ idx + 1 }}
@@ -124,7 +124,7 @@
             <div class="text-xs mb-1" :class="cat.color">{{ cat.label }}（{{ cat.items.length }}）</div>
             <div class="grid grid-cols-5 gap-1">
               <div v-for="item in cat.items" :key="item.idx"
-                class="w-8 h-8 flex items-center justify-center rounded cursor-pointer text-xs font-medium transition-all"
+                class="jp-question-index w-8 h-8 flex items-center justify-center cursor-pointer text-xs font-medium transition-all"
                 :class="getQuestionStatusClass(item.idx)"
                 @click="goToQuestion(item.idx)">
                 {{ item.idx + 1 }}
@@ -133,10 +133,10 @@
           </div>
         </div>
         <div class="mt-4 text-xs text-gray-500 space-y-1">
-          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-primary-500"></span> 当前题</div>
-          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-green-500"></span> 已答对</div>
-          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-red-500"></span> 已答错</div>
-          <div class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700"></span> 未作答</div>
+          <div class="flex items-center gap-2"><span class="jp-status-dot is-current"></span> 当前题</div>
+          <div class="flex items-center gap-2"><span class="jp-status-dot is-correct"></span> 已答对</div>
+          <div class="flex items-center gap-2"><span class="jp-status-dot is-wrong"></span> 已答错</div>
+          <div class="flex items-center gap-2"><span class="jp-status-dot is-idle"></span> 未作答</div>
         </div>
       </div>
     </div>
@@ -149,7 +149,7 @@
       <!-- 顺序模式 -->
       <div v-if="!categoryMode" class="grid grid-cols-5 gap-2">
         <div v-for="(q, idx) in questions" :key="idx"
-          class="w-12 h-12 flex items-center justify-center rounded-lg cursor-pointer text-sm font-medium transition-all"
+          class="jp-question-index w-12 h-12 flex items-center justify-center cursor-pointer text-sm font-medium transition-all"
           :class="getQuestionStatusClass(idx)"
           @click="goToQuestion(idx); showAnswerSheet = false">
           {{ idx + 1 }}
@@ -161,7 +161,7 @@
           <div class="text-sm mb-2 font-medium" :class="cat.color">{{ cat.label }}（{{ cat.items.length }}）</div>
           <div class="grid grid-cols-5 gap-2">
             <div v-for="item in cat.items" :key="item.idx"
-              class="w-10 h-10 flex items-center justify-center rounded cursor-pointer text-xs font-medium transition-all"
+              class="jp-question-index w-10 h-10 flex items-center justify-center cursor-pointer text-xs font-medium transition-all"
               :class="getQuestionStatusClass(item.idx)"
               @click="goToQuestion(item.idx); showAnswerSheet = false">
               {{ item.idx + 1 }}
@@ -170,10 +170,10 @@
         </div>
       </div>
       <div class="mt-6 text-xs text-gray-500 space-y-2">
-        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-primary-500"></span> 当前题</div>
-        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-green-500"></span> 已答对</div>
-        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-red-500"></span> 已答错</div>
-        <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700"></span> 未作答</div>
+        <div class="flex items-center gap-2"><span class="jp-status-dot is-current"></span> 当前题</div>
+        <div class="flex items-center gap-2"><span class="jp-status-dot is-correct"></span> 已答对</div>
+        <div class="flex items-center gap-2"><span class="jp-status-dot is-wrong"></span> 已答错</div>
+        <div class="flex items-center gap-2"><span class="jp-status-dot is-idle"></span> 未作答</div>
       </div>
     </el-drawer>
   </div>
@@ -421,16 +421,21 @@ const typeLabel = computed(() => {
 
 const typeClass = computed(() => {
   const t = currentQuestion.value?.type
-  return { single: 'bg-blue-100 text-blue-600', multiple: 'bg-purple-100 text-purple-600', judge: 'bg-orange-100 text-orange-600', short: 'bg-green-100 text-green-600' }[t] || ''
+  return { single: 'is-single', multiple: 'is-multiple', judge: 'is-judge', short: 'is-short' }[t] || ''
+})
+
+const resultClass = computed(() => {
+  if (currentQuestion.value?.type === 'short') return 'is-reference'
+  return isCorrect.value ? 'is-correct' : 'is-wrong'
 })
 
 const getQuestionStatusClass = (idx) => {
-  if (idx === currentIndex.value) return 'bg-primary-500 text-white'
+  if (idx === currentIndex.value) return 'is-current'
   const ans = userAnswers.value[idx]
-  if (!ans?.submitted) return 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300'
+  if (!ans?.submitted) return 'is-idle'
   const correct = checkCorrect(idx)
-  if (correct) return 'bg-green-500 text-white'
-  return 'bg-red-500 text-white'
+  if (correct) return 'is-correct'
+  return 'is-wrong'
 }
 
 const optionClass = (opt) => {
@@ -440,7 +445,7 @@ const optionClass = (opt) => {
     ? (Array.isArray(ans?.selected) ? ans.selected[0] === opt : ans?.selected === opt)
     : (Array.isArray(ans?.selected) ? ans.selected.includes(opt) : ans?.selected === opt)
   if (!ans?.submitted) {
-    return isSelected ? 'border-2 border-primary-500 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+    return isSelected ? 'is-selected font-medium' : 'is-idle'
   }
   const correct = parsedAnswer.value
   const options = parsedOptions.value
@@ -454,20 +459,20 @@ const optionClass = (opt) => {
       ? optionToLetter(opt, options) === correct
       : correct === opt
   }
-  if (isCorrectOption) return 'border-green-500 bg-green-50 dark:bg-green-900/20'
-  if (isSelected && !isCorrectOption) return 'border-red-500 bg-red-50 dark:bg-red-900/20'
-  return 'border-gray-200 dark:border-gray-700'
+  if (isCorrectOption) return 'is-correct'
+  if (isSelected && !isCorrectOption) return 'is-wrong'
+  return 'is-idle'
 }
 
 const judgeClass = (val) => {
   const ans = userAnswers.value[currentIndex.value]
   if (!ans?.submitted) {
-    return ans?.selected === val ? 'border-2 border-primary-500 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+    return ans?.selected === val ? 'is-selected font-medium' : 'is-idle'
   }
   const correct = parsedAnswer.value
-  if (correct === val) return 'border-green-500 bg-green-50 dark:bg-green-900/20'
-  if (ans?.selected === val && correct !== val) return 'border-red-500 bg-red-50 dark:bg-red-900/20'
-  return 'border-gray-200 dark:border-gray-700'
+  if (correct === val) return 'is-correct'
+  if (ans?.selected === val && correct !== val) return 'is-wrong'
+  return 'is-idle'
 }
 
 const selectOption = (opt) => {
@@ -543,12 +548,183 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.jp-quiz-page {
+  padding-top: 28px;
+}
+
+.jp-quiz-header {
+  border-style: dashed;
+  box-shadow: 2px 2px 0 var(--accent);
+  padding: 20px;
+}
+
+.jp-quiz-answer-area {
+  border-radius: 12px 22px 14px 18px / 18px 12px 20px 10px;
+  padding: 20px;
+}
+
+.jp-quiz-layout {
+  align-items: flex-start;
+}
+
 .jp-quiz-side {
   padding: 14px 14px !important;
+  border-radius: 18px 8px 16px 10px / 8px 18px 10px 16px;
+  transform: rotate(-1deg);
+  margin-top: 0;
 }
 
 .jp-quiz-side .stamp {
   margin-right: 0 !important;
   transform: rotate(-10deg) scale(0.75);
+}
+
+.jp-answer-option {
+  background: rgba(255, 255, 255, 0.42);
+  border-color: rgba(44, 62, 80, 0.16);
+  border-radius: 0;
+}
+
+.jp-answer-option:hover {
+  border-color: var(--ink);
+  background: rgba(211, 84, 0, 0.06);
+}
+
+.jp-answer-option.is-selected {
+  border-color: var(--ink);
+  background: rgba(211, 84, 0, 0.1);
+  color: var(--accent);
+  box-shadow: 2px 2px 0 var(--accent);
+}
+
+.jp-answer-option.is-correct {
+  border-color: #1f8f5f;
+  background: rgba(31, 143, 95, 0.1);
+  color: #1f8f5f;
+}
+
+.jp-answer-option.is-wrong {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.1);
+  color: #c0392b;
+}
+
+.jp-answer-result {
+  border: 1px dashed var(--ink);
+  border-radius: 0;
+  background: rgba(211, 84, 0, 0.06) !important;
+}
+
+.jp-question-type {
+  border-radius: 0 !important;
+  background: rgba(211, 84, 0, 0.08);
+  color: var(--accent);
+  border-color: var(--ink);
+}
+
+.jp-question-type.is-multiple {
+  background: rgba(44, 62, 80, 0.08);
+  color: var(--ink);
+}
+
+.jp-question-type.is-judge {
+  background: rgba(230, 126, 34, 0.12);
+}
+
+.jp-question-type.is-short {
+  background: rgba(31, 143, 95, 0.1);
+  color: #1f8f5f;
+}
+
+.jp-question-index {
+  border: 1px solid rgba(44, 62, 80, 0.18);
+  border-radius: 0;
+}
+
+.jp-question-index.is-current {
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 2px 2px 0 var(--accent);
+}
+
+.jp-question-index.is-idle {
+  background: rgba(44, 62, 80, 0.08);
+  color: var(--ink);
+}
+
+.jp-question-index.is-idle:hover {
+  border-color: var(--ink);
+  background: rgba(211, 84, 0, 0.08);
+}
+
+.jp-question-index.is-correct {
+  background: rgba(31, 143, 95, 0.16);
+  border-color: #1f8f5f;
+  color: #1f8f5f;
+}
+
+.jp-question-index.is-wrong {
+  background: rgba(192, 57, 43, 0.14);
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+.jp-status-dot {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--ink);
+  display: inline-block;
+}
+
+.jp-status-dot.is-current {
+  background: var(--ink);
+}
+
+.jp-status-dot.is-correct {
+  background: rgba(31, 143, 95, 0.7);
+}
+
+.jp-status-dot.is-wrong {
+  background: rgba(192, 57, 43, 0.7);
+}
+
+.jp-status-dot.is-idle {
+  background: rgba(44, 62, 80, 0.08);
+}
+
+.dark .jp-answer-option {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+.dark .jp-answer-option:hover {
+  border-color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.dark .jp-answer-option.is-selected,
+.dark .jp-question-index.is-current {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  box-shadow: 2px 2px 0 rgba(56, 189, 248, 0.45);
+}
+
+.dark .jp-question-index.is-current {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.dark .jp-question-index.is-idle {
+  background: rgba(15, 23, 42, 0.45);
+  color: var(--text-primary);
+}
+
+.dark .jp-status-dot {
+  border-color: var(--accent-primary);
+}
+
+@media (max-width: 768px) {
+  .jp-quiz-page {
+    padding-top: 16px;
+  }
 }
 </style>
