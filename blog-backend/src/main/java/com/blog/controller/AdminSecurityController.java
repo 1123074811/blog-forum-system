@@ -3,8 +3,10 @@ package com.blog.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.blog.pojo.dto.ApiResponse;
+import com.blog.pojo.dto.BanIpRequest;
 import com.blog.pojo.dto.RevokeSessionsRequest;
 import com.blog.pojo.dto.UnblockIpRequest;
+import com.blog.pojo.entity.IpBlacklist;
 import com.blog.pojo.entity.SecurityEvent;
 import com.blog.pojo.entity.User;
 import com.blog.service.SecurityEventService;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -59,6 +62,27 @@ public class AdminSecurityController {
         }
         securityEventService.unbanIp(request.getIp());
         return ApiResponse.success(true);
+    }
+
+    @PostMapping("/risk/ban-ip")
+    public ApiResponse<Boolean> banIp(@RequestBody BanIpRequest request) {
+        if (request.getIp() == null || request.getIp().isBlank()) {
+            return ApiResponse.error("IP is required");
+        }
+        String reason = request.getReason();
+        if (reason == null || reason.isBlank()) {
+            reason = "security_policy";
+        }
+        Duration ttl = request.getDurationMinutes() != null && request.getDurationMinutes() > 0
+                ? Duration.ofMinutes(request.getDurationMinutes())
+                : null;
+        securityEventService.banIp(request.getIp(), reason, ttl);
+        return ApiResponse.success(true);
+    }
+
+    @GetMapping("/banned-ips")
+    public ApiResponse<List<IpBlacklist>> getBannedIps() {
+        return ApiResponse.success(securityEventService.listEffectiveBans());
     }
 
     @GetMapping("/events")

@@ -73,6 +73,7 @@ const routes = [
       { path: 'site-info', name: 'AdminSiteInfo', component: () => import('@/views/admin/SiteInfo.vue'), meta: { title: '网站设置' } },
       { path: 'announcements', name: 'AdminAnnouncements', component: () => import('@/views/admin/Announcements.vue'), meta: { title: '公告管理' } },
       { path: 'reports', name: 'AdminReports', component: () => import('@/views/admin/Reports.vue'), meta: { title: '内容审核' } },
+      { path: 'ip-bans', name: 'AdminIpBans', component: () => import('@/views/admin/IpBans.vue'), meta: { title: 'IP封禁' } },
     ]
   }
 ]

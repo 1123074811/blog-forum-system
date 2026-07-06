@@ -82,6 +82,9 @@ app:
     cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
     websocket-allowed-origins: ${WS_ALLOWED_ORIGINS:http://localhost:5173}
     trusted-proxy-ips: ${TRUSTED_PROXY_IPS:127.0.0.1,0:0:0:0:0:0:0:1,::1}
+  ip2region:
+    db-path: ${IP2REGION_DB_PATH:./data/ip2region.xdb}
+    db-url: ${IP2REGION_DB_URL:https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb}
 
 alert:
   webhook: ${ALERT_WEBHOOK:}

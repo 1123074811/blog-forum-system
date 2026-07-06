@@ -45,10 +45,10 @@ public class AdminController {
     private final com.blog.mapper.FileMapper fileMapper;
     private final com.blog.mapper.UserMapper userMapper;
     private final com.blog.mapper.SiteVisitMapper siteVisitMapper;
-    private final com.blog.mapper.IpBlacklistMapper ipBlacklistMapper;
     private final ChatWebSocketHandler chatWebSocketHandler;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final SecurityEventService securityEventService;
 
     @GetMapping("/ping")
     public ApiResponse<String> ping() {
@@ -59,8 +59,7 @@ public class AdminController {
     public ApiResponse<Map<String, Object>> getOnlineStatus() {
         String todayStr = DateUtil.now().substring(0, 10);
         SiteVisit todayVisit = siteVisitService.getOne(new LambdaQueryWrapper<SiteVisit>().eq(SiteVisit::getVisitDate, todayStr));
-        long activeIpBans = ipBlacklistMapper.selectCount(
-                new LambdaQueryWrapper<IpBlacklist>().eq(IpBlacklist::getStatus, 1));
+        int activeIpBans = securityEventService.listEffectiveBans().size();
 
         Map<String, Object> result = new HashMap<>();
         result.put("totalOnlineUsers", chatWebSocketHandler.getOnlineUserCount());
@@ -96,9 +95,7 @@ public class AdminController {
         stats.put("totalOnlineUsers", chatWebSocketHandler.getOnlineUserCount());
 
         // Operational metrics
-        long activeIpBans = ipBlacklistMapper.selectCount(
-                new LambdaQueryWrapper<IpBlacklist>().eq(IpBlacklist::getStatus, 1));
-        stats.put("activeIpBans", (int) activeIpBans);
+        stats.put("activeIpBans", securityEventService.listEffectiveBans().size());
 
         // Visitor Statistics — use SUM query instead of loading all rows
         String todayStr = DateUtil.now().substring(0, 10);

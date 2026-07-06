@@ -14,6 +14,9 @@ SECURE_NGINX_TEMPLATE="$OPS_DIR/nginx/secure-blog.conf"
 SECURITY_EVENT_SQL="$SCRIPT_DIR/blog-backend/sql/security_event.sql"
 KEY_ROTATION_RUNBOOK="$OPS_DIR/key-rotation-runbook.md"
 CLOUDFLARE_RUNBOOK="$OPS_DIR/cloudflare-runbook.md"
+IP2REGION_DB_SOURCE="$SCRIPT_DIR/blog-backend/data/ip2region.xdb"
+IP2REGION_DB_TARGET="/opt/blog/data/ip2region.xdb"
+IP2REGION_DEFAULT_DB_URL="https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -49,6 +52,56 @@ import_optional_sql() {
 
     mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" "$db_name" < "$sql_file"
     log_info "SQL 导入完成：$(basename "$sql_file")"
+}
+
+install_ip2region_db() {
+    local db_url="${IP2REGION_DB_URL:-$IP2REGION_DEFAULT_DB_URL}"
+    local tmp_file="${IP2REGION_DB_TARGET}.tmp"
+
+    mkdir -p "$(dirname "$IP2REGION_DB_TARGET")"
+
+    if [ -f "$IP2REGION_DB_SOURCE" ] && [ "$(stat -c%s "$IP2REGION_DB_SOURCE" 2>/dev/null || echo 0)" -gt 1000000 ]; then
+        cp "$IP2REGION_DB_SOURCE" "$IP2REGION_DB_TARGET"
+        log_info "已复制 ip2region xdb：$IP2REGION_DB_TARGET"
+        return 0
+    fi
+
+    log_warn "本地未找到有效 ip2region xdb，尝试下载：$db_url"
+    if curl -fL --retry 3 --connect-timeout 10 -o "$tmp_file" "$db_url"; then
+        if [ "$(stat -c%s "$tmp_file" 2>/dev/null || echo 0)" -gt 1000000 ]; then
+            mv "$tmp_file" "$IP2REGION_DB_TARGET"
+            log_info "ip2region xdb 下载完成：$IP2REGION_DB_TARGET"
+            return 0
+        fi
+        rm -f "$tmp_file"
+    fi
+
+    if [ -f "$IP2REGION_DB_TARGET" ]; then
+        log_warn "ip2region xdb 下载失败，将继续使用已有文件：$IP2REGION_DB_TARGET"
+        return 0
+    fi
+
+    log_error "ip2region xdb 准备失败，请检查网络或手动放置到 $IP2REGION_DB_TARGET"
+    exit 1
+}
+
+ensure_backend_ip2region_service_env() {
+    local service_file="/etc/systemd/system/blog-backend.service"
+    if [ ! -f "$service_file" ]; then
+        return 0
+    fi
+
+    sed -i '/^Environment=IP2REGION_DB_PATH=/d;/^Environment=IP2REGION_DB_URL=/d' "$service_file"
+
+    if grep -q '^WorkingDirectory=' "$service_file"; then
+        sed -i '/^WorkingDirectory=/a Environment=IP2REGION_DB_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb' "$service_file"
+        sed -i '/^WorkingDirectory=/a Environment=IP2REGION_DB_PATH=/opt/blog/data/ip2region.xdb' "$service_file"
+        return 0
+    fi
+
+    sed -i '/^User=/a WorkingDirectory=/opt/blog' "$service_file"
+    sed -i '/^WorkingDirectory=/a Environment=IP2REGION_DB_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb' "$service_file"
+    sed -i '/^WorkingDirectory=/a Environment=IP2REGION_DB_PATH=/opt/blog/data/ip2region.xdb' "$service_file"
 }
 
 write_secure_nginx_conf() {
@@ -429,6 +482,9 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 log_info "系统依赖安装完成"
 
+log_step "1.1 准备 IP 地址解析库..."
+install_ip2region_db
+
 if [ "$IS_UPGRADE" = "false" ]; then
     log_step "2. 配置 MySQL 数据库..."
     systemctl start mysql
@@ -631,6 +687,8 @@ After=network.target mysql.service redis.service
 Type=simple
 User=root
 WorkingDirectory=/opt/blog
+Environment=IP2REGION_DB_PATH=/opt/blog/data/ip2region.xdb
+Environment=IP2REGION_DB_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb
 ExecStart=/usr/bin/java -server -Xms2g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -Djava.security.egd=file:/dev/./urandom -jar /opt/blog/blog-backend.jar --spring.profiles.active=prod
 Restart=always
 RestartSec=10
@@ -718,8 +776,15 @@ oauth:
     client-id: $OAUTH_GITEE_CLIENT_ID
     client-secret: $OAUTH_GITEE_CLIENT_SECRET
     redirect-uri: $OAUTH_GITEE_REDIRECT_URI
+
+app:
+  ip2region:
+    db-path: /opt/blog/data/ip2region.xdb
+    db-url: https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb
 PRODYML
     fi
+
+    ensure_backend_ip2region_service_env
 
     systemctl daemon-reload
     systemctl start blog-backend
@@ -727,6 +792,7 @@ PRODYML
     log_info "后端服务创建完成"
 else
     log_info "升级模式：重启后端服务"
+    ensure_backend_ip2region_service_env
     systemctl daemon-reload
     systemctl restart blog-backend
     log_info "后端服务重启完成"
@@ -1228,7 +1294,6 @@ echo "数据库连接信息："
 echo "  主机：$SERVER_IP"
 echo "  端口：3306"
 echo "  用户：$DB_USERNAME"
-echo "  密码：$DB_PASSWORD"
 echo ""
 echo "运维附加文件："
 [ -f "$SECURE_NGINX_TEMPLATE" ] && echo "  Nginx 安全模板：$SECURE_NGINX_TEMPLATE"

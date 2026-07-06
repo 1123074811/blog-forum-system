@@ -178,3 +178,8 @@ export const checkMutualFollow = (userId) => api.get(`/messages/check-mutual/${u
 export const createReport = (data) => api.post('/reports', data)
 export const getAdminReports = (params) => api.get('/admin/reports', { params })
 export const handleReport = (id, data) => api.put(`/admin/reports/${id}`, data)
+
+// IP Ban APIs
+export const getBannedIps = () => api.get('/admin/security/banned-ips')
+export const banIp = (data) => api.post('/admin/security/risk/ban-ip', data)
+export const unblockIp = (ip) => api.post('/admin/security/risk/unblock-ip', { ip })

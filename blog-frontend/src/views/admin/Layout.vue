@@ -66,7 +66,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useIsMobile } from '@/composables/useIsMobile'
-import { DataAnalysis, User, Document, ChatDotRound, Folder, PriceTag, Picture, Film, List, Back, ChatLineSquare, Setting, Bell, Star, Menu, MoreFilled, Warning } from '@element-plus/icons-vue'
+import { DataAnalysis, User, Document, ChatDotRound, Folder, PriceTag, Picture, Film, List, Back, ChatLineSquare, Setting, Bell, Star, Menu, MoreFilled, Warning, Lock } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -87,7 +87,8 @@ const fullMenus = [
   { path: '/admin/tree-holes', label: '树洞管理', icon: ChatLineSquare },
   { path: '/admin/site-info', label: '网站设置', icon: Setting },
   { path: '/admin/announcements', label: '公告管理', icon: Bell },
-  { path: '/admin/reports', label: '内容审核', icon: Warning }
+  { path: '/admin/reports', label: '内容审核', icon: Warning },
+  { path: '/admin/ip-bans', label: 'IP封禁', icon: Lock }
 ]
 
 const mainTabs = [
@@ -119,7 +120,7 @@ const menuGroups = computed(() => [
   {
     key: 'system',
     label: '系统设置',
-    items: fullMenus.filter(m => ['/admin', '/admin/site-info', '/admin/announcements'].includes(m.path))
+    items: fullMenus.filter(m => ['/admin', '/admin/site-info', '/admin/announcements', '/admin/ip-bans'].includes(m.path))
   }
 ])
 
@@ -130,6 +131,7 @@ const currentTitle = computed(() => {
   if (route.path.startsWith('/admin/users')) return '用户管理'
   if (route.path.startsWith('/admin/comments')) return '评论管理'
   if (route.path.startsWith('/admin/reports')) return '内容审核'
+  if (route.path.startsWith('/admin/ip-bans')) return 'IP封禁'
   return '管理后台'
 })
 

@@ -25,6 +25,7 @@ public class IpBlacklist {
     private Long adminId;
     private Integer banType;
     private LocalDateTime expireTime;
+    private String location;
     private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

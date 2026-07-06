@@ -114,6 +114,9 @@ app:
     cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:https://oujincong.xyz,https://www.oujincong.xyz}
     cors-allowed-hosts: ${CORS_ALLOWED_HOSTS:oujincong.xyz,www.oujincong.xyz}
     websocket-allowed-origins: ${WS_ALLOWED_ORIGINS:https://oujincong.xyz,https://www.oujincong.xyz}
+  ip2region:
+    db-path: ${IP2REGION_DB_PATH:/opt/blog/data/ip2region.xdb}
+    db-url: ${IP2REGION_DB_URL:https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb}
 
 captcha:
   expire-seconds: ${CAPTCHA_EXPIRE_SECONDS:300}
